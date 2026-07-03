@@ -1,8 +1,8 @@
 import { BOARD_SIZE, getGridNumber, getGridCoord } from "./grid";
 import type { CornerRotation } from "./cell-shapes";
 
-/** Pares [menor, mayor] — la casilla menor es la primaria y absorbe a la otra */
-export const MERGED_PAIRS: readonly (readonly [number, number])[] = [
+/** Pares de camino coloreado (home) — ya en tamaño 2 */
+const COLORED_HOME_PAIRS: readonly (readonly [number, number])[] = [
   [7, 8],
   [21, 22],
   [35, 36],
@@ -28,6 +28,60 @@ export const MERGED_PAIRS: readonly (readonly [number, number])[] = [
   [89, 103],
   [90, 104],
 ] as const;
+
+/** Cuadrantes interiores: celdas blancas 1×1 → rectángulos verticales (celda + compañero de arriba) */
+const PATH_VERTICAL_BLOCKS: readonly {
+  rows: readonly [number, number];
+  cols: readonly number[];
+}[] = [
+  { rows: [4, 5], cols: [0, 1, 2, 3] },
+  { rows: [4, 5], cols: [10, 11, 12, 13] },
+  { rows: [8, 9], cols: [0, 1, 2, 3] },
+  { rows: [8, 9], cols: [10, 11, 12, 13] },
+] as const;
+
+/** Brazos exteriores: celdas blancas 1×1 → rectángulos horizontales (celda + compañero al lado) */
+const PATH_HORIZONTAL_BLOCKS: readonly {
+  cols: readonly [number, number];
+  rows: readonly number[];
+}[] = [
+  { cols: [4, 5], rows: [0, 1, 2, 3] },
+  { cols: [8, 9], rows: [0, 1, 2, 3] },
+  { cols: [4, 5], rows: [10, 11, 12, 13] },
+  { cols: [8, 9], rows: [10, 11, 12, 13] },
+] as const;
+
+function generatePathMovementPairs(): readonly (readonly [number, number])[] {
+  const pairs: [number, number][] = [];
+
+  for (const { rows, cols } of PATH_VERTICAL_BLOCKS) {
+    const [rTop, rBottom] = rows;
+    for (const c of cols) {
+      const upper = getGridNumber(rTop, c);
+      const lower = getGridNumber(rBottom, c);
+      pairs.push([Math.min(upper, lower), Math.max(upper, lower)]);
+    }
+  }
+
+  for (const { cols, rows } of PATH_HORIZONTAL_BLOCKS) {
+    const [cLeft, cRight] = cols;
+    for (const r of rows) {
+      const left = getGridNumber(r, cLeft);
+      const right = getGridNumber(r, cRight);
+      pairs.push([Math.min(left, right), Math.max(left, right)]);
+    }
+  }
+
+  return pairs;
+}
+
+const PATH_MOVEMENT_PAIRS = generatePathMovementPairs();
+
+/** Pares [menor, mayor] — la casilla menor es la primaria y absorbe a la otra */
+export const MERGED_PAIRS: readonly (readonly [number, number])[] = [
+  ...COLORED_HOME_PAIRS,
+  ...PATH_MOVEMENT_PAIRS,
+];
 
 /** Bloques 2×2 — esquina superior izquierda (número lógico) */
 export const MERGED_BLOCKS: readonly (readonly [number, number, number, number])[] = [
