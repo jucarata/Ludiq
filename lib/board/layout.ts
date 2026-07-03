@@ -144,59 +144,72 @@ function buildCell(r: number, c: number): CellData {
   const trackNumber = getTrackNumber(r, c);
 
   if (getMergeRole(r, c) === "secondary") {
-    return { kind: "void", gridNumber: 0, hidden: true };
+    return { shape: "basic", kind: "void", gridNumber: 0, hidden: true };
   }
 
   const gridNumber = getDisplayGridNumber(r, c)!;
   const span = getMergeSpan(r, c);
-  const diagonalPartnerNumber = isDiagonalSplitAnchor(r, c)
-    ? getDiagonalLowerRightDisplay(r, c)
-    : undefined;
-  const diagonalDirection = isDiagonalSplitAnchor(r, c)
+
+  const cornerRotation = isDiagonalSplitAnchor(r, c)
     ? getDiagonalSplitDirection(r, c)
     : undefined;
 
   const base = isBase(r, c);
+  if (base && BASE_COLORED_AROUND.has(key)) {
+    return {
+      shape: "decoration",
+      kind: "decoration",
+      owner: base,
+      gridNumber,
+    };
+  }
+
+  const shape = cornerRotation ? "corner" : "basic";
+  const corner =
+    cornerRotation !== undefined
+      ? {
+          partnerNumber: getDiagonalLowerRightDisplay(r, c)!,
+          rotation: cornerRotation,
+        }
+      : undefined;
+
   if (base) {
     const pieceSlot = getPieceSlot(r, c);
     if (pieceSlot !== undefined) {
-      return { kind: "base", owner: base, pieceSlot, gridNumber, diagonalPartnerNumber,
-diagonalDirection, ...span };
+      return {
+        shape: "start",
+        kind: "start",
+        owner: base,
+        start: { state: "occupied", slot: pieceSlot },
+        gridNumber,
+      };
     }
-    if (BASE_COLORED_AROUND.has(key)) {
-      return { kind: "void", owner: base, gridNumber, diagonalPartnerNumber,
-diagonalDirection, ...span };
-    }
-    return { kind: "path", gridNumber, trackNumber, diagonalPartnerNumber,
-diagonalDirection, ...span };
+    return { shape, kind: "path", gridNumber, trackNumber, corner, ...span };
   }
 
   if (getGridNumber(r, c) === VICTORY_ANCHOR) {
-    return { kind: "victory", gridNumber, diagonalPartnerNumber,
-diagonalDirection, ...span };
+    return { shape, kind: "victory", gridNumber, corner, ...span };
   }
 
   const safeOwner = SAFE_CELLS[key];
   if (safeOwner) {
     return {
+      shape,
       kind: "safe",
       owner: safeOwner,
       gridNumber,
       trackNumber,
-      diagonalPartnerNumber,
-diagonalDirection,
+      corner,
       ...span,
     };
   }
 
   const coloredHome = COLORED_HOME_CELLS[key];
   if (coloredHome) {
-    return { kind: "home", owner: coloredHome, gridNumber, diagonalPartnerNumber,
-diagonalDirection, ...span };
+    return { shape, kind: "home", owner: coloredHome, gridNumber, corner, ...span };
   }
 
-  return { kind: "path", gridNumber, trackNumber, diagonalPartnerNumber,
-diagonalDirection, ...span };
+  return { shape, kind: "path", gridNumber, trackNumber, corner, ...span };
 }
 
 export function buildBoardLayout(): CellData[][] {

@@ -1,4 +1,5 @@
 import { BOARD_SIZE, getGridNumber, getGridCoord } from "./grid";
+import type { CornerRotation } from "./cell-shapes";
 
 /** Pares [menor, mayor] — la casilla menor es la primaria y absorbe a la otra */
 export const MERGED_PAIRS: readonly (readonly [number, number])[] = [
@@ -40,7 +41,8 @@ export const MERGED_BLOCKS: readonly (readonly [number, number, number, number])
  */
 export const DIAGONAL_SPLIT_BLOCKS: readonly number[] = [61, 117, 65, 121] as const;
 
-export type DiagonalSplitDirection = "down-right" | "down-left";
+export type DiagonalSplitDirection = CornerRotation;
+export type { CornerRotation } from "./cell-shapes";
 
 export type MergeOrientation = "horizontal" | "vertical" | "block" | "diagonal";
 export type MergeRole = "primary" | "secondary" | null;
@@ -113,9 +115,9 @@ const PRE_DIAGONAL_DISPLAY = buildPreDiagonalDisplayMap(MERGE_SECONDARY);
 
 const DIAGONAL_UL_DISPLAY = new Map<string, number>();
 const DIAGONAL_LR_DISPLAY = new Map<string, number>();
-const DIAGONAL_DIRECTION = new Map<string, DiagonalSplitDirection>();
+const DIAGONAL_DIRECTION = new Map<string, CornerRotation>();
 
-const DIAGONAL_DIRECTION_BY_ANCHOR: Record<number, DiagonalSplitDirection> = {
+const DIAGONAL_DIRECTION_BY_ANCHOR: Record<number, CornerRotation> = {
   61: "down-right",
   117: "down-left",
   65: "down-left",
@@ -201,7 +203,7 @@ export function getDiagonalLowerRightDisplay(r: number, c: number): number | und
 export function getDiagonalSplitDirection(
   r: number,
   c: number,
-): DiagonalSplitDirection | undefined {
+): CornerRotation | undefined {
   return DIAGONAL_DIRECTION.get(`${r},${c}`);
 }
 

@@ -1,3 +1,8 @@
+import type { CellShape, CornerRotation } from "./cell-shapes";
+
+export type { CellShape, CornerRotation, TriangleCorner } from "./cell-shapes";
+export { CORNER_ROTATION_LAYOUT, getCornerRotationLayout } from "./cell-shapes";
+
 export type PlayerColor = "red" | "green" | "yellow" | "blue";
 
 export type CellKind =
@@ -7,14 +12,34 @@ export type CellKind =
   | "safe"
   | "home"
   | "center"
-  | "victory";
+  | "victory"
+  | "decoration"
+  | "start";
+
+/** Estado de una celda de inicio */
+export type StartCellState = "empty" | "occupied";
+
+export interface StartCellData {
+  state: StartCellState;
+  /** Índice de la ficha dentro de la base (0–3) */
+  slot: number;
+}
+
+export interface CornerCellData {
+  /** Número visible del segundo triángulo */
+  partnerNumber: number;
+  /** Rotación del corte diagonal */
+  rotation: CornerRotation;
+}
 
 export interface CellData {
+  /** Forma física: basic · corner · decoration (1×1, solo color) */
+  shape: CellShape;
   kind: CellKind;
   owner?: PlayerColor;
-  /** Posición de ficha dentro de la base (0–3) */
-  pieceSlot?: number;
-  /** Número visible del tablero (decrementa con celdas unidas) */
+  /** Configuración solo para shape "start" */
+  start?: StartCellData;
+  /** Número visible del tablero */
   gridNumber: number;
   /** Ocupa dos columnas del grid lógico */
   colSpan?: number;
@@ -22,12 +47,8 @@ export interface CellData {
   rowSpan?: number;
   /** No se renderiza (absorbida por unión) */
   hidden?: boolean;
-  /** Número visible de la otra mitad del cuadrado diagonal */
-  diagonalPartnerNumber?: number;
-  /** ↘ rojo/azul · ↙ amarillo/verde */
-  diagonalDirection?: "down-right" | "down-left";
-  /** Mitad de un cuadrado partido por la diagonal */
-  triangleHalf?: "upper-left" | "lower-right" | "upper-right" | "lower-left";
+  /** Configuración solo para shape "corner" */
+  corner?: CornerCellData;
   /** Número en el camino blanco (↺ antihorario, solo path) */
   trackNumber?: number;
 }

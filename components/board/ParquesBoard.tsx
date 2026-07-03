@@ -1,5 +1,5 @@
 import { buildBoardLayout, BOARD_SIZE } from "@/lib/board/layout";
-import { BoardCell, DiagonalSplitCell } from "./BoardCell";
+import { BoardCell } from "./BoardCell";
 
 const layout = buildBoardLayout();
 
@@ -34,19 +34,13 @@ export function ParquesBoard() {
         row.map((cell, c) => {
           if (cell.hidden) return null;
 
-          const style = gridAreaStyle(r, c, cell.colSpan ?? 1, cell.rowSpan ?? 1);
-
-          if (cell.diagonalPartnerNumber !== undefined) {
-            return (
-              <DiagonalSplitCell
-                key={`${r}-${c}`}
-                cell={cell}
-                style={style}
-              />
-            );
-          }
-
-          return <BoardCell key={`${r}-${c}`} cell={cell} style={style} />;
+          return (
+            <BoardCell
+              key={`${r}-${c}`}
+              cell={cell}
+              style={gridAreaStyle(r, c, cell.colSpan ?? 1, cell.rowSpan ?? 1)}
+            />
+          );
         }),
       )}
     </div>
