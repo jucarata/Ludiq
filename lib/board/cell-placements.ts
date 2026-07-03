@@ -1,6 +1,15 @@
 import { getGridCoord, getGridNumber } from "./grid";
 import type { BasicOrientation } from "./cell-shapes";
 import type { CornerRotation } from "./cell-shapes";
+import type { PlayerColor } from "./types";
+
+/** Celdas de movimiento en modo SAFE — ancla lógica → jugador */
+export const SAFE_MOVEMENT_CELLS: Record<number, PlayerColor> = {
+  7: "red",
+  85: "yellow",
+  98: "green",
+  189: "blue",
+};
 
 /** Celda básica de movimiento — rectángulo 2×1 con orientación fija */
 export interface BasicCellSpec {

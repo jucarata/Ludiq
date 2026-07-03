@@ -23,6 +23,7 @@ export function MovementCellRoot({
       style={style}
       data-cell-role="movement"
       data-track={movement?.trackNumber}
+      data-safe={movement?.safeOwner}
       data-basic-orientation={basicOrientation}
     >
       {children}

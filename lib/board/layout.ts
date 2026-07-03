@@ -14,6 +14,7 @@ import {
   isCellAnchor,
   DISPLAY_GRID_TOTAL,
 } from "./cell-footprint";
+import { SAFE_MOVEMENT_CELLS } from "./cell-placements";
 
 const SIZE = BOARD_SIZE;
 
@@ -55,25 +56,6 @@ function buildColoredHomeCells(): Record<string, PlayerColor> {
 }
 
 const COLORED_HOME_CELLS = buildColoredHomeCells();
-
-/** Casillas SAFE — por número lógico del ancla */
-const SAFE_BY_LOGICAL: Record<number, PlayerColor> = {
-  7: "red",
-  85: "yellow",
-  98: "green",
-  189: "blue",
-};
-
-function buildSafeCells(): Record<string, PlayerColor> {
-  const cells: Record<string, PlayerColor> = {};
-  for (const [logical, color] of Object.entries(SAFE_BY_LOGICAL)) {
-    const coord = getGridCoord(Number(logical));
-    if (coord) cells[`${coord[0]},${coord[1]}`] = color;
-  }
-  return cells;
-}
-
-const SAFE_CELLS = buildSafeCells();
 
 function isBase(r: number, c: number): PlayerColor | null {
   if (r < BASE_SIZE && c < BASE_SIZE) return "red";
@@ -220,38 +202,18 @@ function buildCell(r: number, c: number): CellData {
     });
   }
 
-  const safeOwner = SAFE_CELLS[key];
-  if (safeOwner) {
-    return movementCell({
-      shape,
-      kind: "safe",
-      owner: safeOwner,
-      gridNumber,
-      trackNumber,
-      basic,
-      corner,
-      ...span,
-    });
-  }
-
+  const logical = getGridNumber(r, c);
+  const safeOwner = SAFE_MOVEMENT_CELLS[logical];
   const coloredHome = COLORED_HOME_CELLS[key];
-  if (coloredHome) {
-    return movementCell({
-      shape,
-      kind: "home",
-      owner: coloredHome,
-      gridNumber,
-      basic,
-      corner,
-      ...span,
-    });
-  }
+  const owner = coloredHome ?? safeOwner;
 
   return movementCell({
     shape,
-    kind: "path",
+    kind: coloredHome ? "home" : "path",
+    owner,
     gridNumber,
     trackNumber,
+    safeOwner,
     basic,
     corner,
     ...span,

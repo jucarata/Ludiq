@@ -1,12 +1,10 @@
 import type { PlayerColor } from "@/lib/board/types";
 import { PLAYER_COLORS } from "@/lib/board/types";
-import { CellShell, GridNumber } from "./CellChrome";
+import { CellShell } from "./CellChrome";
 
 export interface DecorationCellProps {
   /** Color del jugador (solo decoración visual) */
   color: PlayerColor;
-  /** Número visible del tablero (opcional) */
-  gridNumber?: number;
   style?: React.CSSProperties;
 }
 
@@ -16,17 +14,12 @@ export interface DecorationCellProps {
  */
 export function DecorationCell({
   color,
-  gridNumber,
   style: gridStyle,
 }: DecorationCellProps) {
   return (
     <CellShell
       gridStyle={gridStyle}
       style={{ backgroundColor: PLAYER_COLORS[color].fill }}
-    >
-      {gridNumber !== undefined && (
-        <GridNumber n={gridNumber} dark={false} />
-      )}
-    </CellShell>
+    />
   );
 }

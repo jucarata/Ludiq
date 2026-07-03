@@ -1,8 +1,9 @@
 import type { CellData } from "@/lib/board/types";
+import { isSafeMovementCell } from "@/lib/board/cell-roles";
 
-/** Contenido central de una celda (SAFE, etc.) */
+/** Contenido central de una celda de movimiento (SAFE, etc.) */
 export function CellContent({ cell }: { cell: CellData }) {
-  if (cell.kind === "safe" && cell.owner) {
+  if (isSafeMovementCell(cell)) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <span

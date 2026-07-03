@@ -20,7 +20,6 @@ export function BoardCell({ cell, style }: BoardCellProps) {
       <StartCell
         color={cell.owner}
         state={cell.start.state}
-        gridNumber={cell.gridNumber}
         style={style}
       />
     );
@@ -30,7 +29,6 @@ export function BoardCell({ cell, style }: BoardCellProps) {
     return (
       <DecorationCell
         color={cell.owner}
-        gridNumber={cell.gridNumber}
         style={style}
       />
     );
@@ -39,7 +37,6 @@ export function BoardCell({ cell, style }: BoardCellProps) {
   if (isVictoryCell(cell)) {
     return (
       <VictoryCell
-        gridNumber={cell.gridNumber}
         movement={cell.movement}
         style={style}
       />
@@ -47,12 +44,13 @@ export function BoardCell({ cell, style }: BoardCellProps) {
   }
 
   if (isMovementCell(cell) && cell.shape === "corner" && cell.corner) {
+    const appearance = getCellAppearance(cell);
     return (
       <CornerCell
         movement={cell.movement}
         rotation={cell.corner.rotation}
         numbers={[cell.gridNumber, cell.corner.partnerNumber]}
-        background={getCellAppearance(cell)}
+        background={appearance}
         darkLabel={isDarkLabel(cell)}
         primaryContent={<CellContent cell={cell} />}
         style={style}

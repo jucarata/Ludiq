@@ -1,4 +1,5 @@
 import type { CellData } from "@/lib/board/types";
+import { isSafeMovementCell } from "@/lib/board/cell-roles";
 import type { MovementCellProps } from "./MovementCell";
 import { CellContent } from "./CellContent";
 import { CellShell, getCellAppearance, GridNumber, isDarkLabel } from "./CellChrome";
@@ -19,25 +20,20 @@ export function BasicCell({ cell, movement, style: gridStyle }: BasicCellProps) 
     basicOrientation: cell.basic?.orientation,
     style: gridStyle,
   };
-
-  if (cell.kind === "safe") {
-    return (
-      <MovementCellRoot {...rootProps}>
-        <CellShell
-          className={`flex h-full w-full items-center justify-center ${appearance.className ?? ""}`}
-          style={appearance.style}
-        >
-          {num}
-          <CellContent cell={cell} />
-        </CellShell>
-      </MovementCellRoot>
-    );
-  }
+  const isSafe = isSafeMovementCell(cell);
 
   return (
     <MovementCellRoot {...rootProps}>
-      <CellShell className={appearance.className} style={appearance.style}>
+      <CellShell
+        className={
+          isSafe
+            ? `flex h-full w-full items-center justify-center ${appearance.className ?? ""}`
+            : appearance.className
+        }
+        style={appearance.style}
+      >
         {num}
+        {isSafe && <CellContent cell={cell} />}
       </CellShell>
     </MovementCellRoot>
   );

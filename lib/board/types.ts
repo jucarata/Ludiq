@@ -9,7 +9,6 @@ export type CellKind =
   | "void"
   | "base"
   | "path"
-  | "safe"
   | "home"
   | "center"
   | "victory"
@@ -32,6 +31,8 @@ export type CellRole = "movement" | "decoration" | "start" | "victory";
 export interface MovementCellData {
   /** Posición en el camino ↺ — reservado para reglas futuras */
   trackNumber?: number;
+  /** Modo SAFE — movimiento + color del jugador + etiqueta SAFE */
+  safeOwner?: PlayerColor;
 }
 
 export interface CornerCellData {

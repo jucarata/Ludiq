@@ -1,4 +1,5 @@
 import type { CellData } from "@/lib/board/types";
+import { isSafeMovementCell } from "@/lib/board/cell-roles";
 import { PLAYER_COLORS, VICTORY_COLOR } from "@/lib/board/types";
 import type { TriangleCorner } from "@/lib/board/cell-shapes";
 
@@ -56,6 +57,7 @@ export function GridNumber({
 }
 
 export function isDarkLabel(cell: CellData): boolean {
+  if (isSafeMovementCell(cell)) return false;
   return cell.kind === "path" || (cell.kind === "center" && !cell.owner);
 }
 
@@ -63,6 +65,13 @@ export function getCellAppearance(cell: CellData): {
   className?: string;
   style?: React.CSSProperties;
 } {
+  if (isSafeMovementCell(cell)) {
+    return {
+      style: {
+        backgroundColor: PLAYER_COLORS[cell.movement.safeOwner].fill,
+      },
+    };
+  }
   if (cell.kind === "void" && cell.owner) {
     return { style: { backgroundColor: PLAYER_COLORS[cell.owner].fill } };
   }
@@ -87,7 +96,7 @@ export function getCellAppearance(cell: CellData): {
       },
     };
   }
-  if ((cell.kind === "home" || cell.kind === "safe") && cell.owner) {
+  if (cell.kind === "home" && cell.owner) {
     return { style: { backgroundColor: PLAYER_COLORS[cell.owner].fill } };
   }
   return { className: "bg-[var(--board-path)]" };
