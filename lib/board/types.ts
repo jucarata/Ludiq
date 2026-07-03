@@ -25,6 +25,15 @@ export interface StartCellData {
   slot: number;
 }
 
+/** Rol funcional de la celda en el tablero */
+export type CellRole = "movement" | "decoration" | "start" | "victory";
+
+/** Datos compartidos por celdas que heredan MovementCell (basic, corner, victory) */
+export interface MovementCellData {
+  /** Posición en el camino ↺ — reservado para reglas futuras */
+  trackNumber?: number;
+}
+
 export interface CornerCellData {
   /** Número visible del segundo triángulo */
   partnerNumber: number;
@@ -33,10 +42,14 @@ export interface CornerCellData {
 }
 
 export interface CellData {
-  /** Forma física: basic · corner · decoration (1×1, solo color) */
+  /** Rol: movement · decoration · start · victory */
+  role: CellRole;
+  /** Forma física: basic · corner · decoration · start */
   shape: CellShape;
   kind: CellKind;
   owner?: PlayerColor;
+  /** Datos de movimiento — presente en role "movement" y "victory" */
+  movement?: MovementCellData;
   /** Configuración solo para shape "start" */
   start?: StartCellData;
   /** Número visible del tablero */
@@ -49,8 +62,6 @@ export interface CellData {
   hidden?: boolean;
   /** Configuración solo para shape "corner" */
   corner?: CornerCellData;
-  /** Número en el camino blanco (↺ antihorario, solo path) */
-  trackNumber?: number;
 }
 
 export const PLAYER_COLORS: Record<

@@ -2,6 +2,7 @@ import type { CellData, PlayerColor } from "./types";
 import { BOARD_SIZE, getGridCoord, getGridNumber } from "./grid";
 import { BASE_SIZE, OPP_BASE_START } from "./geometry";
 import { getTrackNumber } from "./track";
+import { movementCell, victoryCell } from "./cell-roles";
 import {
   getMergeRole,
   getMergeSpan,
@@ -144,7 +145,12 @@ function buildCell(r: number, c: number): CellData {
   const trackNumber = getTrackNumber(r, c);
 
   if (getMergeRole(r, c) === "secondary") {
-    return { shape: "basic", kind: "void", gridNumber: 0, hidden: true };
+    return movementCell({
+      shape: "basic",
+      kind: "void",
+      gridNumber: 0,
+      hidden: true,
+    });
   }
 
   const gridNumber = getDisplayGridNumber(r, c)!;
@@ -157,6 +163,7 @@ function buildCell(r: number, c: number): CellData {
   const base = isBase(r, c);
   if (base && BASE_COLORED_AROUND.has(key)) {
     return {
+      role: "decoration",
       shape: "decoration",
       kind: "decoration",
       owner: base,
@@ -177,6 +184,7 @@ function buildCell(r: number, c: number): CellData {
     const pieceSlot = getPieceSlot(r, c);
     if (pieceSlot !== undefined) {
       return {
+        role: "start",
         shape: "start",
         kind: "start",
         owner: base,
@@ -184,16 +192,28 @@ function buildCell(r: number, c: number): CellData {
         gridNumber,
       };
     }
-    return { shape, kind: "path", gridNumber, trackNumber, corner, ...span };
+    return movementCell({
+      shape,
+      kind: "path",
+      gridNumber,
+      trackNumber,
+      corner,
+      ...span,
+    });
   }
 
   if (getGridNumber(r, c) === VICTORY_ANCHOR) {
-    return { shape, kind: "victory", gridNumber, corner, ...span };
+    return victoryCell({
+      shape,
+      gridNumber,
+      corner,
+      ...span,
+    });
   }
 
   const safeOwner = SAFE_CELLS[key];
   if (safeOwner) {
-    return {
+    return movementCell({
       shape,
       kind: "safe",
       owner: safeOwner,
@@ -201,15 +221,29 @@ function buildCell(r: number, c: number): CellData {
       trackNumber,
       corner,
       ...span,
-    };
+    });
   }
 
   const coloredHome = COLORED_HOME_CELLS[key];
   if (coloredHome) {
-    return { shape, kind: "home", owner: coloredHome, gridNumber, corner, ...span };
+    return movementCell({
+      shape,
+      kind: "home",
+      owner: coloredHome,
+      gridNumber,
+      corner,
+      ...span,
+    });
   }
 
-  return { shape, kind: "path", gridNumber, trackNumber, corner, ...span };
+  return movementCell({
+    shape,
+    kind: "path",
+    gridNumber,
+    trackNumber,
+    corner,
+    ...span,
+  });
 }
 
 export function buildBoardLayout(): CellData[][] {

@@ -5,6 +5,8 @@ import {
 } from "@/lib/board/cell-shapes";
 import type { CornerRotation } from "@/lib/board/cell-shapes";
 import { GridNumber } from "./CellChrome";
+import type { MovementCellProps } from "./MovementCell";
+import { MovementCellRoot } from "./MovementCell";
 
 interface CornerHalfProps {
   gridNumber: number;
@@ -37,7 +39,7 @@ function CornerHalf({
   );
 }
 
-export interface CornerCellProps {
+export interface CornerCellProps extends MovementCellProps {
   /** Rotación del corte diagonal */
   rotation: CornerRotation;
   /** Números visibles de cada triángulo */
@@ -55,7 +57,7 @@ export interface CornerCellProps {
 }
 
 /**
- * Celda esquinal reutilizable: cuadrado 2×2 partido en dos triángulos rectángulos.
+ * Celda de movimiento esquinal: cuadrado 2×2 partido en dos triángulos rectángulos.
  * Rota con `rotation` para cambiar el lado del corte.
  */
 export function CornerCell({
@@ -64,13 +66,15 @@ export function CornerCell({
   background,
   darkLabel = false,
   primaryContent,
+  movement,
   style,
   dividerWidth = 3,
 }: CornerCellProps) {
   const layout = getCornerRotationLayout(rotation);
 
   return (
-    <div className="relative h-full w-full min-h-0 min-w-0" style={style}>
+    <MovementCellRoot movement={movement} style={style}>
+      <div className="relative h-full w-full min-h-0 min-w-0">
       <CornerHalf
         gridNumber={numbers[0]}
         labelCorner={layout.first.labelCorner}
@@ -103,6 +107,7 @@ export function CornerCell({
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-    </div>
+      </div>
+    </MovementCellRoot>
   );
 }
