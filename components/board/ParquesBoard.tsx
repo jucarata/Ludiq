@@ -1,7 +1,19 @@
 import { buildBoardLayout, BOARD_SIZE } from "@/lib/board/layout";
-import { BoardCell } from "./BoardCell";
+import { BoardCell, DiagonalSplitCell } from "./BoardCell";
 
 const layout = buildBoardLayout();
+
+function gridAreaStyle(
+  r: number,
+  c: number,
+  colSpan = 1,
+  rowSpan = 1,
+): React.CSSProperties {
+  return {
+    gridColumn: `${c + 1} / span ${colSpan}`,
+    gridRow: `${r + 1} / span ${rowSpan}`,
+  };
+}
 
 export function ParquesBoard() {
   const boardSize = "min(calc(100dvw - 2rem), calc(100dvh - 2rem))";
@@ -21,16 +33,20 @@ export function ParquesBoard() {
       {layout.flatMap((row, r) =>
         row.map((cell, c) => {
           if (cell.hidden) return null;
-          return (
-            <BoardCell
-              key={`${r}-${c}`}
-              cell={cell}
-              style={{
-                ...(cell.colSpan ? { gridColumn: `span ${cell.colSpan}` } : {}),
-                ...(cell.rowSpan ? { gridRow: `span ${cell.rowSpan}` } : {}),
-              }}
-            />
-          );
+
+          const style = gridAreaStyle(r, c, cell.colSpan ?? 1, cell.rowSpan ?? 1);
+
+          if (cell.diagonalPartnerNumber !== undefined) {
+            return (
+              <DiagonalSplitCell
+                key={`${r}-${c}`}
+                cell={cell}
+                style={style}
+              />
+            );
+          }
+
+          return <BoardCell key={`${r}-${c}`} cell={cell} style={style} />;
         }),
       )}
     </div>

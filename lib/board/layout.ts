@@ -6,7 +6,9 @@ import {
   getMergeRole,
   getMergeSpan,
   getDisplayGridNumber,
-  displayToCoord,
+  isDiagonalSplitAnchor,
+  getDiagonalLowerRightDisplay,
+  getDiagonalSplitDirection,
   VICTORY_BLOCK,
 } from "./merges";
 
@@ -37,18 +39,18 @@ function buildColoredHomeCells(): Record<string, PlayerColor> {
 
 const COLORED_HOME_CELLS = buildColoredHomeCells();
 
-/** Casillas SAFE — por número visible del tablero */
-const SAFE_BY_DISPLAY: Record<number, PlayerColor> = {
+/** Casillas SAFE — por número lógico del tablero (estable ante renumeración) */
+const SAFE_BY_LOGICAL: Record<number, PlayerColor> = {
   7: "red",
-  79: "yellow",
-  91: "green",
-  163: "blue",
+  85: "yellow",
+  98: "green",
+  189: "blue",
 };
 
 function buildSafeCells(): Record<string, PlayerColor> {
   const cells: Record<string, PlayerColor> = {};
-  for (const [display, color] of Object.entries(SAFE_BY_DISPLAY)) {
-    const coord = displayToCoord(Number(display));
+  for (const [logical, color] of Object.entries(SAFE_BY_LOGICAL)) {
+    const coord = getGridCoord(Number(logical));
     if (coord) cells[`${coord[0]},${coord[1]}`] = color;
   }
   return cells;
@@ -147,21 +149,31 @@ function buildCell(r: number, c: number): CellData {
 
   const gridNumber = getDisplayGridNumber(r, c)!;
   const span = getMergeSpan(r, c);
+  const diagonalPartnerNumber = isDiagonalSplitAnchor(r, c)
+    ? getDiagonalLowerRightDisplay(r, c)
+    : undefined;
+  const diagonalDirection = isDiagonalSplitAnchor(r, c)
+    ? getDiagonalSplitDirection(r, c)
+    : undefined;
 
   const base = isBase(r, c);
   if (base) {
     const pieceSlot = getPieceSlot(r, c);
     if (pieceSlot !== undefined) {
-      return { kind: "base", owner: base, pieceSlot, gridNumber, ...span };
+      return { kind: "base", owner: base, pieceSlot, gridNumber, diagonalPartnerNumber,
+diagonalDirection, ...span };
     }
     if (BASE_COLORED_AROUND.has(key)) {
-      return { kind: "void", owner: base, gridNumber, ...span };
+      return { kind: "void", owner: base, gridNumber, diagonalPartnerNumber,
+diagonalDirection, ...span };
     }
-    return { kind: "path", gridNumber, trackNumber, ...span };
+    return { kind: "path", gridNumber, trackNumber, diagonalPartnerNumber,
+diagonalDirection, ...span };
   }
 
   if (getGridNumber(r, c) === VICTORY_ANCHOR) {
-    return { kind: "victory", gridNumber, ...span };
+    return { kind: "victory", gridNumber, diagonalPartnerNumber,
+diagonalDirection, ...span };
   }
 
   const safeOwner = SAFE_CELLS[key];
@@ -171,16 +183,20 @@ function buildCell(r: number, c: number): CellData {
       owner: safeOwner,
       gridNumber,
       trackNumber,
+      diagonalPartnerNumber,
+diagonalDirection,
       ...span,
     };
   }
 
   const coloredHome = COLORED_HOME_CELLS[key];
   if (coloredHome) {
-    return { kind: "home", owner: coloredHome, gridNumber, ...span };
+    return { kind: "home", owner: coloredHome, gridNumber, diagonalPartnerNumber,
+diagonalDirection, ...span };
   }
 
-  return { kind: "path", gridNumber, trackNumber, ...span };
+  return { kind: "path", gridNumber, trackNumber, diagonalPartnerNumber,
+diagonalDirection, ...span };
 }
 
 export function buildBoardLayout(): CellData[][] {

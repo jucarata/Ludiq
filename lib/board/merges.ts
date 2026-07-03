@@ -28,16 +28,23 @@ export const MERGED_PAIRS: readonly (readonly [number, number])[] = [
   [90, 104],
 ] as const;
 
-/**
- * Bloques 2×2 — primer número es la esquina superior izquierda (primaria).
- * Casillas de victoria del centro: 91, 92, 105, 106.
- */
+/** Bloques 2×2 — esquina superior izquierda (número lógico) */
 export const MERGED_BLOCKS: readonly (readonly [number, number, number, number])[] = [
   [91, 92, 105, 106],
 ] as const;
 
-export type MergeOrientation = "horizontal" | "vertical" | "block";
+/**
+ * Cuadrados 2×2 partidos en dos triángulos.
+ * Esquina superior izquierda de cada cuadrado (número lógico).
+ * 117 y 65 = amarillo/verde (diagonal ↙); 61 y 121 = rojo/azul (diagonal ↘).
+ */
+export const DIAGONAL_SPLIT_BLOCKS: readonly number[] = [61, 117, 65, 121] as const;
+
+export type DiagonalSplitDirection = "down-right" | "down-left";
+
+export type MergeOrientation = "horizontal" | "vertical" | "block" | "diagonal";
 export type MergeRole = "primary" | "secondary" | null;
+export type TriangleHalf = "upper-left" | "lower-right";
 
 export interface MergeSpan {
   colSpan?: number;
@@ -53,9 +60,15 @@ function blockPrimary(numbers: readonly number[]): number {
   });
 }
 
+function diagonalCorners(tlLogical: number): readonly [number, number, number, number] {
+  const [r, c] = getGridCoord(tlLogical)!;
+  return [getGridNumber(r, c), getGridNumber(r, c + 1), getGridNumber(r + 1, c), getGridNumber(r + 1, c + 1)];
+}
+
 const MERGE_SECONDARY = new Set<number>();
 const MERGE_PRIMARY = new Set<number>();
 const MERGE_ORIENTATION = new Map<number, MergeOrientation>();
+const DIAGONAL_ANCHORS = new Set<number>();
 
 for (const [a, b] of MERGED_PAIRS) {
   const primary = Math.min(a, b);
@@ -79,19 +92,77 @@ for (const block of MERGED_BLOCKS) {
   }
 }
 
-const ABSORBED_CELLS = MERGED_PAIRS.length + MERGED_BLOCKS.length * 3;
-
-function buildDisplayNumberMap(): Map<string, number> {
+/** Mapa de numeración antes de absorber las esquinas diagonales */
+function buildPreDiagonalDisplayMap(
+  secondary: ReadonlySet<number>,
+): Map<string, number> {
   const map = new Map<string, number>();
   let display = 0;
   for (let r = 0; r < BOARD_SIZE; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
       const logical = getGridNumber(r, c);
-      if (MERGE_SECONDARY.has(logical)) continue;
+      if (secondary.has(logical)) continue;
       display++;
       map.set(`${r},${c}`, display);
     }
   }
+  return map;
+}
+
+const PRE_DIAGONAL_DISPLAY = buildPreDiagonalDisplayMap(MERGE_SECONDARY);
+
+const DIAGONAL_UL_DISPLAY = new Map<string, number>();
+const DIAGONAL_LR_DISPLAY = new Map<string, number>();
+const DIAGONAL_DIRECTION = new Map<string, DiagonalSplitDirection>();
+
+const DIAGONAL_DIRECTION_BY_ANCHOR: Record<number, DiagonalSplitDirection> = {
+  61: "down-right",
+  117: "down-left",
+  65: "down-left",
+  121: "down-right",
+};
+
+for (const tlLogical of DIAGONAL_SPLIT_BLOCKS) {
+  const [, tr, bl, br] = diagonalCorners(tlLogical);
+  MERGE_PRIMARY.add(tlLogical);
+  MERGE_ORIENTATION.set(tlLogical, "diagonal");
+  DIAGONAL_ANCHORS.add(tlLogical);
+  MERGE_SECONDARY.add(tr);
+  MERGE_SECONDARY.add(bl);
+  MERGE_SECONDARY.add(br);
+
+  const [r, c] = getGridCoord(tlLogical)!;
+  const sorted = diagonalCorners(tlLogical)
+    .map((logical) => {
+      const [cr, cc] = getGridCoord(logical)!;
+      return PRE_DIAGONAL_DISPLAY.get(`${cr},${cc}`)!;
+    })
+    .sort((a, b) => a - b);
+  DIAGONAL_UL_DISPLAY.set(`${r},${c}`, sorted[0]);
+  DIAGONAL_LR_DISPLAY.set(`${r},${c}`, sorted[1]);
+  DIAGONAL_DIRECTION.set(`${r},${c}`, DIAGONAL_DIRECTION_BY_ANCHOR[tlLogical]);
+}
+
+const ABSORBED_CELLS =
+  MERGED_PAIRS.length + MERGED_BLOCKS.length * 3 + DIAGONAL_SPLIT_BLOCKS.length * 2;
+
+function buildDisplayNumberMap(): Map<string, number> {
+  const map = new Map<string, number>();
+
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const logical = getGridNumber(r, c);
+      if (MERGE_SECONDARY.has(logical)) continue;
+
+      if (DIAGONAL_ANCHORS.has(logical)) {
+        map.set(`${r},${c}`, DIAGONAL_UL_DISPLAY.get(`${r},${c}`)!);
+        continue;
+      }
+
+      map.set(`${r},${c}`, PRE_DIAGONAL_DISPLAY.get(`${r},${c}`)!);
+    }
+  }
+
   return map;
 }
 
@@ -119,6 +190,21 @@ export function getMergeRole(r: number, c: number): MergeRole {
   return null;
 }
 
+export function isDiagonalSplitAnchor(r: number, c: number): boolean {
+  return DIAGONAL_ANCHORS.has(getGridNumber(r, c));
+}
+
+export function getDiagonalLowerRightDisplay(r: number, c: number): number | undefined {
+  return DIAGONAL_LR_DISPLAY.get(`${r},${c}`);
+}
+
+export function getDiagonalSplitDirection(
+  r: number,
+  c: number,
+): DiagonalSplitDirection | undefined {
+  return DIAGONAL_DIRECTION.get(`${r},${c}`);
+}
+
 export function getMergeOrientation(r: number, c: number): MergeOrientation | null {
   const logical = getGridNumber(r, c);
   return MERGE_ORIENTATION.get(logical) ?? null;
@@ -128,7 +214,9 @@ export function getMergeSpan(r: number, c: number): MergeSpan {
   const orientation = getMergeOrientation(r, c);
   if (orientation === "horizontal") return { colSpan: 2 };
   if (orientation === "vertical") return { rowSpan: 2 };
-  if (orientation === "block") return { colSpan: 2, rowSpan: 2 };
+  if (orientation === "block" || orientation === "diagonal") {
+    return { colSpan: 2, rowSpan: 2 };
+  }
   return {};
 }
 
@@ -136,7 +224,6 @@ export function getDisplayGridNumber(r: number, c: number): number | undefined {
   return DISPLAY_NUMBER_MAP.get(`${r},${c}`);
 }
 
-/** Convierte número lógico (pre-unión, 1–196) a número visible del tablero */
 export function logicalToDisplay(logical: number): number | undefined {
   const coord = getGridCoord(logical);
   if (!coord) return undefined;
@@ -145,6 +232,13 @@ export function logicalToDisplay(logical: number): number | undefined {
       if (block.includes(logical as (typeof block)[number])) {
         const primary = blockPrimary(block);
         const [pr, pc] = getGridCoord(primary)!;
+        return getDisplayGridNumber(pr, pc);
+      }
+    }
+    for (const tlLogical of DIAGONAL_SPLIT_BLOCKS) {
+      const [, tr, bl, br] = diagonalCorners(tlLogical);
+      if ([tr, bl, br].includes(logical)) {
+        const [pr, pc] = getGridCoord(tlLogical)!;
         return getDisplayGridNumber(pr, pc);
       }
     }
@@ -162,7 +256,6 @@ export function isMergeSecondary(logical: number): boolean {
   return MERGE_SECONDARY.has(logical);
 }
 
-/** Números lógicos que forman el bloque de victoria 2×2 */
 export const VICTORY_BLOCK = MERGED_BLOCKS[0];
 
 export function isVictoryLogical(logical: number): boolean {

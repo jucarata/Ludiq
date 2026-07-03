@@ -22,6 +22,12 @@ export interface CellData {
   rowSpan?: number;
   /** No se renderiza (absorbida por unión) */
   hidden?: boolean;
+  /** Número visible de la otra mitad del cuadrado diagonal */
+  diagonalPartnerNumber?: number;
+  /** ↘ rojo/azul · ↙ amarillo/verde */
+  diagonalDirection?: "down-right" | "down-left";
+  /** Mitad de un cuadrado partido por la diagonal */
+  triangleHalf?: "upper-left" | "lower-right" | "upper-right" | "lower-left";
   /** Número en el camino blanco (↺ antihorario, solo path) */
   trackNumber?: number;
 }
