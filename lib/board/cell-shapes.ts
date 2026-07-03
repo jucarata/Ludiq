@@ -2,6 +2,22 @@
 export type CellShape = "basic" | "corner" | "decoration" | "start";
 
 /**
+ * Orientación de una celda básica de movimiento (rectángulo 2×1).
+ * - horizontal → ancho (colSpan 2)
+ * - vertical   → alto (rowSpan 2)
+ */
+export type BasicOrientation = "horizontal" | "vertical";
+
+export interface BasicSpan {
+  colSpan?: number;
+  rowSpan?: number;
+}
+
+export function getBasicSpan(orientation: BasicOrientation): BasicSpan {
+  return orientation === "horizontal" ? { colSpan: 2 } : { rowSpan: 2 };
+}
+
+/**
  * Rotación del corte esquinal (diagonal del cuadrado 2×2).
  * - down-right ↘  ·  down-left ↙
  * (up-right / up-left reservados para futuras rotaciones)

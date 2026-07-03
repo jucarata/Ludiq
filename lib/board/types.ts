@@ -1,7 +1,7 @@
-import type { CellShape, CornerRotation } from "./cell-shapes";
+import type { CellShape, CornerRotation, BasicOrientation } from "./cell-shapes";
 
-export type { CellShape, CornerRotation, TriangleCorner } from "./cell-shapes";
-export { CORNER_ROTATION_LAYOUT, getCornerRotationLayout } from "./cell-shapes";
+export type { CellShape, CornerRotation, TriangleCorner, BasicOrientation } from "./cell-shapes";
+export { CORNER_ROTATION_LAYOUT, getCornerRotationLayout, getBasicSpan } from "./cell-shapes";
 
 export type PlayerColor = "red" | "green" | "yellow" | "blue";
 
@@ -41,6 +41,12 @@ export interface CornerCellData {
   rotation: CornerRotation;
 }
 
+/** Configuración de celda básica de movimiento (rectángulo 2×1) */
+export interface BasicCellData {
+  /** horizontal ↔ vertical — igual que rotar la celda */
+  orientation: BasicOrientation;
+}
+
 export interface CellData {
   /** Rol: movement · decoration · start · victory */
   role: CellRole;
@@ -58,10 +64,10 @@ export interface CellData {
   colSpan?: number;
   /** Ocupa dos filas del grid lógico */
   rowSpan?: number;
-  /** No se renderiza (absorbida por unión) */
-  hidden?: boolean;
   /** Configuración solo para shape "corner" */
   corner?: CornerCellData;
+  /** Configuración solo para shape "basic" (rectángulos de movimiento) */
+  basic?: BasicCellData;
 }
 
 export const PLAYER_COLORS: Record<

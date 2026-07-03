@@ -4,35 +4,51 @@ import { BASE_SIZE, OPP_BASE_START } from "./geometry";
 import { getTrackNumber } from "./track";
 import { movementCell, victoryCell } from "./cell-roles";
 import {
-  getMergeRole,
-  getMergeSpan,
+  getCellSpan,
   getDisplayGridNumber,
-  isDiagonalSplitAnchor,
-  getDiagonalLowerRightDisplay,
-  getDiagonalSplitDirection,
-  VICTORY_BLOCK,
-} from "./merges";
+  getBasicOrientation,
+  isCornerAnchor,
+  getCornerPartnerNumber,
+  getCornerRotation,
+  isVictoryAnchor,
+  isCellAnchor,
+  DISPLAY_GRID_TOTAL,
+} from "./cell-footprint";
 
 const SIZE = BOARD_SIZE;
 
-/** Caminos de llegada al centro — por número del tablero */
-const COLORED_HOME_NUMBERS: Record<PlayerColor, readonly number[]> = {
-  red: [7, 8, 21, 22, 35, 36, 49, 50, 63, 64, 77, 78],
-  green: [93, 94, 95, 96, 97, 98, 107, 108, 109, 110, 111, 112],
-  blue: [119, 120, 133, 134, 147, 148, 161, 162, 175, 176, 189, 190],
-  yellow: [85, 86, 87, 88, 89, 90, 99, 100, 101, 102, 103, 104],
+/** Anclas lógicas de caminos de llegada coloreados (celdas básicas tamaño 2) */
+const COLORED_HOME_ANCHORS: Record<number, PlayerColor> = {
+  7: "red",
+  21: "red",
+  35: "red",
+  49: "red",
+  63: "red",
+  77: "red",
+  119: "blue",
+  133: "blue",
+  147: "blue",
+  161: "blue",
+  175: "blue",
+  189: "blue",
+  93: "green",
+  94: "green",
+  95: "green",
+  96: "green",
+  97: "green",
+  98: "green",
+  85: "yellow",
+  86: "yellow",
+  87: "yellow",
+  88: "yellow",
+  89: "yellow",
+  90: "yellow",
 };
-
-const COLORED_HOME_BY_GRID: Record<number, PlayerColor> = Object.fromEntries(
-  Object.entries(COLORED_HOME_NUMBERS).flatMap(([color, numbers]) =>
-    numbers.map((n) => [n, color as PlayerColor]),
-  ),
-);
 
 function buildColoredHomeCells(): Record<string, PlayerColor> {
   const cells: Record<string, PlayerColor> = {};
-  for (const [num, color] of Object.entries(COLORED_HOME_BY_GRID)) {
-    const coord = getGridCoord(Number(num));
+  for (const [logical, color] of Object.entries(COLORED_HOME_ANCHORS)) {
+    const coord = getGridCoord(Number(logical));
     if (coord) cells[`${coord[0]},${coord[1]}`] = color;
   }
   return cells;
@@ -40,7 +56,7 @@ function buildColoredHomeCells(): Record<string, PlayerColor> {
 
 const COLORED_HOME_CELLS = buildColoredHomeCells();
 
-/** Casillas SAFE — por número lógico del tablero (estable ante renumeración) */
+/** Casillas SAFE — por número lógico del ancla */
 const SAFE_BY_LOGICAL: Record<number, PlayerColor> = {
   7: "red",
   85: "yellow",
@@ -58,8 +74,6 @@ function buildSafeCells(): Record<string, PlayerColor> {
 }
 
 const SAFE_CELLS = buildSafeCells();
-
-const VICTORY_ANCHOR = Math.min(...VICTORY_BLOCK);
 
 function isBase(r: number, c: number): PlayerColor | null {
   if (r < BASE_SIZE && c < BASE_SIZE) return "red";
@@ -143,21 +157,11 @@ const BASE_COLORED_AROUND = buildBaseColoredAround();
 function buildCell(r: number, c: number): CellData {
   const key = `${r},${c}`;
   const trackNumber = getTrackNumber(r, c);
-
-  if (getMergeRole(r, c) === "secondary") {
-    return movementCell({
-      shape: "basic",
-      kind: "void",
-      gridNumber: 0,
-      hidden: true,
-    });
-  }
-
   const gridNumber = getDisplayGridNumber(r, c)!;
-  const span = getMergeSpan(r, c);
+  const span = getCellSpan(r, c);
 
-  const cornerRotation = isDiagonalSplitAnchor(r, c)
-    ? getDiagonalSplitDirection(r, c)
+  const cornerRotation = isCornerAnchor(r, c)
+    ? getCornerRotation(r, c)
     : undefined;
 
   const base = isBase(r, c);
@@ -172,10 +176,15 @@ function buildCell(r: number, c: number): CellData {
   }
 
   const shape = cornerRotation ? "corner" : "basic";
+  const basicOrientation =
+    shape === "basic" ? getBasicOrientation(r, c) : undefined;
+  const basic = basicOrientation
+    ? { orientation: basicOrientation }
+    : undefined;
   const corner =
     cornerRotation !== undefined
       ? {
-          partnerNumber: getDiagonalLowerRightDisplay(r, c)!,
+          partnerNumber: getCornerPartnerNumber(r, c)!,
           rotation: cornerRotation,
         }
       : undefined;
@@ -197,16 +206,16 @@ function buildCell(r: number, c: number): CellData {
       kind: "path",
       gridNumber,
       trackNumber,
+      basic,
       corner,
       ...span,
     });
   }
 
-  if (getGridNumber(r, c) === VICTORY_ANCHOR) {
+  if (isVictoryAnchor(r, c)) {
     return victoryCell({
-      shape,
+      shape: "basic",
       gridNumber,
-      corner,
       ...span,
     });
   }
@@ -219,6 +228,7 @@ function buildCell(r: number, c: number): CellData {
       owner: safeOwner,
       gridNumber,
       trackNumber,
+      basic,
       corner,
       ...span,
     });
@@ -231,6 +241,7 @@ function buildCell(r: number, c: number): CellData {
       kind: "home",
       owner: coloredHome,
       gridNumber,
+      basic,
       corner,
       ...span,
     });
@@ -241,16 +252,31 @@ function buildCell(r: number, c: number): CellData {
     kind: "path",
     gridNumber,
     trackNumber,
+    basic,
     corner,
     ...span,
   });
 }
 
-export function buildBoardLayout(): CellData[][] {
-  return Array.from({ length: SIZE }, (_, r) =>
-    Array.from({ length: SIZE }, (_, c) => buildCell(r, c)),
-  );
+export interface PlacedCell {
+  row: number;
+  col: number;
+  cell: CellData;
+}
+
+/** Celdas visibles del tablero — cada una con tamaño fijo y posición de ancla */
+export function buildBoardLayout(): PlacedCell[] {
+  const placed: PlacedCell[] = [];
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (!isCellAnchor(r, c)) continue;
+      placed.push({ row: r, col: c, cell: buildCell(r, c) });
+    }
+  }
+
+  return placed;
 }
 
 export { BOARD_SIZE } from "./grid";
-export { DISPLAY_GRID_TOTAL } from "./merges";
+export { DISPLAY_GRID_TOTAL };

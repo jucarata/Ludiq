@@ -30,19 +30,13 @@ export function ParquesBoard() {
       role="img"
       aria-label="Tablero de Parqués"
     >
-      {layout.flatMap((row, r) =>
-        row.map((cell, c) => {
-          if (cell.hidden) return null;
-
-          return (
-            <BoardCell
-              key={`${r}-${c}`}
-              cell={cell}
-              style={gridAreaStyle(r, c, cell.colSpan ?? 1, cell.rowSpan ?? 1)}
-            />
-          );
-        }),
-      )}
+      {layout.map(({ row, col, cell }) => (
+        <BoardCell
+          key={`${row}-${col}`}
+          cell={cell}
+          style={gridAreaStyle(row, col, cell.colSpan ?? 1, cell.rowSpan ?? 1)}
+        />
+      ))}
     </div>
   );
 }

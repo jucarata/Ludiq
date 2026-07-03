@@ -1,7 +1,9 @@
-import type { MovementCellData } from "@/lib/board/types";
+import type { BasicOrientation, MovementCellData } from "@/lib/board/types";
 
 export interface MovementCellProps {
   movement?: MovementCellData;
+  /** Solo celdas basic — horizontal | vertical */
+  basicOrientation?: BasicOrientation;
   style?: React.CSSProperties;
 }
 
@@ -11,6 +13,7 @@ export interface MovementCellProps {
  */
 export function MovementCellRoot({
   movement,
+  basicOrientation,
   style,
   children,
 }: MovementCellProps & { children: React.ReactNode }) {
@@ -20,6 +23,7 @@ export function MovementCellRoot({
       style={style}
       data-cell-role="movement"
       data-track={movement?.trackNumber}
+      data-basic-orientation={basicOrientation}
     >
       {children}
     </div>
