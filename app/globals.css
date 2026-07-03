@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  --board-red: #e63946;
+  --board-red-dark: #c1121f;
+  --board-blue: #457b9d;
+  --board-blue-dark: #1d3557;
+  --board-yellow: #f4a261;
+  --board-yellow-dark: #e76f51;
+  --board-green: #2a9d8f;
+  --board-green-dark: #264653;
+  --board-path: #fefae0;
+  --board-path-border: #d4c5a0;
+  --board-bg: #1a1a2e;
+}
+
+html,
+body {
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  background: var(--board-bg);
+  color: #fefae0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
