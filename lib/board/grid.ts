@@ -1,6 +1,8 @@
-export const BOARD_SIZE = 15;
+import { BOARD_SIZE } from "./geometry";
 
-/** Número único 1–225: fila por fila, izquierda → derecha, arriba → abajo */
+export { BOARD_SIZE };
+
+/** Número único 1–196: fila por fila, izquierda → derecha, arriba → abajo */
 export function getGridNumber(row: number, col: number): number {
   return row * BOARD_SIZE + col + 1;
 }

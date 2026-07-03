@@ -1,22 +1,28 @@
 import type { CellData } from "@/lib/board/types";
-import { PLAYER_COLORS } from "@/lib/board/types";
+import { PLAYER_COLORS, VICTORY_COLOR } from "@/lib/board/types";
 import { GamePiece } from "./GamePiece";
 
 interface BoardCellProps {
   cell: CellData;
+  style?: React.CSSProperties;
 }
 
 function CellShell({
   children,
   className = "",
   style,
+  gridStyle,
 }: {
   children?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  gridStyle?: React.CSSProperties;
 }) {
   return (
-    <div className="relative h-full w-full min-h-0 min-w-0">
+    <div
+      className="relative h-full w-full min-h-0 min-w-0"
+      style={gridStyle}
+    >
       <div
         className={`relative h-full w-full rounded-[2px] ${className}`}
         style={style}
@@ -44,12 +50,15 @@ function isDarkLabel(cell: CellData): boolean {
   return cell.kind === "path" || (cell.kind === "center" && !cell.owner);
 }
 
-export function BoardCell({ cell }: BoardCellProps) {
+export function BoardCell({ cell, style: gridStyle }: BoardCellProps) {
   const num = <GridNumber n={cell.gridNumber} dark={isDarkLabel(cell)} />;
 
   if (cell.kind === "void" && cell.owner) {
     return (
-      <CellShell style={{ backgroundColor: PLAYER_COLORS[cell.owner].fill }}>
+      <CellShell
+        gridStyle={gridStyle}
+        style={{ backgroundColor: PLAYER_COLORS[cell.owner].fill }}
+      >
         {num}
       </CellShell>
     );
@@ -58,6 +67,7 @@ export function BoardCell({ cell }: BoardCellProps) {
   if (cell.kind === "base" && cell.owner !== undefined && cell.pieceSlot !== undefined) {
     return (
       <CellShell
+        gridStyle={gridStyle}
         className="flex items-center justify-center"
         style={{ backgroundColor: PLAYER_COLORS[cell.owner].dark }}
       >
@@ -67,10 +77,18 @@ export function BoardCell({ cell }: BoardCellProps) {
     );
   }
 
+  if (cell.kind === "victory") {
+    return (
+      <CellShell gridStyle={gridStyle} style={{ backgroundColor: VICTORY_COLOR.fill }}>
+        {num}
+      </CellShell>
+    );
+  }
+
   if (cell.kind === "center") {
     const bg = cell.owner ? PLAYER_COLORS[cell.owner].fill : "var(--board-path)";
     return (
-      <CellShell style={{ backgroundColor: bg }}>
+      <CellShell gridStyle={gridStyle} style={{ backgroundColor: bg }}>
         {num}
       </CellShell>
     );
@@ -78,25 +96,11 @@ export function BoardCell({ cell }: BoardCellProps) {
 
   if (cell.kind === "home" && cell.owner) {
     return (
-      <CellShell style={{ backgroundColor: PLAYER_COLORS[cell.owner].fill }}>
-        {num}
-      </CellShell>
-    );
-  }
-
-  if (cell.kind === "exit" && cell.owner) {
-    return (
       <CellShell
-        className="flex items-center justify-center"
+        gridStyle={gridStyle}
         style={{ backgroundColor: PLAYER_COLORS[cell.owner].fill }}
       >
         {num}
-        <span
-          className="select-none font-extrabold text-white"
-          style={{ fontSize: "clamp(2px, 1.2vmin, 6px)" }}
-        >
-          EXIT
-        </span>
       </CellShell>
     );
   }
@@ -104,6 +108,7 @@ export function BoardCell({ cell }: BoardCellProps) {
   if (cell.kind === "safe" && cell.owner) {
     return (
       <CellShell
+        gridStyle={gridStyle}
         className="flex items-center justify-center"
         style={{ backgroundColor: PLAYER_COLORS[cell.owner].fill }}
       >
@@ -120,14 +125,14 @@ export function BoardCell({ cell }: BoardCellProps) {
 
   if (cell.kind === "path") {
     return (
-      <CellShell className="bg-[var(--board-path)]">
+      <CellShell gridStyle={gridStyle} className="bg-[var(--board-path)]">
         {num}
       </CellShell>
     );
   }
 
   return (
-    <CellShell>
+    <CellShell gridStyle={gridStyle} className="bg-[var(--board-path)]">
       {num}
     </CellShell>
   );

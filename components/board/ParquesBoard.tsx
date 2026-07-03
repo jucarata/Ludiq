@@ -19,9 +19,19 @@ export function ParquesBoard() {
       aria-label="Tablero de Parqués"
     >
       {layout.flatMap((row, r) =>
-        row.map((cell, c) => (
-          <BoardCell key={`${r}-${c}`} cell={cell} />
-        )),
+        row.map((cell, c) => {
+          if (cell.hidden) return null;
+          return (
+            <BoardCell
+              key={`${r}-${c}`}
+              cell={cell}
+              style={{
+                ...(cell.colSpan ? { gridColumn: `span ${cell.colSpan}` } : {}),
+                ...(cell.rowSpan ? { gridRow: `span ${cell.rowSpan}` } : {}),
+              }}
+            />
+          );
+        }),
       )}
     </div>
   );
