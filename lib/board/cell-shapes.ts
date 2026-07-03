@@ -1,5 +1,5 @@
 /** Forma física de la celda en el tablero */
-export type CellShape = "basic" | "corner" | "decoration" | "start";
+export type CellShape = "basic" | "corner" | "decoration";
 
 /**
  * Orientación de una celda básica de movimiento (rectángulo 2×1).
@@ -15,6 +15,38 @@ export interface BasicSpan {
 
 export function getBasicSpan(orientation: BasicOrientation): BasicSpan {
   return orientation === "horizontal" ? { colSpan: 2 } : { rowSpan: 2 };
+}
+
+/**
+ * Rotación de etiquetas SAFE / EXIT (sentido horario).
+ * - down  → 0°   (normal)
+ * - right → 90°
+ * - up    → 180°
+ * - left  → 270°
+ */
+export type MovementLabelOrientation = "down" | "right" | "up" | "left";
+
+/** @deprecated Usar MovementLabelOrientation */
+export type SafeLabelOrientation = MovementLabelOrientation;
+
+const MOVEMENT_LABEL_ROTATION: Record<MovementLabelOrientation, number> = {
+  down: 0,
+  right: 90,
+  up: 180,
+  left: 270,
+};
+
+export function getMovementLabelRotation(
+  orientation: MovementLabelOrientation,
+): number {
+  return MOVEMENT_LABEL_ROTATION[orientation];
+}
+
+/** @deprecated Usar getMovementLabelRotation */
+export function getSafeLabelRotation(
+  orientation: MovementLabelOrientation,
+): number {
+  return getMovementLabelRotation(orientation);
 }
 
 /**

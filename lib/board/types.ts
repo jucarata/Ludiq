@@ -1,7 +1,20 @@
-import type { CellShape, CornerRotation, BasicOrientation } from "./cell-shapes";
+import type { CellShape, CornerRotation, BasicOrientation, MovementLabelOrientation } from "./cell-shapes";
 
-export type { CellShape, CornerRotation, TriangleCorner, BasicOrientation } from "./cell-shapes";
-export { CORNER_ROTATION_LAYOUT, getCornerRotationLayout, getBasicSpan } from "./cell-shapes";
+export type {
+  CellShape,
+  CornerRotation,
+  TriangleCorner,
+  BasicOrientation,
+  MovementLabelOrientation,
+  SafeLabelOrientation,
+} from "./cell-shapes";
+export {
+  CORNER_ROTATION_LAYOUT,
+  getCornerRotationLayout,
+  getBasicSpan,
+  getMovementLabelRotation,
+  getSafeLabelRotation,
+} from "./cell-shapes";
 
 export type PlayerColor = "red" | "green" | "yellow" | "blue";
 
@@ -13,26 +26,33 @@ export type CellKind =
   | "center"
   | "victory"
   | "decoration"
-  | "start";
+  | "exit";
 
-/** Estado de una celda de inicio */
-export type StartCellState = "empty" | "occupied";
+/** Estado de una celda de salida (ficha en base) */
+export type ExitCellState = "empty" | "occupied";
 
-export interface StartCellData {
-  state: StartCellState;
+export interface ExitCellData {
+  state: ExitCellState;
   /** Índice de la ficha dentro de la base (0–3) */
   slot: number;
+  /** Rotación del texto EXIT (solo casillas de salida al camino) */
+  labelOrientation?: MovementLabelOrientation;
+}
+
+/** Modo SAFE — hereda de basic o corner */
+export interface SafeCellData {
+  owner: PlayerColor;
+  /** Rotación del texto SAFE: down · right · up · left */
+  labelOrientation: MovementLabelOrientation;
 }
 
 /** Rol funcional de la celda en el tablero */
-export type CellRole = "movement" | "decoration" | "start" | "victory";
+export type CellRole = "movement" | "decoration" | "victory";
 
-/** Datos compartidos por celdas que heredan MovementCell (basic, corner, victory) */
+/** Datos compartidos por celdas que heredan MovementCell */
 export interface MovementCellData {
   /** Posición en el camino ↺ — reservado para reglas futuras */
   trackNumber?: number;
-  /** Modo SAFE — movimiento + color del jugador + etiqueta SAFE */
-  safeOwner?: PlayerColor;
 }
 
 export interface CornerCellData {
@@ -49,25 +69,23 @@ export interface BasicCellData {
 }
 
 export interface CellData {
-  /** Rol: movement · decoration · start · victory */
+  /** Rol: movement · decoration · victory */
   role: CellRole;
-  /** Forma física: basic · corner · decoration · start */
+  /** Forma física: basic · corner · decoration */
   shape: CellShape;
   kind: CellKind;
   owner?: PlayerColor;
   /** Datos de movimiento — presente en role "movement" y "victory" */
   movement?: MovementCellData;
-  /** Configuración solo para shape "start" */
-  start?: StartCellData;
-  /** Número visible del tablero */
+  /** Modo SAFE (solo basic o corner) */
+  safe?: SafeCellData;
+  /** Celda de salida — solo basic */
+  exit?: ExitCellData;
+  /** Número visible del tablero (solo celdas de movimiento) */
   gridNumber: number;
-  /** Ocupa dos columnas del grid lógico */
   colSpan?: number;
-  /** Ocupa dos filas del grid lógico */
   rowSpan?: number;
-  /** Configuración solo para shape "corner" */
   corner?: CornerCellData;
-  /** Configuración solo para shape "basic" (rectángulos de movimiento) */
   basic?: BasicCellData;
 }
 

@@ -14,7 +14,7 @@ import {
   isCellAnchor,
   DISPLAY_GRID_TOTAL,
 } from "./cell-footprint";
-import { SAFE_MOVEMENT_CELLS } from "./cell-placements";
+import { SAFE_MOVEMENT_CELLS, EXIT_MOVEMENT_CELLS } from "./cell-placements";
 
 const SIZE = BOARD_SIZE;
 
@@ -171,17 +171,35 @@ function buildCell(r: number, c: number): CellData {
         }
       : undefined;
 
+  const logical = getGridNumber(r, c);
+  const exitSpec = EXIT_MOVEMENT_CELLS[logical];
+  if (exitSpec) {
+    return movementCell({
+      shape: "basic",
+      kind: "exit",
+      owner: exitSpec.owner,
+      exit: {
+        state: "empty",
+        slot: 0,
+        labelOrientation: exitSpec.label,
+      },
+      gridNumber,
+      trackNumber,
+      basic,
+      ...span,
+    });
+  }
+
   if (base) {
     const pieceSlot = getPieceSlot(r, c);
     if (pieceSlot !== undefined) {
-      return {
-        role: "start",
-        shape: "start",
-        kind: "start",
+      return movementCell({
+        shape: "basic",
+        kind: "exit",
         owner: base,
-        start: { state: "occupied", slot: pieceSlot },
+        exit: { state: "occupied", slot: pieceSlot },
         gridNumber,
-      };
+      });
     }
     return movementCell({
       shape,
@@ -202,10 +220,9 @@ function buildCell(r: number, c: number): CellData {
     });
   }
 
-  const logical = getGridNumber(r, c);
-  const safeOwner = SAFE_MOVEMENT_CELLS[logical];
+  const safeSpec = SAFE_MOVEMENT_CELLS[logical];
   const coloredHome = COLORED_HOME_CELLS[key];
-  const owner = coloredHome ?? safeOwner;
+  const owner = coloredHome ?? safeSpec?.owner;
 
   return movementCell({
     shape,
@@ -213,7 +230,9 @@ function buildCell(r: number, c: number): CellData {
     owner,
     gridNumber,
     trackNumber,
-    safeOwner,
+    safe: safeSpec
+      ? { owner: safeSpec.owner, labelOrientation: safeSpec.label }
+      : undefined,
     basic,
     corner,
     ...span,

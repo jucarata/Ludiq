@@ -1,14 +1,36 @@
 import { getGridCoord, getGridNumber } from "./grid";
 import type { BasicOrientation } from "./cell-shapes";
-import type { CornerRotation } from "./cell-shapes";
+import type { CornerRotation, MovementLabelOrientation } from "./cell-shapes";
 import type { PlayerColor } from "./types";
 
-/** Celdas de movimiento en modo SAFE — ancla lógica → jugador */
-export const SAFE_MOVEMENT_CELLS: Record<number, PlayerColor> = {
-  7: "red",
-  85: "yellow",
-  98: "green",
-  189: "blue",
+/** Celda de movimiento en modo SAFE */
+export interface SafeMovementSpec {
+  owner: PlayerColor;
+  label: MovementLabelOrientation;
+}
+
+/** Celdas de movimiento en modo SAFE — ancla lógica → jugador + rotación del texto */
+export const SAFE_MOVEMENT_CELLS: Record<number, SafeMovementSpec> = {
+  7: { owner: "red", label: "up" },
+  85: { owner: "yellow", label: "right" },
+  98: { owner: "green", label: "left" },
+  189: { owner: "blue", label: "down" },
+};
+
+/**
+ * Casillas de salida al camino — ancla lógica → jugador + rotación EXIT.
+ * Display: 27 rojo · 51 verde · 70 amarillo · 95 azul
+ */
+export interface ExitMovementSpec {
+  owner: PlayerColor;
+  label: MovementLabelOrientation;
+}
+
+export const EXIT_MOVEMENT_CELLS: Record<number, ExitMovementSpec> = {
+  33: { owner: "red", label: "up" },
+  68: { owner: "green", label: "left" },
+  115: { owner: "yellow", label: "right" },
+  163: { owner: "blue", label: "down" },
 };
 
 /** Celda básica de movimiento — rectángulo 2×1 con orientación fija */

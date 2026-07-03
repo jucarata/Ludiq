@@ -67,13 +67,14 @@ export function CornerCell({
   darkLabel = false,
   primaryContent,
   movement,
+  safe,
   style,
   dividerWidth = 3,
 }: CornerCellProps) {
   const layout = getCornerRotationLayout(rotation);
 
   return (
-    <MovementCellRoot movement={movement} style={style}>
+    <MovementCellRoot movement={movement} safe={safe} style={style}>
       <div className="relative h-full w-full min-h-0 min-w-0">
       <CornerHalf
         gridNumber={numbers[0]}

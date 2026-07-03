@@ -1,7 +1,9 @@
-import type { BasicOrientation, MovementCellData } from "@/lib/board/types";
+import type { BasicOrientation } from "@/lib/board/cell-shapes";
+import type { MovementCellData, SafeCellData } from "@/lib/board/types";
 
 export interface MovementCellProps {
   movement?: MovementCellData;
+  safe?: SafeCellData;
   /** Solo celdas basic — horizontal | vertical */
   basicOrientation?: BasicOrientation;
   style?: React.CSSProperties;
@@ -9,10 +11,11 @@ export interface MovementCellProps {
 
 /**
  * Contenedor base de celdas de movimiento.
- * Heredado por BasicCell, CornerCell y VictoryCell.
+ * Heredado por BasicCell, CornerCell, SafeBasicCell, SafeCornerCell, ExitCell y VictoryCell.
  */
 export function MovementCellRoot({
   movement,
+  safe,
   basicOrientation,
   style,
   children,
@@ -23,7 +26,8 @@ export function MovementCellRoot({
       style={style}
       data-cell-role="movement"
       data-track={movement?.trackNumber}
-      data-safe={movement?.safeOwner}
+      data-safe={safe?.owner}
+      data-safe-label={safe?.labelOrientation}
       data-basic-orientation={basicOrientation}
     >
       {children}

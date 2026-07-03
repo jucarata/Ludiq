@@ -1,2 +1,25 @@
-export { BoardCell, BasicCell, CornerCell, DecorationCell, StartCell, VictoryCell } from "./cells/BoardCell";
-export type { CornerCellProps, DecorationCellProps, StartCellProps, VictoryCellProps } from "./cells/BoardCell";
+export {
+  BoardCell,
+  BasicCell,
+  CornerCell,
+  DecorationCell,
+  ExitCell,
+  SafeBasicCell,
+  SafeCornerCell,
+  ExitLabel,
+  MovementLabel,
+  SafeLabel,
+  VictoryCell,
+} from "./cells/BoardCell";
+export type {
+  BasicCellProps,
+  CornerCellProps,
+  DecorationCellProps,
+  ExitCellProps,
+  ExitLabelProps,
+  MovementLabelProps,
+  SafeBasicCellProps,
+  SafeCornerCellProps,
+  SafeLabelProps,
+  VictoryCellProps,
+} from "./cells/BoardCell";

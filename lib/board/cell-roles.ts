@@ -1,27 +1,26 @@
-import type { CellData, CellRole, MovementCellData, PlayerColor } from "./types";
+import type {
+  CellData,
+  CellRole,
+  ExitCellData,
+  MovementCellData,
+  SafeCellData,
+} from "./types";
 
-export function buildMovementData(
-  trackNumber?: number,
-  safeOwner?: PlayerColor,
-): MovementCellData {
-  return {
-    ...(trackNumber !== undefined && { trackNumber }),
-    ...(safeOwner !== undefined && { safeOwner }),
-  };
+export function buildMovementData(trackNumber?: number): MovementCellData {
+  return trackNumber !== undefined ? { trackNumber } : {};
 }
 
-/** Celda de movimiento — heredada por shape `basic` y `corner` */
+/** Celda de movimiento — base de basic, corner, safe y exit */
 export function movementCell(
-  cell: Omit<CellData, "role" | "movement" | "trackNumber" | "safeOwner"> & {
+  cell: Omit<CellData, "role" | "movement" | "trackNumber"> & {
     trackNumber?: number;
-    safeOwner?: PlayerColor;
   },
 ): CellData {
-  const { trackNumber, safeOwner, ...rest } = cell;
+  const { trackNumber, ...rest } = cell;
   return {
     ...rest,
     role: "movement",
-    movement: buildMovementData(trackNumber, safeOwner),
+    movement: buildMovementData(trackNumber),
   };
 }
 
@@ -52,16 +51,22 @@ export function isVictoryCell(
   return cell.role === "victory";
 }
 
-/** Celda de movimiento en modo SAFE (basic o corner) */
-export function isSafeMovementCell(
+/** SAFE — hereda de basic o corner */
+export function isSafeCell(
   cell: CellData,
-): cell is CellData & { role: "movement"; movement: { safeOwner: PlayerColor } } {
-  return cell.role === "movement" && cell.movement?.safeOwner !== undefined;
+): cell is CellData & { role: "movement"; safe: SafeCellData } {
+  return cell.role === "movement" && cell.safe !== undefined;
+}
+
+/** Salida — hereda de basic (solo shape basic) */
+export function isExitCell(
+  cell: CellData,
+): cell is CellData & { role: "movement"; exit: ExitCellData; owner: CellData["owner"] } {
+  return cell.role === "movement" && cell.exit !== undefined;
 }
 
 export function roleForKind(kind: CellData["kind"]): CellRole {
   if (kind === "decoration") return "decoration";
-  if (kind === "start") return "start";
   if (kind === "victory") return "victory";
   return "movement";
 }
