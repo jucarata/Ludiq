@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useDice } from "@/components/dice/DiceContext";
-import { DieFace } from "@/components/dice/DieFace";
+import { DicePairVisual } from "@/components/dice/DicePairVisual";
 
 export function DiceCursor() {
   const { isAiming, isRolling, isBoardDragging } = useDice();
@@ -38,7 +38,7 @@ export function DiceCursor() {
       style={{ left: position.x, top: position.y }}
       aria-hidden
     >
-      <DieFace className="h-10 w-10 drop-shadow-lg" />
+      <DicePairVisual sizeClass="h-9 w-9" gapClass="gap-1.5" />
     </div>
   );
 }

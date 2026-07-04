@@ -8,8 +8,49 @@ export const DICE_MAX_LAUNCH_SPEED = 1200;
 export const DICE_VELOCITY_SCALE = 2.4;
 export const DICE_SAMPLE_WINDOW_MS = 140;
 
+export const DICE_COUNT = 2;
+export const DICE_PAIR_SPAWN_OFFSET = 22;
+
 export function rollDie(): number {
   return Math.floor(Math.random() * 6) + 1;
+}
+
+export function rollDicePair(): [number, number] {
+  return [rollDie(), rollDie()];
+}
+
+export function createPairedThrowVelocities(
+  baseVx: number,
+  baseVy: number,
+): [{ vx: number; vy: number }, { vx: number; vy: number }] {
+  const base = normalizeThrowVelocity(baseVx, baseVy);
+  const baseAngle = Math.atan2(base.vy, base.vx);
+  const baseSpeed = Math.hypot(base.vx, base.vy);
+
+  const spread = 0.45 + Math.random() * 0.35;
+  const speedScaleA = 0.8 + Math.random() * 0.35;
+  const speedScaleB = 0.8 + Math.random() * 0.35;
+
+  const angleA = baseAngle + spread;
+  const angleB = baseAngle - spread;
+  const speedA = baseSpeed * speedScaleA;
+  const speedB = baseSpeed * speedScaleB;
+
+  return [
+    { vx: Math.cos(angleA) * speedA, vy: Math.sin(angleA) * speedA },
+    { vx: Math.cos(angleB) * speedB, vy: Math.sin(angleB) * speedB },
+  ];
+}
+
+export function createPairedSpawnPoints(
+  x: number,
+  y: number,
+): [{ x: number; y: number }, { x: number; y: number }] {
+  const offset = DICE_PAIR_SPAWN_OFFSET;
+  return [
+    { x: x - offset, y: y - offset * 0.45 },
+    { x: x + offset, y: y + offset * 0.45 },
+  ];
 }
 
 export interface VelocitySample {

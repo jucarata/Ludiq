@@ -2,7 +2,7 @@
 
 import { useDice } from "@/components/dice/DiceContext";
 import { useTurn } from "@/components/game/TurnContext";
-import { DieFace } from "@/components/dice/DieFace";
+import { DicePairVisual } from "@/components/dice/DicePairVisual";
 import { PLAYER_COLORS } from "@/lib/board/types";
 
 export function DiceLauncher() {
@@ -23,11 +23,15 @@ export function DiceLauncher() {
     return (
       <div className="mb-4 flex flex-col items-center gap-2 border-b border-[#d4c5a0]/25 pb-4">
         <div
-          className="flex min-h-[5.5rem] min-w-[5.5rem] flex-col items-center justify-center rounded-xl bg-[#1a1a2e] px-6 py-4 md:min-h-[6.5rem] md:min-w-[6.5rem]"
-          aria-label={`${label} sacó ${turnRoll}`}
+          className="flex min-h-[5.5rem] items-center justify-center gap-3 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem] md:gap-4"
+          aria-label={`${label} sacó ${turnRoll[0]} y ${turnRoll[1]}`}
         >
-          <span className="font-mono text-5xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-6xl">
-            {turnRoll}
+          <span className="font-mono text-4xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-5xl">
+            {turnRoll[0]}
+          </span>
+          <span className="text-xl font-bold text-[#d4c5a0]/80 md:text-2xl">+</span>
+          <span className="font-mono text-4xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-5xl">
+            {turnRoll[1]}
           </span>
         </div>
       </div>
@@ -48,13 +52,13 @@ export function DiceLauncher() {
         aria-pressed={isAiming}
         aria-label={
           isAiming
-            ? "Cancelar lanzamiento de dado"
-            : `Lanzar dado — turno de ${label}`
+            ? "Cancelar lanzamiento de dados"
+            : `Lanzar dados — turno de ${label}`
         }
       >
-        <DieFace className="h-14 w-14 md:h-16 md:w-16" />
+        <DicePairVisual />
         <span className="text-xs font-semibold uppercase tracking-wide text-[#d4c5a0]">
-          {isAiming ? "Cancelar" : "Lanzar dado"}
+          {isAiming ? "Cancelar" : "Lanzar dados"}
         </span>
       </button>
       {isAiming && (

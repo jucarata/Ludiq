@@ -31,11 +31,15 @@ export type CellKind =
 /** Estado de una celda de salida (ficha en base) */
 export type ExitCellState = "empty" | "occupied";
 
+/** Rol de la celda: inicio (fichas en base) o salida al camino */
+export type ExitCellRole = "start" | "path";
+
 export interface ExitCellData {
+  role: ExitCellRole;
   state: ExitCellState;
-  /** Índice de la ficha dentro de la base (0–3) */
+  /** Índice de la ficha dentro del bloque de inicio (0–3) */
   slot: number;
-  /** Rotación del texto EXIT (solo casillas de salida al camino) */
+  /** Rotación del texto EXIT (solo casilla de salida al camino) */
   labelOrientation?: MovementLabelOrientation;
 }
 

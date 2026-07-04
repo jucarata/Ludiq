@@ -2,7 +2,9 @@ import type { CellData } from "@/lib/board/types";
 import {
   isExitCell,
   isMovementCell,
+  isPathExitCell,
   isSafeCell,
+  isStartCell,
   isVictoryCell,
 } from "@/lib/board/cell-roles";
 import { BasicCell } from "./BasicCell";
@@ -12,6 +14,7 @@ import { ExitCell } from "./ExitCell";
 import { SafeBasicCell } from "./SafeBasicCell";
 import { SafeCornerCell } from "./SafeCornerCell";
 import { getCellAppearance } from "./CellChrome";
+import { StartCell } from "./StartCell";
 import { VictoryCell } from "./VictoryCell";
 
 export interface BoardCellProps {
@@ -27,6 +30,14 @@ export function BoardCell({ cell, style }: BoardCellProps) {
 
   if (isVictoryCell(cell)) {
     return <VictoryCell movement={cell.movement} style={style} />;
+  }
+
+  if (isStartCell(cell)) {
+    return <StartCell cell={cell} movement={cell.movement} style={style} />;
+  }
+
+  if (isPathExitCell(cell)) {
+    return <ExitCell cell={cell} movement={cell.movement} style={style} />;
   }
 
   if (isExitCell(cell)) {
@@ -63,6 +74,8 @@ export { BasicCell } from "./BasicCell";
 export { CornerCell } from "./CornerCell";
 export { DecorationCell } from "./DecorationCell";
 export { ExitCell } from "./ExitCell";
+export { StartCell } from "./StartCell";
+export type { StartCellProps } from "./StartCell";
 export { MovementCellRoot } from "./MovementCell";
 export { SafeBasicCell } from "./SafeBasicCell";
 export { SafeCornerCell } from "./SafeCornerCell";

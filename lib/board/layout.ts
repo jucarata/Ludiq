@@ -15,6 +15,7 @@ import {
   DISPLAY_GRID_TOTAL,
 } from "./cell-footprint";
 import { SAFE_MOVEMENT_CELLS, EXIT_MOVEMENT_CELLS } from "./cell-placements";
+import { START_PIECE_SLOTS } from "./start-slots";
 
 const SIZE = BOARD_SIZE;
 
@@ -65,33 +66,8 @@ function isBase(r: number, c: number): PlayerColor | null {
   return null;
 }
 
-/** Slots de fichas en cada base (coordenadas dentro del 5×5) */
-const BASE_PIECE_SLOTS: Record<PlayerColor, [number, number][]> = {
-  red: [
-    [1, 1],
-    [1, 2],
-    [2, 1],
-    [2, 2],
-  ],
-  green: [
-    [1, 11],
-    [1, 12],
-    [2, 11],
-    [2, 12],
-  ],
-  yellow: [
-    [11, 1],
-    [11, 2],
-    [12, 1],
-    [12, 2],
-  ],
-  blue: [
-    [11, 11],
-    [11, 12],
-    [12, 11],
-    [12, 12],
-  ],
-};
+/** Slots de fichas en cada casilla de inicio (coordenadas dentro del 5×5) */
+const BASE_PIECE_SLOTS = START_PIECE_SLOTS;
 
 const NEIGHBOR_OFFSETS: readonly [number, number][] = [
   [-1, -1],
@@ -179,6 +155,7 @@ function buildCell(r: number, c: number): CellData {
       kind: "exit",
       owner: exitSpec.owner,
       exit: {
+        role: "path",
         state: "empty",
         slot: 0,
         labelOrientation: exitSpec.label,
@@ -197,7 +174,7 @@ function buildCell(r: number, c: number): CellData {
         shape: "basic",
         kind: "exit",
         owner: base,
-        exit: { state: "occupied", slot: pieceSlot },
+        exit: { role: "start", state: "empty", slot: pieceSlot },
         gridNumber,
       });
     }

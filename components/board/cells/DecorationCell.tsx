@@ -10,7 +10,7 @@ export interface DecorationCellProps {
 
 /**
  * Celda decorativa 1×1 — solo color, sin interacción de juego.
- * Típicamente rodea el bloque de fichas en cada base.
+ * Típicamente rodea el bloque de fichas en cada casilla de inicio.
  */
 export function DecorationCell({
   color,

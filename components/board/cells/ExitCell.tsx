@@ -1,29 +1,27 @@
 import type { CellData } from "@/lib/board/types";
-import { GamePiece } from "../GamePiece";
+import { useGameState } from "@/components/game/GameStateContext";
 import type { BasicCellProps } from "./BasicCell";
 import { BasicCell } from "./BasicCell";
 import { ExitLabel } from "./ExitLabel";
+import { PathExitPieces } from "./PathExitPieces";
 
 export interface ExitCellProps extends BasicCellProps {
   cell: CellData;
 }
 
-/** Celda de salida — hereda de BasicCell (EXIT rotado o ficha en base) */
+/** Casilla de salida al camino — muestra EXIT o las fichas que acaban de salir */
 export function ExitCell({ cell, movement, style }: ExitCellProps) {
-  const showExitLabel =
-    cell.exit?.state === "empty" && cell.exit.labelOrientation !== undefined;
+  const { getPiecesAtPathExit } = useGameState();
+  const owner = cell.owner!;
+  const piecesOnExit = getPiecesAtPathExit(owner);
 
   return (
-    <BasicCell
-      cell={cell}
-      movement={movement}
-      style={style}
-    >
-      {showExitLabel && (
-        <ExitLabel orientation={cell.exit!.labelOrientation!} />
+    <BasicCell cell={cell} movement={movement} style={style}>
+      {piecesOnExit.length === 0 && cell.exit?.labelOrientation && (
+        <ExitLabel orientation={cell.exit.labelOrientation} />
       )}
-      {cell.exit?.state === "occupied" && cell.owner && (
-        <GamePiece color={cell.owner} />
+      {piecesOnExit.length > 0 && (
+        <PathExitPieces player={owner} pieces={piecesOnExit} />
       )}
     </BasicCell>
   );

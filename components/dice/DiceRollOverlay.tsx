@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ActiveDiceRoll } from "@/components/dice/DiceContext";
+import type { ActiveDieRoll } from "@/components/dice/DiceContext";
 import { DieFace } from "@/components/dice/DieFace";
 import {
   createDicePhysics,
@@ -14,19 +14,19 @@ import {
 } from "@/lib/game/dice";
 
 interface DiceRollOverlayProps {
-  roll: ActiveDiceRoll;
-  onComplete: (value: number) => void;
+  roll: ActiveDieRoll;
+  onSettled: (value: number) => void;
 }
 
-export function DiceRollOverlay({ roll, onComplete }: DiceRollOverlayProps) {
+export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
   const [displayValue, setDisplayValue] = useState(1);
   const [phase, setPhase] = useState<"rolling" | "result">("rolling");
   const [renderState, setRenderState] = useState<DicePhysicsState>(() => {
     const velocity = normalizeThrowVelocity(roll.vx, roll.vy);
     return createDicePhysics(roll.x, roll.y, velocity.vx, velocity.vy);
   });
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
 
   useEffect(() => {
     setPhase("rolling");
@@ -62,7 +62,7 @@ export function DiceRollOverlay({ roll, onComplete }: DiceRollOverlayProps) {
         setDisplayValue(roll.value);
         setPhase("result");
         resultTimeout = window.setTimeout(() => {
-          onCompleteRef.current(roll.value);
+          onSettledRef.current(roll.value);
         }, DICE_RESULT_HOLD_MS);
         return;
       }
@@ -76,7 +76,7 @@ export function DiceRollOverlay({ roll, onComplete }: DiceRollOverlayProps) {
       cancelAnimationFrame(frame);
       window.clearTimeout(resultTimeout);
     };
-  }, [roll.id, roll.value, roll.x, roll.y, roll.vx, roll.vy, roll.bounds]);
+  }, [roll.sessionId, roll.key, roll.value, roll.x, roll.y, roll.vx, roll.vy, roll.bounds]);
 
   return (
     <div

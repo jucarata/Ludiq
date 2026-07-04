@@ -28,7 +28,8 @@ interface TurnState {
 type TurnAction =
   | { type: "tick" }
   | { type: "pause_for_roll" }
-  | { type: "start_decision" };
+  | { type: "start_decision" }
+  | { type: "advance_turn" };
 
 interface TurnContextValue {
   currentPlayer: PlayerColor;
@@ -37,6 +38,7 @@ interface TurnContextValue {
   announcement: PlayerColor | null;
   pauseForDiceRoll: () => void;
   startDecisionPhase: () => void;
+  advanceTurn: () => void;
 }
 
 const TurnContext = createContext<TurnContextValue | null>(null);
@@ -51,6 +53,13 @@ function turnReducer(state: TurnState, action: TurnAction): TurnState {
         ...state,
         phase: "deciding",
         timeLeft: TURN_DECISION_SECONDS,
+      };
+
+    case "advance_turn":
+      return {
+        playerIndex: nextPlayerIndex(state.playerIndex),
+        timeLeft: TURN_DURATION_SECONDS,
+        phase: "playing",
       };
 
     case "tick":
@@ -91,6 +100,10 @@ export function TurnProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "start_decision" });
   }, []);
 
+  const advanceTurn = useCallback(() => {
+    dispatch({ type: "advance_turn" });
+  }, []);
+
   useEffect(() => {
     setAnnouncement(currentPlayer);
     const timeout = setTimeout(() => setAnnouncement(null), TURN_ANNOUNCEMENT_MS);
@@ -114,6 +127,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
         announcement,
         pauseForDiceRoll,
         startDecisionPhase,
+        advanceTurn,
       }}
     >
       {children}

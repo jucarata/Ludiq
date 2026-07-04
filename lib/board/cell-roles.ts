@@ -58,7 +58,29 @@ export function isSafeCell(
   return cell.role === "movement" && cell.safe !== undefined;
 }
 
-/** Salida — hereda de basic (solo shape basic) */
+/** Casilla de inicio — ficha en el bloque 2×2 de cada jugador */
+export function isStartCell(
+  cell: CellData,
+): cell is CellData & { role: "movement"; exit: ExitCellData; owner: PlayerColor } {
+  return (
+    cell.role === "movement" &&
+    cell.exit?.role === "start" &&
+    cell.owner !== undefined
+  );
+}
+
+/** Casilla de salida al camino — hereda de basic */
+export function isPathExitCell(
+  cell: CellData,
+): cell is CellData & { role: "movement"; exit: ExitCellData; owner: PlayerColor } {
+  return (
+    cell.role === "movement" &&
+    cell.exit?.role === "path" &&
+    cell.owner !== undefined
+  );
+}
+
+/** Salida — inicio o camino */
 export function isExitCell(
   cell: CellData,
 ): cell is CellData & { role: "movement"; exit: ExitCellData; owner: CellData["owner"] } {

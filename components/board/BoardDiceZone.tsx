@@ -2,7 +2,7 @@
 
 import { useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { useDice } from "@/components/dice/DiceContext";
-import { DieFace } from "@/components/dice/DieFace";
+import { DicePairVisual } from "@/components/dice/DicePairVisual";
 import { DiceRollOverlay } from "@/components/dice/DiceRollOverlay";
 import {
   computeThrowVelocity,
@@ -18,7 +18,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   const zoneRef = useRef<HTMLDivElement>(null);
   const samplesRef = useRef<VelocitySample[]>([]);
   const isDraggingRef = useRef(false);
-  const { isAiming, isRolling, canRoll, throwDice, completeRoll, activeRoll, setBoardDragging } = useDice();
+  const { isAiming, isRolling, canRoll, throwDice, reportDieSettled, activeDice, setBoardDragging } = useDice();
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -106,12 +106,16 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
           style={{ left: dragPoint.x, top: dragPoint.y }}
           aria-hidden
         >
-          <DieFace className="h-14 w-14 drop-shadow-lg md:h-16 md:w-16" />
+          <DicePairVisual sizeClass="h-12 w-12 md:h-14 md:w-14" />
         </div>
       )}
-      {activeRoll && (
-        <DiceRollOverlay roll={activeRoll} onComplete={completeRoll} />
-      )}
+      {activeDice?.map((die) => (
+        <DiceRollOverlay
+          key={`${die.sessionId}-${die.key}`}
+          roll={die}
+          onSettled={(value) => reportDieSettled(die.key, value)}
+        />
+      ))}
       {isAiming && (
         <div
           className="pointer-events-none absolute inset-0 z-30 rounded-2xl ring-2 ring-[#fcd34d]/60 ring-offset-2 ring-offset-transparent"

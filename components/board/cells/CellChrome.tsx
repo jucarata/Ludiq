@@ -1,5 +1,5 @@
 import type { CellData } from "@/lib/board/types";
-import { isExitCell, isSafeCell } from "@/lib/board/cell-roles";
+import { isPathExitCell, isSafeCell, isStartCell } from "@/lib/board/cell-roles";
 import { PLAYER_COLORS, VICTORY_COLOR } from "@/lib/board/types";
 
 export function CellShell({
@@ -18,7 +18,7 @@ export function CellShell({
   return (
     <div className="relative h-full w-full min-h-0 min-w-0" style={gridStyle}>
       <div
-        className={`relative h-full w-full rounded-[2px] ${className}`}
+        className={`relative h-full w-full overflow-hidden rounded-[2px] ${className}`}
         style={{ ...style, clipPath }}
       >
         {children}
@@ -38,7 +38,10 @@ export function getCellAppearance(cell: CellData): {
       },
     };
   }
-  if (isExitCell(cell) && cell.owner) {
+  if (isStartCell(cell) && cell.owner) {
+    return { style: { backgroundColor: PLAYER_COLORS[cell.owner].dark } };
+  }
+  if (isPathExitCell(cell) && cell.owner) {
     return { style: { backgroundColor: PLAYER_COLORS[cell.owner].dark } };
   }
   if (cell.kind === "void" && cell.owner) {
