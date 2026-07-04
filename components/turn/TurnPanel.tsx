@@ -2,6 +2,7 @@
 
 import { useTurn } from "@/components/game/TurnContext";
 import { GamePiece } from "@/components/board/GamePiece";
+import { DiceLauncher } from "@/components/dice/DiceLauncher";
 import { PLAYER_COLORS, PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
 
 function TeamEntry({
@@ -52,6 +53,7 @@ export function TurnPanel() {
       className="flex w-[var(--board-size)] shrink-0 flex-col rounded-2xl border-[6px] border-[#d4c5a0] bg-[#2a2a3e] p-4 shadow-2xl md:w-56"
       aria-label="Panel de turnos"
     >
+      <DiceLauncher />
       <h2 className="mb-3 text-center text-sm font-semibold uppercase tracking-wide text-[#d4c5a0] md:mb-4">
         Turnos
       </h2>
