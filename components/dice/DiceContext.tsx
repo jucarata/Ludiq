@@ -8,65 +8,102 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { DICE_RESULT_HOLD_MS, DICE_ROLL_DURATION_MS, rollDie } from "@/lib/game/dice";
+import { useTurn } from "@/components/game/TurnContext";
+import { rollDie } from "@/lib/game/dice";
 
 export interface ActiveDiceRoll {
   id: number;
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   value: number;
+  bounds: { width: number; height: number };
 }
 
 interface DiceContextValue {
   isAiming: boolean;
   isRolling: boolean;
-  lastResult: number | null;
+  isBoardDragging: boolean;
+  canRoll: boolean;
+  hasRolledThisTurn: boolean;
+  turnRoll: number | null;
   activeRoll: ActiveDiceRoll | null;
   armDice: () => void;
   cancelAim: () => void;
-  rollAt: (x: number, y: number) => void;
-  clearRoll: () => void;
+  setBoardDragging: (value: boolean) => void;
+  throwDice: (params: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    bounds: { width: number; height: number };
+  }) => void;
+  completeRoll: (value: number) => void;
 }
 
 const DiceContext = createContext<DiceContextValue | null>(null);
 
 export function DiceProvider({ children }: { children: ReactNode }) {
+  const { currentPlayer, pauseForDiceRoll, startDecisionPhase } = useTurn();
   const [isAiming, setIsAiming] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
-  const [lastResult, setLastResult] = useState<number | null>(null);
+  const [isBoardDragging, setBoardDragging] = useState(false);
+  const [hasRolledThisTurn, setHasRolledThisTurn] = useState(false);
+  const [turnRoll, setTurnRoll] = useState<number | null>(null);
   const [activeRoll, setActiveRoll] = useState<ActiveDiceRoll | null>(null);
 
+  const canRoll = !hasRolledThisTurn && !isRolling;
+
+  useEffect(() => {
+    setHasRolledThisTurn(false);
+    setTurnRoll(null);
+    setIsAiming(false);
+  }, [currentPlayer]);
+
   const armDice = useCallback(() => {
-    if (isRolling) return;
+    if (!canRoll) return;
     setIsAiming(true);
-  }, [isRolling]);
+  }, [canRoll]);
 
   const cancelAim = useCallback(() => {
     if (isRolling) return;
     setIsAiming(false);
   }, [isRolling]);
 
-  const rollAt = useCallback(
-    (x: number, y: number) => {
-      if (!isAiming || isRolling) return;
+  const throwDice = useCallback(
+    (params: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      bounds: { width: number; height: number };
+    }) => {
+      if (!isAiming || !canRoll) return;
 
       const value = rollDie();
       setIsAiming(false);
       setIsRolling(true);
+      pauseForDiceRoll();
       setActiveRoll({
         id: Date.now(),
-        x,
-        y,
         value,
+        ...params,
       });
     },
-    [isAiming, isRolling],
+    [isAiming, canRoll, pauseForDiceRoll],
   );
 
-  const clearRoll = useCallback(() => {
-    setActiveRoll(null);
-    setIsRolling(false);
-  }, []);
+  const completeRoll = useCallback(
+    (value: number) => {
+      setTurnRoll(value);
+      setHasRolledThisTurn(true);
+      setActiveRoll(null);
+      setIsRolling(false);
+      startDecisionPhase();
+    },
+    [startDecisionPhase],
+  );
 
   useEffect(() => {
     if (!isAiming) return;
@@ -79,28 +116,21 @@ export function DiceProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isAiming, cancelAim]);
 
-  useEffect(() => {
-    if (!activeRoll) return;
-
-    const timeout = setTimeout(() => {
-      setLastResult(activeRoll.value);
-      clearRoll();
-    }, DICE_ROLL_DURATION_MS + DICE_RESULT_HOLD_MS);
-
-    return () => clearTimeout(timeout);
-  }, [activeRoll, clearRoll]);
-
   return (
     <DiceContext.Provider
       value={{
         isAiming,
         isRolling,
-        lastResult,
+        isBoardDragging,
+        canRoll,
+        hasRolledThisTurn,
+        turnRoll,
         activeRoll,
         armDice,
         cancelAim,
-        rollAt,
-        clearRoll,
+        setBoardDragging,
+        throwDice,
+        completeRoll,
       }}
     >
       {children}

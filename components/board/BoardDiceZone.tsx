@@ -1,8 +1,14 @@
 "use client";
 
-import { useRef, type MouseEvent, type ReactNode } from "react";
+import { useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { useDice } from "@/components/dice/DiceContext";
+import { DieFace } from "@/components/dice/DieFace";
 import { DiceRollOverlay } from "@/components/dice/DiceRollOverlay";
+import {
+  computeThrowVelocity,
+  normalizeThrowVelocity,
+  type VelocitySample,
+} from "@/lib/game/dice";
 
 interface BoardDiceZoneProps {
   children: ReactNode;
@@ -10,24 +16,102 @@ interface BoardDiceZoneProps {
 
 export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   const zoneRef = useRef<HTMLDivElement>(null);
-  const { isAiming, isRolling, rollAt, activeRoll } = useDice();
+  const samplesRef = useRef<VelocitySample[]>([]);
+  const isDraggingRef = useRef(false);
+  const { isAiming, isRolling, canRoll, throwDice, completeRoll, activeRoll, setBoardDragging } = useDice();
+  const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
-  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!isAiming || isRolling || !zoneRef.current) return;
+  const getLocalCoords = (clientX: number, clientY: number) => {
+    const rect = zoneRef.current!.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
 
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isAiming || isRolling || !canRoll || !zoneRef.current) return;
+
+    isDraggingRef.current = true;
+    setBoardDragging(true);
+    zoneRef.current.setPointerCapture(event.pointerId);
+
+    const coords = getLocalCoords(event.clientX, event.clientY);
+    samplesRef.current = [{ ...coords, t: performance.now() }];
+    setDragPoint(coords);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+
+    const coords = getLocalCoords(event.clientX, event.clientY);
+    samplesRef.current.push({ ...coords, t: performance.now() });
+
+    if (samplesRef.current.length > 24) {
+      samplesRef.current = samplesRef.current.slice(-24);
+    }
+
+    setDragPoint(coords);
+  };
+
+  const finishThrow = (clientX: number, clientY: number) => {
+    if (!isDraggingRef.current || !zoneRef.current) return;
+
+    isDraggingRef.current = false;
+    setBoardDragging(false);
+    setDragPoint(null);
+
+    const coords = getLocalCoords(clientX, clientY);
     const rect = zoneRef.current.getBoundingClientRect();
-    rollAt(event.clientX - rect.left, event.clientY - rect.top);
+    const rawVelocity = computeThrowVelocity(samplesRef.current);
+    const velocity = normalizeThrowVelocity(rawVelocity.vx, rawVelocity.vy);
+
+    throwDice({
+      x: coords.x,
+      y: coords.y,
+      vx: velocity.vx,
+      vy: velocity.vy,
+      bounds: { width: rect.width, height: rect.height },
+    });
+
+    samplesRef.current = [];
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    finishThrow(event.clientX, event.clientY);
+    zoneRef.current?.releasePointerCapture(event.pointerId);
+  };
+
+  const handlePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
+    isDraggingRef.current = false;
+    setBoardDragging(false);
+    setDragPoint(null);
+    samplesRef.current = [];
+    zoneRef.current?.releasePointerCapture(event.pointerId);
   };
 
   return (
     <div
       ref={zoneRef}
-      className={`relative ${isAiming ? "cursor-none" : ""}`}
-      onClick={handleClick}
+      className={`relative touch-none ${isAiming ? "cursor-none" : ""}`}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       data-dice-zone={isAiming ? "armed" : undefined}
     >
       {children}
-      {activeRoll && <DiceRollOverlay roll={activeRoll} />}
+      {dragPoint && isAiming && (
+        <div
+          className="pointer-events-none absolute z-[35] -translate-x-1/2 -translate-y-1/2 opacity-90"
+          style={{ left: dragPoint.x, top: dragPoint.y }}
+          aria-hidden
+        >
+          <DieFace className="h-14 w-14 drop-shadow-lg md:h-16 md:w-16" />
+        </div>
+      )}
+      {activeRoll && (
+        <DiceRollOverlay roll={activeRoll} onComplete={completeRoll} />
+      )}
       {isAiming && (
         <div
           className="pointer-events-none absolute inset-0 z-30 rounded-2xl ring-2 ring-[#fcd34d]/60 ring-offset-2 ring-offset-transparent"

@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useReducer,
@@ -13,47 +14,82 @@ import {
   getPlayerAt,
   nextPlayerIndex,
   TURN_ANNOUNCEMENT_MS,
+  TURN_DECISION_SECONDS,
   TURN_DURATION_SECONDS,
+  type TurnPhase,
 } from "@/lib/game/turns";
 
 interface TurnState {
   playerIndex: number;
   timeLeft: number;
+  phase: TurnPhase;
 }
 
-type TurnAction = { type: "tick" };
+type TurnAction =
+  | { type: "tick" }
+  | { type: "pause_for_roll" }
+  | { type: "start_decision" };
 
 interface TurnContextValue {
   currentPlayer: PlayerColor;
   timeLeft: number;
+  turnPhase: TurnPhase;
   announcement: PlayerColor | null;
+  pauseForDiceRoll: () => void;
+  startDecisionPhase: () => void;
 }
 
 const TurnContext = createContext<TurnContextValue | null>(null);
 
 function turnReducer(state: TurnState, action: TurnAction): TurnState {
-  if (action.type !== "tick") return state;
+  switch (action.type) {
+    case "pause_for_roll":
+      return { ...state, phase: "rolling" };
 
-  if (state.timeLeft > 1) {
-    return { ...state, timeLeft: state.timeLeft - 1 };
+    case "start_decision":
+      return {
+        ...state,
+        phase: "deciding",
+        timeLeft: TURN_DECISION_SECONDS,
+      };
+
+    case "tick":
+      if (state.phase === "rolling") return state;
+
+      if (state.timeLeft > 1) {
+        return { ...state, timeLeft: state.timeLeft - 1 };
+      }
+
+      return {
+        playerIndex: nextPlayerIndex(state.playerIndex),
+        timeLeft: TURN_DURATION_SECONDS,
+        phase: "playing",
+      };
+
+    default:
+      return state;
   }
-
-  return {
-    playerIndex: nextPlayerIndex(state.playerIndex),
-    timeLeft: TURN_DURATION_SECONDS,
-  };
 }
 
 export function TurnProvider({ children }: { children: ReactNode }) {
-  const [{ playerIndex, timeLeft }, dispatch] = useReducer(turnReducer, {
+  const [{ playerIndex, timeLeft, phase }, dispatch] = useReducer(turnReducer, {
     playerIndex: 0,
     timeLeft: TURN_DURATION_SECONDS,
+    phase: "playing",
   });
   const [announcement, setAnnouncement] = useState<PlayerColor | null>(
     getPlayerAt(0),
   );
 
   const currentPlayer = getPlayerAt(playerIndex);
+
+  const pauseForDiceRoll = useCallback(() => {
+    dispatch({ type: "pause_for_roll" });
+  }, []);
+
+  const startDecisionPhase = useCallback(() => {
+    dispatch({ type: "start_decision" });
+  }, []);
 
   useEffect(() => {
     setAnnouncement(currentPlayer);
@@ -70,7 +106,16 @@ export function TurnProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <TurnContext.Provider value={{ currentPlayer, timeLeft, announcement }}>
+    <TurnContext.Provider
+      value={{
+        currentPlayer,
+        timeLeft,
+        turnPhase: phase,
+        announcement,
+        pauseForDiceRoll,
+        startDecisionPhase,
+      }}
+    >
       {children}
     </TurnContext.Provider>
   );

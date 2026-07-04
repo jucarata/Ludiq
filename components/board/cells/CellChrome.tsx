@@ -34,7 +34,7 @@ export function getCellAppearance(cell: CellData): {
   if (isSafeCell(cell)) {
     return {
       style: {
-        backgroundColor: PLAYER_COLORS[cell.safe.owner].fill,
+        backgroundColor: PLAYER_COLORS[cell.safe.owner].dark,
       },
     };
   }

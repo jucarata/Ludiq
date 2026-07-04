@@ -5,7 +5,7 @@ import { useDice } from "@/components/dice/DiceContext";
 import { DieFace } from "@/components/dice/DieFace";
 
 export function DiceCursor() {
-  const { isAiming, isRolling } = useDice();
+  const { isAiming, isRolling, isBoardDragging } = useDice();
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [visible, setVisible] = useState(false);
 
@@ -30,7 +30,7 @@ export function DiceCursor() {
     };
   }, [isAiming, isRolling]);
 
-  if (!visible || !isAiming) return null;
+  if (!visible || !isAiming || isBoardDragging) return null;
 
   return (
     <div
