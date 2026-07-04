@@ -99,6 +99,9 @@ export const PLAYER_COLORS: Record<
   blue: { fill: "#457b9d", dark: "#1d3557", label: "Azul" },
 };
 
+/** Orden de equipos en el tablero (↺ desde rojo) */
+export const PLAYER_ORDER: PlayerColor[] = ["red", "green", "yellow", "blue"];
+
 export const VICTORY_COLOR = {
   fill: "#8d6e4a",
   dark: "#6b4f35",

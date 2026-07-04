@@ -1,12 +1,10 @@
 import type { CellData } from "@/lib/board/types";
 import type { MovementCellProps } from "./MovementCell";
-import { CellShell, getCellAppearance, GridNumber, isDarkLabel } from "./CellChrome";
+import { CellShell, getCellAppearance } from "./CellChrome";
 import { MovementCellRoot } from "./MovementCell";
 
 export interface BasicCellProps extends MovementCellProps {
   cell: CellData;
-  /** Mostrar número del tablero (solo movimiento) */
-  showNumber?: boolean;
   children?: React.ReactNode;
 }
 
@@ -15,7 +13,6 @@ export function BasicCell({
   cell,
   movement,
   style: gridStyle,
-  showNumber = true,
   children,
 }: BasicCellProps) {
   const appearance = getCellAppearance(cell);
@@ -28,9 +25,6 @@ export function BasicCell({
       style={gridStyle}
     >
       <CellShell className={appearance.className} style={appearance.style}>
-        {showNumber && (
-          <GridNumber n={cell.gridNumber} dark={isDarkLabel(cell)} />
-        )}
         {children}
       </CellShell>
     </MovementCellRoot>

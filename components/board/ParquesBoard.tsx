@@ -15,8 +15,8 @@ function gridAreaStyle(
   };
 }
 
-export function ParquesBoard() {
-  const boardSize = "min(calc(100dvw - 2rem), calc(100dvh - 2rem))";
+export function ParquesBoard({ size }: { size?: string }) {
+  const boardSize = size ?? "min(calc(100dvw - 2rem), calc(100dvh - 2rem))";
 
   return (
     <div

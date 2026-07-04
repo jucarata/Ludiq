@@ -4,25 +4,18 @@ import {
   TRIANGLE_CLIP,
 } from "@/lib/board/cell-shapes";
 import type { CornerRotation } from "@/lib/board/cell-shapes";
-import { GridNumber } from "./CellChrome";
 import type { MovementCellProps } from "./MovementCell";
 import { MovementCellRoot } from "./MovementCell";
 
 interface CornerHalfProps {
-  gridNumber: number;
-  labelCorner: TriangleCorner;
   background: { className?: string; style?: React.CSSProperties };
   clipCorner: TriangleCorner;
-  darkLabel?: boolean;
   children?: React.ReactNode;
 }
 
 function CornerHalf({
-  gridNumber,
-  labelCorner,
   background,
   clipCorner,
-  darkLabel = false,
   children,
 }: CornerHalfProps) {
   return (
@@ -33,7 +26,6 @@ function CornerHalf({
         clipPath: TRIANGLE_CLIP[clipCorner],
       }}
     >
-      <GridNumber n={gridNumber} dark={darkLabel} labelCorner={labelCorner} />
       {children}
     </div>
   );
@@ -42,12 +34,8 @@ function CornerHalf({
 export interface CornerCellProps extends MovementCellProps {
   /** Rotación del corte diagonal */
   rotation: CornerRotation;
-  /** Números visibles de cada triángulo */
-  numbers: readonly [number, number];
   /** Estilo de fondo compartido por ambos triángulos */
   background: { className?: string; style?: React.CSSProperties };
-  /** Etiquetas oscuras (camino blanco) */
-  darkLabel?: boolean;
   /** Contenido solo en el primer triángulo (ficha, corona, etc.) */
   primaryContent?: React.ReactNode;
   /** Posición en el grid CSS */
@@ -62,9 +50,7 @@ export interface CornerCellProps extends MovementCellProps {
  */
 export function CornerCell({
   rotation,
-  numbers,
   background,
-  darkLabel = false,
   primaryContent,
   movement,
   safe,
@@ -77,20 +63,14 @@ export function CornerCell({
     <MovementCellRoot movement={movement} safe={safe} style={style}>
       <div className="relative h-full w-full min-h-0 min-w-0">
       <CornerHalf
-        gridNumber={numbers[0]}
-        labelCorner={layout.first.labelCorner}
         clipCorner={layout.first.corner}
         background={background}
-        darkLabel={darkLabel}
       >
         {primaryContent}
       </CornerHalf>
       <CornerHalf
-        gridNumber={numbers[1]}
-        labelCorner={layout.second.labelCorner}
         clipCorner={layout.second.corner}
         background={background}
-        darkLabel={darkLabel}
       />
       <svg
         className="pointer-events-none absolute inset-0 z-20 h-full w-full"

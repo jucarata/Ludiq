@@ -11,7 +11,7 @@ import { DecorationCell } from "./DecorationCell";
 import { ExitCell } from "./ExitCell";
 import { SafeBasicCell } from "./SafeBasicCell";
 import { SafeCornerCell } from "./SafeCornerCell";
-import { getCellAppearance, isDarkLabel } from "./CellChrome";
+import { getCellAppearance } from "./CellChrome";
 import { VictoryCell } from "./VictoryCell";
 
 export interface BoardCellProps {
@@ -46,9 +46,7 @@ export function BoardCell({ cell, style }: BoardCellProps) {
       <CornerCell
         movement={cell.movement}
         rotation={cell.corner.rotation}
-        numbers={[cell.gridNumber, cell.corner.partnerNumber]}
         background={getCellAppearance(cell)}
-        darkLabel={isDarkLabel(cell)}
         style={style}
       />
     );

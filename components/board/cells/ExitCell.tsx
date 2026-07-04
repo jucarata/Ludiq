@@ -10,7 +10,6 @@ export interface ExitCellProps extends BasicCellProps {
 
 /** Celda de salida — hereda de BasicCell (EXIT rotado o ficha en base) */
 export function ExitCell({ cell, movement, style }: ExitCellProps) {
-  const showNumber = cell.exit?.state === "empty";
   const showExitLabel =
     cell.exit?.state === "empty" && cell.exit.labelOrientation !== undefined;
 
@@ -19,7 +18,6 @@ export function ExitCell({ cell, movement, style }: ExitCellProps) {
       cell={cell}
       movement={movement}
       style={style}
-      showNumber={showNumber}
     >
       {showExitLabel && (
         <ExitLabel orientation={cell.exit!.labelOrientation!} />

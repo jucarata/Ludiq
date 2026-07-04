@@ -1,6 +1,6 @@
 import type { CellData } from "@/lib/board/types";
 import type { MovementCellProps } from "./MovementCell";
-import { getCellAppearance, isDarkLabel } from "./CellChrome";
+import { getCellAppearance } from "./CellChrome";
 import { CornerCell } from "./CornerCell";
 import { SafeLabel } from "./SafeLabel";
 
@@ -18,9 +18,7 @@ export function SafeCornerCell({ cell, movement, style }: SafeCornerCellProps) {
       movement={movement}
       safe={cell.safe}
       rotation={cell.corner.rotation}
-      numbers={[cell.gridNumber, cell.corner.partnerNumber]}
       background={getCellAppearance(cell)}
-      darkLabel={isDarkLabel(cell)}
       primaryContent={<SafeLabel orientation={cell.safe.labelOrientation} />}
       style={style}
     />
