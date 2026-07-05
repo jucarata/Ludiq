@@ -1,9 +1,10 @@
 "use client";
 
 import { useTurn } from "@/components/game/TurnContext";
+import { useActivePlayers } from "@/components/game/PlayersContext";
 import { GamePiece } from "@/components/board/GamePiece";
 import { DiceLauncher } from "@/components/dice/DiceLauncher";
-import { PLAYER_COLORS, PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
+import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
 
 function TeamEntry({
   color,
@@ -47,6 +48,7 @@ function TeamEntry({
 
 export function TurnPanel() {
   const { currentPlayer, timeLeft } = useTurn();
+  const activePlayers = useActivePlayers();
 
   return (
     <aside
@@ -58,7 +60,7 @@ export function TurnPanel() {
         Turnos
       </h2>
       <ul className="grid grid-cols-2 gap-3 md:flex md:flex-1 md:flex-col md:justify-center">
-        {PLAYER_ORDER.map((color) => (
+        {activePlayers.map((color) => (
           <TeamEntry
             key={color}
             color={color}

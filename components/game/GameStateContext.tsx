@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTurn } from "@/components/game/TurnContext";
+import { useActivePlayers } from "@/components/game/PlayersContext";
 import type { PlayerColor } from "@/lib/board/types";
 import {
   canMovePiece,
@@ -81,8 +82,11 @@ interface MoveAnimation {
 const GameStateContext = createContext<GameStateContextValue | null>(null);
 
 export function GameStateProvider({ children }: { children: ReactNode }) {
+  const activePlayers = useActivePlayers();
   const { currentPlayer, turnPhase, advanceTurn, endGame } = useTurn();
-  const [pieces, setPieces] = useState<PieceState[]>(createInitialPieces);
+  const [pieces, setPieces] = useState<PieceState[]>(() =>
+    createInitialPieces(activePlayers),
+  );
   const [winner, setWinner] = useState<PlayerColor | null>(null);
   const [celebration, setCelebration] = useState<CelebrationState | null>(
     null,

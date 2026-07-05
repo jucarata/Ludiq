@@ -6,10 +6,16 @@ export const TURN_ANNOUNCEMENT_MS = 1500;
 
 export type TurnPhase = "playing" | "rolling" | "deciding" | "ended";
 
-export function nextPlayerIndex(index: number): number {
-  return (index + 1) % PLAYER_ORDER.length;
+export function nextPlayerIndex(
+  index: number,
+  players: PlayerColor[] = PLAYER_ORDER,
+): number {
+  return (index + 1) % players.length;
 }
 
-export function getPlayerAt(index: number): PlayerColor {
-  return PLAYER_ORDER[index];
+export function getPlayerAt(
+  index: number,
+  players: PlayerColor[] = PLAYER_ORDER,
+): PlayerColor {
+  return players[index];
 }

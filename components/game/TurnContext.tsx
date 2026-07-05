@@ -18,6 +18,7 @@ import {
   TURN_DURATION_SECONDS,
   type TurnPhase,
 } from "@/lib/game/turns";
+import { useActivePlayers } from "@/components/game/PlayersContext";
 
 interface TurnState {
   playerIndex: number;
@@ -45,7 +46,11 @@ interface TurnContextValue {
 
 const TurnContext = createContext<TurnContextValue | null>(null);
 
-function turnReducer(state: TurnState, action: TurnAction): TurnState {
+function turnReducer(
+  state: TurnState,
+  action: TurnAction,
+  activePlayers: PlayerColor[],
+): TurnState {
   /* Juego terminado: se congela el estado de turnos */
   if (state.phase === "ended") return state;
 
@@ -62,7 +67,7 @@ function turnReducer(state: TurnState, action: TurnAction): TurnState {
 
     case "advance_turn":
       return {
-        playerIndex: nextPlayerIndex(state.playerIndex),
+        playerIndex: nextPlayerIndex(state.playerIndex, activePlayers),
         timeLeft: TURN_DURATION_SECONDS,
         phase: "playing",
       };
@@ -78,7 +83,7 @@ function turnReducer(state: TurnState, action: TurnAction): TurnState {
       }
 
       return {
-        playerIndex: nextPlayerIndex(state.playerIndex),
+        playerIndex: nextPlayerIndex(state.playerIndex, activePlayers),
         timeLeft: TURN_DURATION_SECONDS,
         phase: "playing",
       };
@@ -89,16 +94,21 @@ function turnReducer(state: TurnState, action: TurnAction): TurnState {
 }
 
 export function TurnProvider({ children }: { children: ReactNode }) {
-  const [{ playerIndex, timeLeft, phase }, dispatch] = useReducer(turnReducer, {
-    playerIndex: 0,
-    timeLeft: TURN_DURATION_SECONDS,
-    phase: "playing",
-  });
+  const activePlayers = useActivePlayers();
+  const [{ playerIndex, timeLeft, phase }, dispatch] = useReducer(
+    (state: TurnState, action: TurnAction) =>
+      turnReducer(state, action, activePlayers),
+    {
+      playerIndex: 0,
+      timeLeft: TURN_DURATION_SECONDS,
+      phase: "playing",
+    },
+  );
   const [announcement, setAnnouncement] = useState<PlayerColor | null>(
-    getPlayerAt(0),
+    getPlayerAt(0, activePlayers),
   );
 
-  const currentPlayer = getPlayerAt(playerIndex);
+  const currentPlayer = getPlayerAt(playerIndex, activePlayers);
 
   const pauseForDiceRoll = useCallback(() => {
     dispatch({ type: "pause_for_roll" });

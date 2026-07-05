@@ -20,8 +20,10 @@ export interface PieceState {
   routeIndex?: number;
 }
 
-export function createInitialPieces(): PieceState[] {
-  return PLAYER_ORDER.flatMap((player) =>
+export function createInitialPieces(
+  players: PlayerColor[] = PLAYER_ORDER,
+): PieceState[] {
+  return players.flatMap((player) =>
     ([0, 1, 2, 3] as PieceIndex[]).map((index) => ({
       player,
       index,
