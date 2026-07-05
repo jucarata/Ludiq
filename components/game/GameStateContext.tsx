@@ -210,16 +210,50 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setMenuAnchor(null);
   }, []);
 
+  const movePiece = useCallback(
+    (target: SelectedPiece, choice: DieMoveChoice): boolean => {
+      if (!remainingDice?.length || animation) return false;
+
+      const piece = pieces.find(
+        (p) => p.player === target.player && p.index === target.index,
+      );
+      if (!piece || piece.routeIndex === undefined) return false;
+
+      const steps = choice.value;
+      if (!canMovePiece(pieces, piece, steps)) return false;
+
+      const nextRemaining = consumeDice(remainingDice, choice);
+      setRemainingDice(nextRemaining.length > 0 ? nextRemaining : null);
+      setSelectedPiece(null);
+      setMenuAnchor(null);
+      setAnimation({
+        player: piece.player,
+        index: piece.index,
+        target: piece.routeIndex + steps,
+        advanceAfter: nextRemaining.length === 0,
+      });
+
+      return true;
+    },
+    [remainingDice, pieces, animation],
+  );
+
   const selectPiece = useCallback(
     (piece: SelectedPiece, anchor: MenuAnchor) => {
       const { canInteract, currentPlayer: activePlayer } =
         interactionRef.current;
       if (!canInteract) return;
       if (piece.player !== activePlayer) return;
+
+      /* Queda un solo valor por mover: se aplica directo, sin menú */
+      if (remainingDice?.length === 1) {
+        if (movePiece(piece, { value: remainingDice[0] })) return;
+      }
+
       setSelectedPiece(piece);
       setMenuAnchor(anchor);
     },
-    [],
+    [remainingDice, movePiece],
   );
 
   const clearSelection = useCallback(() => {
@@ -243,31 +277,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const applyMove = useCallback(
     (choice: DieMoveChoice): boolean => {
-      if (!selectedPiece || !remainingDice?.length || animation) return false;
-
-      const piece = pieces.find(
-        (p) =>
-          p.player === selectedPiece.player && p.index === selectedPiece.index,
-      );
-      if (!piece || piece.routeIndex === undefined) return false;
-
-      const steps = choice.value;
-      if (!canMovePiece(pieces, piece, steps)) return false;
-
-      const nextRemaining = consumeDice(remainingDice, choice);
-      setRemainingDice(nextRemaining.length > 0 ? nextRemaining : null);
-      setSelectedPiece(null);
-      setMenuAnchor(null);
-      setAnimation({
-        player: piece.player,
-        index: piece.index,
-        target: piece.routeIndex + steps,
-        advanceAfter: nextRemaining.length === 0,
-      });
-
-      return true;
+      if (!selectedPiece) return false;
+      return movePiece(selectedPiece, choice);
     },
-    [selectedPiece, remainingDice, pieces, animation],
+    [selectedPiece, movePiece],
   );
 
   const value: GameStateContextValue = {
