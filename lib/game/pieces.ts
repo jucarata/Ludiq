@@ -7,7 +7,7 @@ import {
 
 export type PieceIndex = 0 | 1 | 2 | 3;
 
-export type PieceLocation = "start" | "route";
+export type PieceLocation = "start" | "route" | "finished";
 
 /** Máximo de fichas por casilla (salida, básicas y triángulos esquinales) */
 export const MAX_PIECES_PER_CELL = 2;
@@ -55,13 +55,32 @@ export function hasPiecesInStart(
   );
 }
 
-export function hasAnyPieceOutsideStart(
+/** ¿Tiene el jugador al menos una ficha en el recorrido (movible)? */
+export function hasAnyPieceOnRoute(
   pieces: PieceState[],
   player: PlayerColor,
 ): boolean {
   return pieces.some(
-    (piece) => piece.player === player && piece.location !== "start",
+    (piece) => piece.player === player && piece.location === "route",
   );
+}
+
+/** Fichas del jugador que ya llegaron a la casilla café (fuera del juego) */
+export function getFinishedPieces(
+  pieces: PieceState[],
+  player: PlayerColor,
+): PieceState[] {
+  return pieces.filter(
+    (piece) => piece.player === player && piece.location === "finished",
+  );
+}
+
+/** Gana quien mete sus 4 fichas en la casilla café central */
+export function hasPlayerWon(
+  pieces: PieceState[],
+  player: PlayerColor,
+): boolean {
+  return getFinishedPieces(pieces, player).length === 4;
 }
 
 /** Casilla del recorrido donde está la ficha (solo fichas en recorrido) */

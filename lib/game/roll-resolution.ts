@@ -1,6 +1,6 @@
 import {
   exitPiecesFromStartOnDoubles,
-  hasAnyPieceOutsideStart,
+  hasAnyPieceOnRoute,
   hasPiecesInStart,
   isDiceDoubles,
   type PieceState,
@@ -31,9 +31,8 @@ export function resolveRoll(
     nextPieces = exitPiecesFromStartOnDoubles(pieces, player);
   }
 
-  const hasPieceOutsideStart = hasAnyPieceOutsideStart(nextPieces, player);
-
-  if (!hasPieceOutsideStart) {
+  /* Sin fichas en el recorrido (en base o ya terminadas) → pierde el turno */
+  if (!hasAnyPieceOnRoute(nextPieces, player)) {
     return { nextPieces, action: "skip_turn" };
   }
 

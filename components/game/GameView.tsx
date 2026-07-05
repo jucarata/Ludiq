@@ -8,6 +8,7 @@ import { GameStateProvider } from "@/components/game/GameStateContext";
 import { TurnProvider } from "@/components/game/TurnContext";
 import { TurnAnnouncement } from "@/components/turn/TurnAnnouncement";
 import { TurnPanel } from "@/components/turn/TurnPanel";
+import { WinnerAnnouncement } from "@/components/turn/WinnerAnnouncement";
 
 export function GameView() {
   return (
@@ -20,6 +21,7 @@ export function GameView() {
               <BoardDiceZone>
                 <ParquesBoard size="var(--board-size)" />
                 <TurnAnnouncement />
+                <WinnerAnnouncement />
               </BoardDiceZone>
             </div>
             <TurnPanel />

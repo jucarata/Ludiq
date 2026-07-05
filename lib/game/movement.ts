@@ -1,4 +1,8 @@
-import { getRouteCell, getRouteLength } from "@/lib/board/player-path";
+import {
+  getRouteCell,
+  getRouteLength,
+  getVictoryRouteIndex,
+} from "@/lib/board/player-path";
 import { isProtectedAnchor } from "@/lib/board/cell-placements";
 import type { PlayerColor } from "@/lib/board/types";
 import {
@@ -37,7 +41,10 @@ export function consumeDice(
   return [...remaining.slice(0, index), ...remaining.slice(index + 1)];
 }
 
-/** Índice de destino en el recorrido, o null si se sale del camino */
+/**
+ * Índice de destino en el recorrido, o null si se pasa del final.
+ * El último paso es la casilla café central: solo se llega con caída exacta.
+ */
 export function getDestinationRouteIndex(
   piece: PieceState,
   steps: number,
@@ -57,6 +64,9 @@ export function canMovePiece(
 ): boolean {
   const destination = getDestinationRouteIndex(piece, steps);
   if (destination === null) return false;
+
+  /* Casilla café (victoria): siempre disponible — la ficha sale del juego */
+  if (destination === getVictoryRouteIndex(piece.player)) return true;
 
   const destinationCell = getRouteCell(piece.player, destination)!;
   const occupants = getPiecesAtRouteCell(pieces, destinationCell).filter(
@@ -79,6 +89,7 @@ export function canMovePiece(
 /**
  * Capturas al terminar el movimiento: si la casilla final no es SAFE/EXIT,
  * las fichas enemigas que estaban ahí vuelven a su casilla de inicio.
+ * Si la ficha cae exacto en la casilla café central, gana y sale del juego.
  */
 export function resolveLanding(
   pieces: PieceState[],
@@ -87,6 +98,17 @@ export function resolveLanding(
 ): PieceState[] {
   const mover = pieces.find((p) => p.player === player && p.index === index);
   if (!mover) return pieces;
+
+  if (
+    mover.location === "route" &&
+    mover.routeIndex === getVictoryRouteIndex(player)
+  ) {
+    return pieces.map((p) =>
+      p.player === player && p.index === index
+        ? { ...p, location: "finished" as const, routeIndex: undefined }
+        : p,
+    );
+  }
 
   const cell = getPieceRouteCell(mover);
   if (!cell || isProtectedAnchor(cell.anchor)) return pieces;

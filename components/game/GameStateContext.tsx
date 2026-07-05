@@ -23,8 +23,10 @@ import {
 import { resolveRoll, type PostRollAction } from "@/lib/game/roll-resolution";
 import {
   createInitialPieces,
+  getFinishedPieces,
   getPiecesAtAnchor,
   getPiecesAtStart,
+  hasPlayerWon,
   isPieceAtStartSlot,
   type PieceIndex,
   type PieceState,
@@ -46,6 +48,8 @@ interface GameStateContextValue {
   selectedPiece: SelectedPiece | null;
   menuAnchor: MenuAnchor | null;
   canInteractWithPieces: boolean;
+  winner: PlayerColor | null;
+  getFinishedPieces: (player: PlayerColor) => PieceState[];
   handleRollResult: (
     player: PlayerColor,
     roll: [number, number],
@@ -70,8 +74,9 @@ interface MoveAnimation {
 const GameStateContext = createContext<GameStateContextValue | null>(null);
 
 export function GameStateProvider({ children }: { children: ReactNode }) {
-  const { currentPlayer, turnPhase, advanceTurn } = useTurn();
+  const { currentPlayer, turnPhase, advanceTurn, endGame } = useTurn();
   const [pieces, setPieces] = useState<PieceState[]>(createInitialPieces);
+  const [winner, setWinner] = useState<PlayerColor | null>(null);
   const [remainingDice, setRemainingDice] = useState<number[] | null>(null);
   const [selectedPiece, setSelectedPiece] = useState<SelectedPiece | null>(
     null,
@@ -134,10 +139,20 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
     if (piece.routeIndex >= animation.target) {
       setAnimation(null);
-      /* Captura: enemigas en la casilla final (no SAFE/EXIT) vuelven a inicio */
-      setPieces((prev) =>
-        resolveLanding(prev, animation.player, animation.index),
-      );
+      /*
+       * Captura: enemigas en la casilla final (no SAFE/EXIT) vuelven a inicio.
+       * Si la ficha cayó exacto en la casilla café, queda terminada (sale del
+       * juego); con las 4 terminadas, el jugador gana y el juego se detiene.
+       */
+      const landed = resolveLanding(pieces, animation.player, animation.index);
+      setPieces(landed);
+
+      if (hasPlayerWon(landed, animation.player)) {
+        setWinner(animation.player);
+        endGame();
+        return;
+      }
+
       if (
         animation.advanceAfter &&
         interactionRef.current.currentPlayer === animation.player
@@ -145,7 +160,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         advanceTurn();
       }
     }
-  }, [pieces, animation, advanceTurn]);
+  }, [pieces, animation, advanceTurn, endGame]);
 
   const handleRollResult = useCallback(
     (player: PlayerColor, roll: [number, number]): PostRollAction => {
@@ -235,6 +250,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     selectedPiece,
     menuAnchor,
     canInteractWithPieces,
+    winner,
+    getFinishedPieces: (player) => getFinishedPieces(pieces, player),
     handleRollResult,
     beginMovementPhase,
     selectPiece,

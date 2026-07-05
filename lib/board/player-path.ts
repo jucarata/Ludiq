@@ -1,3 +1,4 @@
+import { VICTORY_CELL_ANCHOR } from "./cell-placements";
 import type { PlayerColor } from "./types";
 
 /**
@@ -111,12 +112,14 @@ function buildRoute(player: PlayerColor): readonly RouteCell[] {
     (_, i) => TRACK_CYCLE[(start + i) % TRACK_CYCLE.length],
   );
   const home = HOME_STRETCH[player].map((anchor) => ({ anchor }));
-  return [...track, ...home];
+  /* Último paso: la casilla café central — solo se alcanza con caída exacta */
+  return [...track, ...home, { anchor: VICTORY_CELL_ANCHOR }];
 }
 
 /**
  * Recorrido completo por jugador, paso por paso:
- * EXIT (índice 0) → vuelta ↺ al tablero → SAFE propio → llegada coloreada.
+ * EXIT (índice 0) → vuelta ↺ al tablero → SAFE propio → llegada coloreada
+ * → casilla café central (victoria).
  */
 export const PLAYER_ROUTES: Record<PlayerColor, readonly RouteCell[]> = {
   red: buildRoute("red"),
@@ -134,6 +137,11 @@ export function getRouteCell(
 
 export function getRouteLength(player: PlayerColor): number {
   return PLAYER_ROUTES[player].length;
+}
+
+/** Índice de la casilla café (victoria) — último paso del recorrido */
+export function getVictoryRouteIndex(player: PlayerColor): number {
+  return PLAYER_ROUTES[player].length - 1;
 }
 
 export function routeCellEquals(
