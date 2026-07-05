@@ -5,6 +5,7 @@ import {
   isDiceDoubles,
   type PieceState,
 } from "./pieces";
+import { hasAnyValidMove } from "./movement";
 import type { PlayerColor } from "@/lib/board/types";
 
 export type PostRollAction = "skip_turn" | "decision_phase";
@@ -18,7 +19,8 @@ export interface RollResolution {
  * Resuelve el resultado de un lanzamiento:
  * - Par (dobles): mismo valor en ambos dados (1+1, 2+2…), NO números pares.
  * - Sin fichas afuera y sin par → pierde el turno al instante.
- * - Con al menos una ficha afuera (tras aplicar par) → 10 s para mover.
+ * - Con fichas afuera pero ningún movimiento válido → pierde el turno.
+ * - Con al menos un movimiento posible → 10 s para mover.
  */
 export function resolveRoll(
   pieces: PieceState[],
@@ -33,6 +35,11 @@ export function resolveRoll(
 
   /* Sin fichas en el recorrido (en base o ya terminadas) → pierde el turno */
   if (!hasAnyPieceOnRoute(nextPieces, player)) {
+    return { nextPieces, action: "skip_turn" };
+  }
+
+  /* Ninguna ficha puede mover ninguno de los valores → pierde el turno */
+  if (!hasAnyValidMove(nextPieces, player, [...roll])) {
     return { nextPieces, action: "skip_turn" };
   }
 

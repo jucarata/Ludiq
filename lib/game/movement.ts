@@ -86,6 +86,81 @@ export function canMovePiece(
   return ownOccupants.length < MAX_PIECES_PER_CELL;
 }
 
+/** ¿Alguna ficha del jugador puede mover alguno de los valores restantes? */
+export function hasAnyValidMove(
+  pieces: PieceState[],
+  player: PlayerColor,
+  remainingDice: number[],
+): boolean {
+  const values = [...new Set(remainingDice)];
+  return pieces.some(
+    (piece) =>
+      piece.player === player &&
+      piece.location === "route" &&
+      values.some((value) => canMovePiece(pieces, piece, value)),
+  );
+}
+
+/**
+ * ¿La ficha puede mover estos valores en secuencia (uno tras otro)?
+ * Simula cada paso con su resolución de caída (capturas / llegada exacta).
+ */
+export function canMovePieceSequence(
+  pieces: PieceState[],
+  piece: PieceState,
+  steps: number[],
+): boolean {
+  let boardPieces = pieces;
+  let mover = piece;
+
+  for (const step of steps) {
+    if (!canMovePiece(boardPieces, mover, step)) return false;
+
+    const destination = mover.routeIndex! + step;
+    boardPieces = boardPieces.map((p) =>
+      p.player === mover.player && p.index === mover.index
+        ? { ...p, routeIndex: destination }
+        : p,
+    );
+    boardPieces = resolveLanding(boardPieces, mover.player, mover.index);
+    mover = boardPieces.find(
+      (p) => p.player === mover.player && p.index === mover.index,
+    )!;
+  }
+
+  return true;
+}
+
+/**
+ * Valor a mover automáticamente cuando el jugador tiene una sola ficha en
+ * juego:
+ * - Puede consumir todos los dados en secuencia → el primero del orden que
+ *   funcione (el resto se encadena solo).
+ * - Solo un valor es jugable → ese valor (no hay nada que elegir).
+ * - Hay elección real (cada valor es jugable por separado pero no ambos)
+ *   → null: decide el usuario.
+ */
+export function getAutoMoveValue(
+  pieces: PieceState[],
+  piece: PieceState,
+  remainingDice: number[],
+): number | null {
+  if (remainingDice.length === 1) {
+    return canMovePiece(pieces, piece, remainingDice[0])
+      ? remainingDice[0]
+      : null;
+  }
+
+  const [a, b] = remainingDice;
+  if (canMovePieceSequence(pieces, piece, [a, b])) return a;
+  if (canMovePieceSequence(pieces, piece, [b, a])) return b;
+
+  const movableValues = [...new Set(remainingDice)].filter((value) =>
+    canMovePiece(pieces, piece, value),
+  );
+  return movableValues.length === 1 ? movableValues[0] : null;
+}
+
 /**
  * Capturas al terminar el movimiento: si la casilla final no es SAFE/EXIT,
  * las fichas enemigas que estaban ahí vuelven a su casilla de inicio.

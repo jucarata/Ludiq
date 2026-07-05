@@ -14,7 +14,9 @@ import type { PlayerColor } from "@/lib/board/types";
 import {
   canMovePiece,
   consumeDice,
+  getAutoMoveValue,
   getMoveOptions,
+  hasAnyValidMove,
   MOVE_STEP_MS,
   resolveLanding,
   type DieMoveChoice,
@@ -237,6 +239,40 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     },
     [remainingDice, pieces, animation],
   );
+
+  /*
+   * Ninguna ficha puede mover los valores restantes (p. ej. tras gastar el
+   * primer dado): se pierde el resto del turno de inmediato.
+   */
+  useEffect(() => {
+    if (!canInteractWithPieces || !remainingDice?.length) return;
+    if (hasAnyValidMove(pieces, currentPlayer, remainingDice)) return;
+
+    setRemainingDice(null);
+    setSelectedPiece(null);
+    setMenuAnchor(null);
+    advanceTurn();
+  }, [canInteractWithPieces, remainingDice, pieces, currentPlayer, advanceTurn]);
+
+  /*
+   * Una sola ficha en juego (las demás en inicio o terminadas): se mueve sola
+   * todo lo que se pueda. Si mover ambos valores es imposible y cada uno es
+   * jugable por separado, la elección queda en manos del usuario.
+   */
+  useEffect(() => {
+    if (!canInteractWithPieces || !remainingDice?.length) return;
+
+    const routePieces = pieces.filter(
+      (p) => p.player === currentPlayer && p.location === "route",
+    );
+    if (routePieces.length !== 1) return;
+
+    const piece = routePieces[0];
+    const value = getAutoMoveValue(pieces, piece, remainingDice);
+    if (value === null) return;
+
+    movePiece({ player: piece.player, index: piece.index }, { value });
+  }, [canInteractWithPieces, remainingDice, pieces, currentPlayer, movePiece]);
 
   const selectPiece = useCallback(
     (piece: SelectedPiece, anchor: MenuAnchor) => {
