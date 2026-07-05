@@ -56,9 +56,6 @@ export function TurnPanel() {
       aria-label="Panel de turnos"
     >
       <DiceLauncher />
-      <h2 className="mb-3 text-center text-sm font-semibold uppercase tracking-wide text-[#d4c5a0] md:mb-4">
-        Turnos
-      </h2>
       <ul className="grid grid-cols-2 gap-3 md:flex md:flex-1 md:flex-col md:justify-center">
         {activePlayers.map((color) => (
           <TeamEntry
