@@ -22,7 +22,7 @@ export function MovementCellRoot({
 }: MovementCellProps & { children: React.ReactNode }) {
   return (
     <div
-      className="relative h-full w-full min-h-0 min-w-0"
+      className="relative h-full w-full min-h-0 min-w-0 overflow-visible"
       style={style}
       data-cell-role="movement"
       data-track={movement?.trackNumber}

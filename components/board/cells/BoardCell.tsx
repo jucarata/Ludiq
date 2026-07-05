@@ -58,6 +58,7 @@ export function BoardCell({ cell, style }: BoardCellProps) {
         movement={cell.movement}
         rotation={cell.corner.rotation}
         background={getCellAppearance(cell)}
+        anchor={cell.anchor}
         style={style}
       />
     );

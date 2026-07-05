@@ -87,6 +87,8 @@ export interface CellData {
   exit?: ExitCellData;
   /** Número visible del tablero (solo celdas de movimiento) */
   gridNumber: number;
+  /** Ancla lógica del tablero (1–196) — posición en grid real */
+  anchor?: number;
   colSpan?: number;
   rowSpan?: number;
   corner?: CornerCellData;

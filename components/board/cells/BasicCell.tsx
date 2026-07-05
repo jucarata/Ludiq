@@ -2,6 +2,7 @@ import type { CellData } from "@/lib/board/types";
 import type { MovementCellProps } from "./MovementCell";
 import { CellShell, getCellAppearance } from "./CellChrome";
 import { MovementCellRoot } from "./MovementCell";
+import { AnchorCellPieces } from "./AnchorCellPieces";
 
 export interface BasicCellProps extends MovementCellProps {
   cell: CellData;
@@ -16,6 +17,8 @@ export function BasicCell({
   children,
 }: BasicCellProps) {
   const appearance = getCellAppearance(cell);
+  const showRoutePieces =
+    cell.anchor !== undefined && cell.exit?.role !== "start";
 
   return (
     <MovementCellRoot
@@ -27,6 +30,14 @@ export function BasicCell({
       <CellShell className={appearance.className} style={appearance.style}>
         {children}
       </CellShell>
+      {showRoutePieces && (
+        <AnchorCellPieces
+          anchor={cell.anchor!}
+          colSpan={cell.colSpan}
+          rowSpan={cell.rowSpan}
+          orientation={cell.basic?.orientation}
+        />
+      )}
     </MovementCellRoot>
   );
 }

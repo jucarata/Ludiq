@@ -16,7 +16,7 @@ export function CellShell({
   clipPath?: string;
 }) {
   return (
-    <div className="relative h-full w-full min-h-0 min-w-0" style={gridStyle}>
+    <div className="relative h-full w-full min-h-0 min-w-0 overflow-visible" style={gridStyle}>
       <div
         className={`relative h-full w-full overflow-hidden rounded-[2px] ${className}`}
         style={{ ...style, clipPath }}

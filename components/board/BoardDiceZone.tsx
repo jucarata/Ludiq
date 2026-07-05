@@ -1,7 +1,9 @@
 "use client";
 
-import { useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { useDice } from "@/components/dice/DiceContext";
+import { useGameState } from "@/components/game/GameStateContext";
+import { PieceMoveMenuOverlay } from "@/components/board/PieceMoveMenu";
 import { DicePairVisual } from "@/components/dice/DicePairVisual";
 import { DiceRollOverlay } from "@/components/dice/DiceRollOverlay";
 import {
@@ -19,6 +21,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   const samplesRef = useRef<VelocitySample[]>([]);
   const isDraggingRef = useRef(false);
   const { isAiming, isRolling, canRoll, throwDice, reportDieSettled, activeDice, setBoardDragging } = useDice();
+  const { selectedPiece, clearSelection, canInteractWithPieces } = useGameState();
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -89,10 +92,18 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
     zoneRef.current?.releasePointerCapture(event.pointerId);
   };
 
+  const handleBoardClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (selectedPiece && canInteractWithPieces && !isAiming && !isRolling) {
+      clearSelection();
+    }
+  };
+
   return (
     <div
       ref={zoneRef}
-      className={`relative touch-none ${isAiming ? "cursor-none" : ""}`}
+      className={`relative touch-none ${isAiming ? "cursor-none" : canInteractWithPieces ? "cursor-default" : ""}`}
+      onClick={handleBoardClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -122,6 +133,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
           aria-hidden
         />
       )}
+      <PieceMoveMenuOverlay />
     </div>
   );
 }

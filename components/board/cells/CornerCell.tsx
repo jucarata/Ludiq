@@ -4,8 +4,10 @@ import {
   TRIANGLE_CLIP,
 } from "@/lib/board/cell-shapes";
 import type { CornerRotation } from "@/lib/board/cell-shapes";
+import { CORNER_HALF_REGIONS } from "@/lib/board/player-path";
 import type { MovementCellProps } from "./MovementCell";
 import { MovementCellRoot } from "./MovementCell";
+import { CornerHalfPieces } from "./AnchorCellPieces";
 
 interface CornerHalfProps {
   background: { className?: string; style?: React.CSSProperties };
@@ -38,6 +40,8 @@ export interface CornerCellProps extends MovementCellProps {
   background: { className?: string; style?: React.CSSProperties };
   /** Contenido solo en el primer triángulo (ficha, corona, etc.) */
   primaryContent?: React.ReactNode;
+  /** Ancla lógica de la celda — para fichas del recorrido */
+  anchor?: number;
   /** Posición en el grid CSS */
   style?: React.CSSProperties;
   /** Grosor visual del divisor (px) */
@@ -54,6 +58,7 @@ export function CornerCell({
   primaryContent,
   movement,
   safe,
+  anchor,
   style,
   dividerWidth = 3,
 }: CornerCellProps) {
@@ -89,6 +94,15 @@ export function CornerCell({
         />
       </svg>
       </div>
+      {anchor !== undefined &&
+        CORNER_HALF_REGIONS[anchor]?.map((region, half) => (
+          <CornerHalfPieces
+            key={half}
+            anchor={anchor}
+            half={half as 0 | 1}
+            region={region}
+          />
+        ))}
     </MovementCellRoot>
   );
 }

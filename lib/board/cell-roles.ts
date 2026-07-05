@@ -3,6 +3,7 @@ import type {
   CellRole,
   ExitCellData,
   MovementCellData,
+  PlayerColor,
   SafeCellData,
 } from "./types";
 

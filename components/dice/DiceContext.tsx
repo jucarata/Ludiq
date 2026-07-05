@@ -17,10 +17,6 @@ import {
   DICE_COUNT,
   rollDicePair,
 } from "@/lib/game/dice";
-import {
-  hasAllPiecesInStart,
-  isDiceDoubles,
-} from "@/lib/game/pieces";
 
 export interface ActiveDieRoll {
   key: number;
@@ -59,7 +55,7 @@ const DiceContext = createContext<DiceContextValue | null>(null);
 export function DiceProvider({ children }: { children: ReactNode }) {
   const { currentPlayer, pauseForDiceRoll, startDecisionPhase, advanceTurn } =
     useTurn();
-  const { handleRollResult, pieces } = useGameState();
+  const { handleRollResult, beginMovementPhase } = useGameState();
   const [isAiming, setIsAiming] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [isBoardDragging, setBoardDragging] = useState(false);
@@ -80,26 +76,25 @@ export function DiceProvider({ children }: { children: ReactNode }) {
 
   const finishRollSession = useCallback(
     (values: [number, number]) => {
-      const skipDecision =
-        !isDiceDoubles(values) && hasAllPiecesInStart(pieces, currentPlayer);
-
       setTurnRoll(values);
       setHasRolledThisTurn(true);
       setActiveDice(null);
       setIsRolling(false);
       settledDiceRef.current.clear();
-      handleRollResult(currentPlayer, values);
 
-      if (skipDecision) {
+      const action = handleRollResult(currentPlayer, values);
+
+      if (action === "skip_turn") {
         advanceTurn();
       } else {
+        beginMovementPhase(values);
         startDecisionPhase();
       }
     },
     [
       currentPlayer,
-      pieces,
       handleRollResult,
+      beginMovementPhase,
       advanceTurn,
       startDecisionPhase,
     ],

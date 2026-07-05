@@ -161,6 +161,7 @@ function buildCell(r: number, c: number): CellData {
         labelOrientation: exitSpec.label,
       },
       gridNumber,
+      anchor: logical,
       trackNumber,
       basic,
       ...span,
@@ -176,12 +177,14 @@ function buildCell(r: number, c: number): CellData {
         owner: base,
         exit: { role: "start", state: "empty", slot: pieceSlot },
         gridNumber,
+        anchor: logical,
       });
     }
     return movementCell({
       shape,
       kind: "path",
       gridNumber,
+      anchor: logical,
       trackNumber,
       basic,
       corner,
@@ -206,6 +209,7 @@ function buildCell(r: number, c: number): CellData {
     kind: coloredHome ? "home" : "path",
     owner,
     gridNumber,
+    anchor: logical,
     trackNumber,
     safe: safeSpec
       ? { owner: safeSpec.owner, labelOrientation: safeSpec.label }
