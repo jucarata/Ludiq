@@ -8,26 +8,10 @@ import { useGameState } from "@/components/game/GameStateContext";
 interface PieceMoveMenuProps {
   options: { id: string; label: string; choice: DieMoveChoice }[];
   onSelect: (choice: DieMoveChoice) => void;
-  onClose: () => void;
 }
 
 /** Mini-menú con los valores de dado disponibles para mover la ficha */
-export function PieceMoveMenu({
-  options,
-  onSelect,
-  onClose,
-}: PieceMoveMenuProps) {
-  if (options.length === 0) {
-    return (
-      <div className="rounded-lg bg-zinc-900/95 px-3 py-2 text-xs text-white shadow-lg">
-        Sin movimientos
-        <button type="button" className="ml-2 underline" onClick={onClose}>
-          Cerrar
-        </button>
-      </div>
-    );
-  }
-
+export function PieceMoveMenu({ options, onSelect }: PieceMoveMenuProps) {
   return (
     <div
       className="flex gap-1"
@@ -82,6 +66,8 @@ export function PieceMoveMenuOverlay() {
   if (!mounted || !selectedPiece || !menuAnchor) return null;
 
   const options = getMoveOptionsForSelection();
+  /* Sin movimientos válidos: la ficha queda seleccionada pero no sale menú */
+  if (options.length === 0) return null;
 
   return createPortal(
     <div
@@ -90,11 +76,7 @@ export function PieceMoveMenuOverlay() {
       style={{ left: menuAnchor.x, top: menuAnchor.y }}
       onClick={(event) => event.stopPropagation()}
     >
-      <PieceMoveMenu
-        options={options}
-        onSelect={applyMove}
-        onClose={clearSelection}
-      />
+      <PieceMoveMenu options={options} onSelect={applyMove} />
     </div>,
     document.body,
   );

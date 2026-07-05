@@ -33,6 +33,14 @@ export const EXIT_MOVEMENT_CELLS: Record<number, ExitMovementSpec> = {
   163: { owner: "blue", label: "down" },
 };
 
+/**
+ * Casilla protegida (SAFE o EXIT): fichas de distinto color pueden
+ * coexistir y no hay capturas al aterrizar en ella.
+ */
+export function isProtectedAnchor(anchor: number): boolean {
+  return anchor in SAFE_MOVEMENT_CELLS || anchor in EXIT_MOVEMENT_CELLS;
+}
+
 /** Celda básica de movimiento — rectángulo 2×1 con orientación fija */
 export interface BasicCellSpec {
   anchor: number;

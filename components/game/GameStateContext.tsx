@@ -16,6 +16,7 @@ import {
   consumeDice,
   getMoveOptions,
   MOVE_STEP_MS,
+  resolveLanding,
   type DieMoveChoice,
   type MoveOption,
 } from "@/lib/game/movement";
@@ -133,6 +134,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
     if (piece.routeIndex >= animation.target) {
       setAnimation(null);
+      /* Captura: enemigas en la casilla final (no SAFE/EXIT) vuelven a inicio */
+      setPieces((prev) =>
+        resolveLanding(prev, animation.player, animation.index),
+      );
       if (
         animation.advanceAfter &&
         interactionRef.current.currentPlayer === animation.player

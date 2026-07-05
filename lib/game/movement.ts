@@ -1,7 +1,11 @@
 import { getRouteCell, getRouteLength } from "@/lib/board/player-path";
+import { isProtectedAnchor } from "@/lib/board/cell-placements";
+import type { PlayerColor } from "@/lib/board/types";
 import {
+  getPieceRouteCell,
   getPiecesAtRouteCell,
   MAX_PIECES_PER_CELL,
+  type PieceIndex,
   type PieceState,
 } from "./pieces";
 
@@ -59,5 +63,43 @@ export function canMovePiece(
     (other) =>
       !(other.player === piece.player && other.index === piece.index),
   );
-  return occupants.length < MAX_PIECES_PER_CELL;
+
+  /* SAFE / EXIT: sin capturas — colores distintos coexisten, máx. 2 en total */
+  if (isProtectedAnchor(destinationCell.anchor)) {
+    return occupants.length < MAX_PIECES_PER_CELL;
+  }
+
+  /* Casilla normal: las enemigas mueren al aterrizar; solo bloquean las propias */
+  const ownOccupants = occupants.filter(
+    (other) => other.player === piece.player,
+  );
+  return ownOccupants.length < MAX_PIECES_PER_CELL;
+}
+
+/**
+ * Capturas al terminar el movimiento: si la casilla final no es SAFE/EXIT,
+ * las fichas enemigas que estaban ahí vuelven a su casilla de inicio.
+ */
+export function resolveLanding(
+  pieces: PieceState[],
+  player: PlayerColor,
+  index: PieceIndex,
+): PieceState[] {
+  const mover = pieces.find((p) => p.player === player && p.index === index);
+  if (!mover) return pieces;
+
+  const cell = getPieceRouteCell(mover);
+  if (!cell || isProtectedAnchor(cell.anchor)) return pieces;
+
+  const victims = getPiecesAtRouteCell(pieces, cell).filter(
+    (other) => other.player !== player,
+  );
+  if (victims.length === 0) return pieces;
+
+  const victimKeys = new Set(victims.map((v) => `${v.player}-${v.index}`));
+  return pieces.map((p) =>
+    victimKeys.has(`${p.player}-${p.index}`)
+      ? { ...p, location: "start" as const, routeIndex: undefined }
+      : p,
+  );
 }
