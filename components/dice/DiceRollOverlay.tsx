@@ -6,7 +6,6 @@ import { Die3D, getFaceRotation } from "@/components/dice/Die3D";
 import {
   createDicePhysics,
   DICE_RESULT_HOLD_MS,
-  isDiceSettled,
   normalizeThrowVelocity,
   stepDicePhysics,
   type DicePhysicsState,
@@ -16,6 +15,11 @@ const DIE_SIZE_PX = 56;
 const SETTLE_TRANSITION_MS = 260;
 const FLIP_MIN_MS = 150;
 const FLIP_MAX_MS = 420;
+/** Bajo esta velocidad el dado ya "cayó": se muestra el resultado sin más giros. */
+const RESULT_TRIGGER_SPEED = 110;
+/** Frenado extra por frame (a 60 fps) para el deslizamiento residual tras caer. */
+const POST_RESULT_DAMPING = 0.82;
+const REST_SPEED = 3;
 
 interface DiceRollOverlayProps {
   roll: ActiveDieRoll;
@@ -104,11 +108,12 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
 
       const next = stepDicePhysics(physics, roll.bounds, dt);
       Object.assign(physics, next);
-      setRenderState({ ...next });
 
-      // Al frenar el deslizamiento, el dado cae de inmediato a la cara final
-      // (aunque esté a media voltereta) para que no siga girando ya quieto.
-      if (!settled && isDiceSettled(next)) {
+      const speed = Math.hypot(next.vx, next.vy);
+
+      // En cuanto pierde impulso, el dado "cae": se corta el giro de inmediato
+      // y se muestra la cara final mientras se frena el deslizamiento residual.
+      if (!settled && speed < RESULT_TRIGGER_SPEED) {
         settled = true;
         setPhase("result");
 
@@ -118,8 +123,21 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
         resultTimeout = window.setTimeout(() => {
           onSettledRef.current(roll.value);
         }, DICE_RESULT_HOLD_MS);
+      }
+
+      if (settled) {
+        const damping = Math.pow(POST_RESULT_DAMPING, dt * 60);
+        physics.vx *= damping;
+        physics.vy *= damping;
+        setRenderState({ ...physics });
+
+        if (Math.hypot(physics.vx, physics.vy) < REST_SPEED) return;
+
+        frame = requestAnimationFrame(tick);
         return;
       }
+
+      setRenderState({ ...next });
 
       flip.elapsedMs += dt * 1000;
       const progress = Math.min(flip.elapsedMs / flip.durationMs, 1);

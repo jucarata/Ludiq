@@ -1,7 +1,7 @@
 import { PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
 
 export const TURN_DURATION_SECONDS = 30;
-export const TURN_DECISION_SECONDS = 10;
+export const TURN_DECISION_SECONDS = 15;
 export const TURN_ANNOUNCEMENT_MS = 1500;
 
 export type TurnPhase = "playing" | "rolling" | "deciding";
