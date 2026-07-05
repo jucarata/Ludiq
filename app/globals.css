@@ -52,6 +52,43 @@ body {
   animation-fill-mode: forwards;
 }
 
+/* Estrellas que salen disparadas desde la casilla café al meter una ficha */
+@keyframes victory-star {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--star-dx)), calc(-50% + var(--star-dy)))
+      scale(var(--star-scale)) rotate(var(--star-rot));
+  }
+}
+
+.victory-star {
+  animation: victory-star var(--star-duration) ease-out forwards;
+  animation-delay: var(--star-delay);
+}
+
+/* Destello central al momento de la llegada */
+@keyframes victory-flash {
+  0% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+.victory-flash {
+  animation: victory-flash 0.7s ease-out forwards;
+}
+
 .dice-roll--result {
   animation: dice-roll-pop 0.35s ease-out forwards;
 }

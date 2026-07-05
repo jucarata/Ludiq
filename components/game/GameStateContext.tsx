@@ -22,6 +22,10 @@ import {
 } from "@/lib/game/movement";
 import { resolveRoll, type PostRollAction } from "@/lib/game/roll-resolution";
 import {
+  FINISH_CELEBRATION_MS,
+  type CelebrationState,
+} from "@/lib/game/celebration";
+import {
   createInitialPieces,
   getFinishedPieces,
   getPiecesAtAnchor,
@@ -49,6 +53,7 @@ interface GameStateContextValue {
   menuAnchor: MenuAnchor | null;
   canInteractWithPieces: boolean;
   winner: PlayerColor | null;
+  celebration: CelebrationState | null;
   getFinishedPieces: (player: PlayerColor) => PieceState[];
   handleRollResult: (
     player: PlayerColor,
@@ -77,6 +82,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const { currentPlayer, turnPhase, advanceTurn, endGame } = useTurn();
   const [pieces, setPieces] = useState<PieceState[]>(createInitialPieces);
   const [winner, setWinner] = useState<PlayerColor | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationState | null>(
+    null,
+  );
   const [remainingDice, setRemainingDice] = useState<number[] | null>(null);
   const [selectedPiece, setSelectedPiece] = useState<SelectedPiece | null>(
     null,
@@ -104,6 +112,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setSelectedPiece(null);
     setMenuAnchor(null);
   }, [currentPlayer]);
+
+  /** La celebración dura 2 s y se limpia sola */
+  useEffect(() => {
+    if (!celebration) return;
+    const timeout = setTimeout(
+      () => setCelebration(null),
+      FINISH_CELEBRATION_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [celebration]);
 
   /** Avanza la ficha una casilla por tick — la ficha recorre el camino */
   useEffect(() => {
@@ -146,6 +164,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
        */
       const landed = resolveLanding(pieces, animation.player, animation.index);
       setPieces(landed);
+
+      /* La ficha llegó a la casilla café → ráfaga de celebración */
+      const mover = landed.find(
+        (p) => p.player === animation.player && p.index === animation.index,
+      );
+      if (mover?.location === "finished") {
+        setCelebration({ player: animation.player, key: Date.now() });
+      }
 
       if (hasPlayerWon(landed, animation.player)) {
         setWinner(animation.player);
@@ -251,6 +277,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     menuAnchor,
     canInteractWithPieces,
     winner,
+    celebration,
     getFinishedPieces: (player) => getFinishedPieces(pieces, player),
     handleRollResult,
     beginMovementPhase,
