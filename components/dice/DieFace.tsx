@@ -37,7 +37,7 @@ export interface DieFaceProps {
   className?: string;
 }
 
-/** Cara de dado con puntos del 1 al 6 */
+/** Cara de dado plana (2D) con puntos del 1 al 6 */
 export function DieFace({ value = 5, className = "h-12 w-12" }: DieFaceProps) {
   const dots = DOT_LAYOUT[value] ?? DOT_LAYOUT[5];
 

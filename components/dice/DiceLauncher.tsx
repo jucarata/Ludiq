@@ -2,7 +2,7 @@
 
 import { useDice } from "@/components/dice/DiceContext";
 import { useTurn } from "@/components/game/TurnContext";
-import { DicePairVisual } from "@/components/dice/DicePairVisual";
+import { DieFace } from "@/components/dice/DieFace";
 import { PLAYER_COLORS } from "@/lib/board/types";
 
 export function DiceLauncher() {
@@ -56,7 +56,10 @@ export function DiceLauncher() {
             : `Lanzar dados — turno de ${label}`
         }
       >
-        <DicePairVisual />
+        <div className="flex items-center gap-2" aria-hidden>
+          <DieFace value={3} className="h-14 w-14 md:h-16 md:w-16" />
+          <DieFace value={5} className="h-14 w-14 md:h-16 md:w-16" />
+        </div>
         <span className="text-xs font-semibold uppercase tracking-wide text-[#d4c5a0]">
           {isAiming ? "Cancelar" : "Lanzar dados"}
         </span>

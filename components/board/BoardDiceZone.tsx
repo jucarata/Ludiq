@@ -117,7 +117,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
           style={{ left: dragPoint.x, top: dragPoint.y }}
           aria-hidden
         >
-          <DicePairVisual sizeClass="h-12 w-12 md:h-14 md:w-14" />
+          <DicePairVisual sizePx={48} />
         </div>
       )}
       {activeDice?.map((die) => (

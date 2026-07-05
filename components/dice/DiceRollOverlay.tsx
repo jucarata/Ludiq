@@ -2,25 +2,77 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ActiveDieRoll } from "@/components/dice/DiceContext";
-import { DieFace } from "@/components/dice/DieFace";
+import { Die3D, getFaceRotation } from "@/components/dice/Die3D";
 import {
   createDicePhysics,
   DICE_RESULT_HOLD_MS,
   isDiceSettled,
   normalizeThrowVelocity,
-  rollDie,
   stepDicePhysics,
   type DicePhysicsState,
 } from "@/lib/game/dice";
+
+const DIE_SIZE_PX = 56;
+const SETTLE_TRANSITION_MS = 260;
+const FLIP_MIN_MS = 150;
+const FLIP_MAX_MS = 420;
 
 interface DiceRollOverlayProps {
   roll: ActiveDieRoll;
   onSettled: (value: number) => void;
 }
 
+type FlipAxis = "X" | "Y";
+
+interface Flip {
+  axis: FlipAxis;
+  direction: 1 | -1;
+  durationMs: number;
+  elapsedMs: number;
+}
+
+/**
+ * Elige la siguiente voltereta de 90°: el eje se pondera según la dirección
+ * del movimiento para que el dado "ruede" hacia donde se desliza
+ * (movimiento horizontal → voltereta sobre el eje Y y viceversa).
+ */
+function pickFlip(physics: DicePhysicsState): Flip {
+  const speed = Math.hypot(physics.vx, physics.vy);
+  const absVx = Math.abs(physics.vx);
+  const absVy = Math.abs(physics.vy);
+  const horizontalBias = absVx / Math.max(absVx + absVy, 1);
+
+  const axis: FlipAxis = Math.random() < horizontalBias ? "Y" : "X";
+  const direction: 1 | -1 =
+    axis === "Y" ? (physics.vx >= 0 ? 1 : -1) : (physics.vy >= 0 ? -1 : 1);
+
+  const durationMs = Math.min(
+    FLIP_MAX_MS,
+    Math.max(FLIP_MIN_MS, 460 - speed * 0.26),
+  );
+
+  return { axis, direction, durationMs, elapsedMs: 0 };
+}
+
+/** Pausa breve en cada cara y caída sobre la arista (suaviza inicio y fin). */
+function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+function randomBakedFlips(): string[] {
+  const flips: string[] = [];
+  const count = Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i += 1) {
+    const axis = Math.random() > 0.5 ? "X" : "Y";
+    const direction = Math.random() > 0.5 ? 90 : -90;
+    flips.unshift(`rotate${axis}(${direction}deg)`);
+  }
+  return flips;
+}
+
 export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
-  const [displayValue, setDisplayValue] = useState(1);
   const [phase, setPhase] = useState<"rolling" | "result">("rolling");
+  const [orientation, setOrientation] = useState("rotateX(0deg)");
   const [renderState, setRenderState] = useState<DicePhysicsState>(() => {
     const velocity = normalizeThrowVelocity(roll.vx, roll.vy);
     return createDicePhysics(roll.x, roll.y, velocity.vx, velocity.vy);
@@ -30,16 +82,20 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
 
   useEffect(() => {
     setPhase("rolling");
-    setDisplayValue(rollDie());
 
     const velocity = normalizeThrowVelocity(roll.vx, roll.vy);
     const physics = createDicePhysics(roll.x, roll.y, velocity.vx, velocity.vy);
     setRenderState(physics);
 
+    // Volteretas completadas, exactas a 90°; la más reciente va primero
+    // (la primera del transform se aplica en el marco de la pantalla).
+    const bakedFlips = randomBakedFlips();
+    let flip = pickFlip(physics);
+    setOrientation(bakedFlips.join(" ") || "rotateX(0deg)");
+
     let frame = 0;
     let resultTimeout = 0;
     let previous = performance.now();
-    let lastShuffle = 0;
     let settled = false;
 
     const tick = (now: number) => {
@@ -50,21 +106,31 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
       Object.assign(physics, next);
       setRenderState({ ...next });
 
-      const speed = Math.hypot(next.vx, next.vy);
-
-      if (now - lastShuffle > 80 && speed > 20) {
-        lastShuffle = now;
-        setDisplayValue(rollDie());
-      }
-
+      // Al frenar el deslizamiento, el dado cae de inmediato a la cara final
+      // (aunque esté a media voltereta) para que no siga girando ya quieto.
       if (!settled && isDiceSettled(next)) {
         settled = true;
-        setDisplayValue(roll.value);
         setPhase("result");
+
+        const face = getFaceRotation(roll.value);
+        setOrientation(`rotateX(${face.x}deg) rotateY(${face.y}deg)`);
+
         resultTimeout = window.setTimeout(() => {
           onSettledRef.current(roll.value);
         }, DICE_RESULT_HOLD_MS);
         return;
+      }
+
+      flip.elapsedMs += dt * 1000;
+      const progress = Math.min(flip.elapsedMs / flip.durationMs, 1);
+      const angle = 90 * flip.direction * smoothstep(progress);
+      setOrientation(
+        [`rotate${flip.axis}(${angle}deg)`, ...bakedFlips].join(" "),
+      );
+
+      if (progress >= 1) {
+        bakedFlips.unshift(`rotate${flip.axis}(${90 * flip.direction}deg)`);
+        flip = pickFlip(physics);
       }
 
       frame = requestAnimationFrame(tick);
@@ -86,13 +152,13 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
       role="status"
       aria-label={`Dado: ${phase === "result" ? roll.value : "rodando"}`}
     >
-      <div style={{ transform: `rotate(${renderState.rotation}deg)` }}>
-        <div className={phase === "result" ? "dice-roll--result" : ""}>
-          <DieFace
-            value={displayValue}
-            className="h-14 w-14 drop-shadow-2xl md:h-16 md:w-16"
-          />
-        </div>
+      <div className={phase === "result" ? "dice-roll--result" : ""}>
+        <Die3D
+          sizePx={DIE_SIZE_PX}
+          orientation={orientation}
+          transitionMs={phase === "result" ? SETTLE_TRANSITION_MS : 0}
+          className="drop-shadow-2xl"
+        />
       </div>
     </div>
   );

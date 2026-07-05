@@ -38,7 +38,7 @@ export function DiceCursor() {
       style={{ left: position.x, top: position.y }}
       aria-hidden
     >
-      <DicePairVisual sizeClass="h-9 w-9" gapClass="gap-1.5" />
+      <DicePairVisual sizePx={36} gapClass="gap-1.5" />
     </div>
   );
 }
