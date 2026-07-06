@@ -42,7 +42,7 @@ export function CornerHalfPieces({ anchor, half, region }: CornerHalfPiecesProps
   const { currentPlayer } = useTurn();
   const {
     getPiecesAtAnchor,
-    canInteractWithPieces,
+    canHumanInteractWithPieces,
     selectedPiece,
     selectPiece,
   } = useGameState();
@@ -69,7 +69,7 @@ export function CornerHalfPieces({ anchor, half, region }: CornerHalfPiecesProps
               player={piece.player}
               index={piece.index}
               interactive={
-                canInteractWithPieces && piece.player === currentPlayer
+                canHumanInteractWithPieces && piece.player === currentPlayer
               }
               selected={
                 selectedPiece?.index === piece.index &&
@@ -100,7 +100,7 @@ export function AnchorCellPieces({
   const { currentPlayer } = useTurn();
   const {
     getPiecesAtAnchor,
-    canInteractWithPieces,
+    canHumanInteractWithPieces,
     selectedPiece,
     selectPiece,
   } = useGameState();
@@ -117,7 +117,7 @@ export function AnchorCellPieces({
       colSpan={colSpan}
       rowSpan={rowSpan}
       orientation={orientation}
-      interactive={canInteractWithPieces}
+      interactive={canHumanInteractWithPieces}
       activePlayer={currentPlayer}
       selectedPiece={selectedPiece}
       onPieceClick={(index, player, menuAnchor) =>

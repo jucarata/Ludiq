@@ -56,6 +56,8 @@ interface GameStateContextValue {
   selectedPiece: SelectedPiece | null;
   menuAnchor: MenuAnchor | null;
   canInteractWithPieces: boolean;
+  /** Solo jugadores humanos pueden clicar fichas */
+  canHumanInteractWithPieces: boolean;
   winner: PlayerColor | null;
   celebration: CelebrationState | null;
   getFinishedPieces: (player: PlayerColor) => PieceState[];
@@ -111,8 +113,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     remainingDice !== null &&
     remainingDice.length > 0;
 
+  const canHumanInteractWithPieces =
+    canInteractWithPieces && !isBot(currentPlayer);
+
   interactionRef.current = {
-    canInteract: canInteractWithPieces,
+    canInteract: canHumanInteractWithPieces,
     currentPlayer,
   };
 
@@ -350,6 +355,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     selectedPiece,
     menuAnchor,
     canInteractWithPieces,
+    canHumanInteractWithPieces,
     winner,
     celebration,
     getFinishedPieces: (player) => getFinishedPieces(pieces, player),

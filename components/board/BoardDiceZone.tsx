@@ -21,7 +21,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   const samplesRef = useRef<VelocitySample[]>([]);
   const isDraggingRef = useRef(false);
   const { isAiming, isRolling, canRoll, throwDice, reportDieSettled, activeDice, setBoardDragging } = useDice();
-  const { selectedPiece, clearSelection, canInteractWithPieces } = useGameState();
+  const { selectedPiece, clearSelection, canHumanInteractWithPieces } = useGameState();
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -94,7 +94,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
 
   const handleBoardClick = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
-    if (selectedPiece && canInteractWithPieces && !isAiming && !isRolling) {
+    if (selectedPiece && canHumanInteractWithPieces && !isAiming && !isRolling) {
       clearSelection();
     }
   };
@@ -102,7 +102,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   return (
     <div
       ref={zoneRef}
-      className={`relative touch-none ${isAiming ? "cursor-none" : canInteractWithPieces ? "cursor-default" : ""}`}
+      className={`relative touch-none ${isAiming ? "cursor-none" : canHumanInteractWithPieces ? "cursor-default" : ""}`}
       onClick={handleBoardClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
