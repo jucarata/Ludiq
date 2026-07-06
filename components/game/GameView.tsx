@@ -2,6 +2,7 @@
 
 import { ParquesBoard } from "@/components/board/ParquesBoard";
 import { BoardDiceZone } from "@/components/board/BoardDiceZone";
+import { AutoModeProvider } from "@/components/game/AutoModeContext";
 import { BotController } from "@/components/game/BotController";
 import { DiceProvider } from "@/components/dice/DiceContext";
 import { DiceCursor } from "@/components/dice/DiceCursor";
@@ -21,7 +22,8 @@ interface GameViewProps {
 export function GameView({ activePlayers, botPlayers }: GameViewProps) {
   return (
     <PlayersProvider activePlayers={activePlayers} botPlayers={botPlayers}>
-      <TurnProvider>
+      <AutoModeProvider>
+        <TurnProvider>
         <GameStateProvider>
           <DiceProvider>
             <BotController />
@@ -41,6 +43,7 @@ export function GameView({ activePlayers, botPlayers }: GameViewProps) {
           </DiceProvider>
         </GameStateProvider>
       </TurnProvider>
+      </AutoModeProvider>
     </PlayersProvider>
   );
 }

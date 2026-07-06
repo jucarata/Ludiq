@@ -1,6 +1,7 @@
 "use client";
 
 import { useDice } from "@/components/dice/DiceContext";
+import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useTurn } from "@/components/game/TurnContext";
 import { useIsBot } from "@/components/game/PlayersContext";
 import { DieFace } from "@/components/dice/DieFace";
@@ -9,6 +10,7 @@ import { PLAYER_COLORS } from "@/lib/board/types";
 export function DiceLauncher() {
   const { currentPlayer } = useTurn();
   const isBot = useIsBot();
+  const { isAutoEnabled } = useAutoMode();
   const {
     isAiming,
     isRolling,
@@ -21,10 +23,12 @@ export function DiceLauncher() {
 
   const { label } = PLAYER_COLORS[currentPlayer];
   const currentIsBot = isBot(currentPlayer);
+  const currentIsAutoHuman =
+    !currentIsBot && isAutoEnabled(currentPlayer);
 
   if (hasRolledThisTurn && turnRoll !== null) {
     return (
-      <div className="mb-4 flex flex-col items-center gap-2 border-b border-[#d4c5a0]/25 pb-4">
+      <div className="mb-4 flex flex-col items-center gap-2">
         <div
           className="flex min-h-[5.5rem] items-center justify-center gap-3 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem] md:gap-4"
           aria-label={`${label} sacó ${turnRoll[0]} y ${turnRoll[1]}`}
@@ -41,16 +45,20 @@ export function DiceLauncher() {
     );
   }
 
-  if (currentIsBot) {
+  if (currentIsBot || currentIsAutoHuman) {
     return (
-      <div className="mb-4 flex flex-col items-center gap-2 border-b border-[#d4c5a0]/25 pb-4">
+      <div className="mb-4 flex flex-col items-center gap-2">
         <div className="flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
           <div className="flex items-center gap-2" aria-hidden>
             <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
             <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
           </div>
           <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
-            {isRolling ? "La máquina lanza…" : "Turno de la máquina"}
+            {isRolling
+              ? "Lanzando dados…"
+              : currentIsBot
+                ? "Turno de la máquina"
+                : "Modo automático"}
           </span>
         </div>
       </div>
@@ -58,7 +66,7 @@ export function DiceLauncher() {
   }
 
   return (
-    <div className="mb-4 flex flex-col items-center gap-2 border-b border-[#d4c5a0]/25 pb-4">
+    <div className="mb-4 flex flex-col items-center gap-2">
       <button
         type="button"
         onClick={isAiming ? cancelAim : armDice}

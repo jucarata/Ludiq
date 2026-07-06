@@ -4,6 +4,7 @@ import { useTurn } from "@/components/game/TurnContext";
 import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
 import { GamePiece } from "@/components/board/GamePiece";
 import { DiceLauncher } from "@/components/dice/DiceLauncher";
+import { AutoModeToggles } from "@/components/turn/AutoModeToggles";
 import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
 
 function TeamEntry({
@@ -66,6 +67,7 @@ export function TurnPanel() {
       aria-label="Panel de turnos"
     >
       <DiceLauncher />
+      <AutoModeToggles />
       <ul className="grid grid-cols-2 gap-3 md:flex md:flex-1 md:flex-col md:justify-center">
         {activePlayers.map((color) => (
           <TeamEntry
