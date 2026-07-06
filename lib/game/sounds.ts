@@ -116,43 +116,98 @@ export function playDiceRollSound() {
 }
 
 /**
+ * Clic al avanzar una casilla — ficha saltando sobre el tablero.
+ */
+export function playPieceStepSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const master = createMasterGain(ctx, 0.2);
+  const start = ctx.currentTime;
+  const pitch = 320 + Math.random() * 90;
+
+  scheduleNoiseBurst(
+    ctx,
+    master,
+    start,
+    0.014,
+    0.35,
+    750 + Math.random() * 350,
+    1.8,
+    "bandpass",
+  );
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(pitch, start);
+  osc.frequency.exponentialRampToValueAtTime(pitch * 0.55, start + 0.045);
+
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(0.55, start + 0.002);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.05);
+
+  osc.connect(gain);
+  gain.connect(master);
+  osc.start(start);
+  osc.stop(start + 0.055);
+}
+
+/**
  * Impacto al capturar una ficha rival.
  */
 export function playCaptureSound() {
   const ctx = getAudioContext();
   if (!ctx) return;
 
-  const master = createMasterGain(ctx, 0.28);
+  const master = createMasterGain(ctx, 0.52);
   const start = ctx.currentTime;
 
-  scheduleNoiseBurst(ctx, master, start, 0.06, 0.7, 600, 1.5);
+  scheduleNoiseBurst(ctx, master, start, 0.09, 1, 280, 0.7, "bandpass");
+  scheduleNoiseBurst(ctx, master, start, 0.035, 0.9, 2200, 4, "highpass");
+  scheduleNoiseBurst(ctx, master, start + 0.05, 0.06, 0.55, 120, 0.8, "lowpass");
 
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(520, start);
-  osc.frequency.exponentialRampToValueAtTime(90, start + 0.18);
+  const slam = ctx.createOscillator();
+  const slamGain = ctx.createGain();
+  slam.type = "square";
+  slam.frequency.setValueAtTime(200, start);
+  slam.frequency.exponentialRampToValueAtTime(40, start + 0.28);
 
-  gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(0.9, start + 0.012);
-  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+  slamGain.gain.setValueAtTime(0, start);
+  slamGain.gain.linearRampToValueAtTime(0.85, start + 0.003);
+  slamGain.gain.exponentialRampToValueAtTime(0.001, start + 0.38);
 
-  osc.connect(gain);
-  gain.connect(master);
-  osc.start(start);
-  osc.stop(start + 0.25);
+  slam.connect(slamGain);
+  slamGain.connect(master);
+  slam.start(start);
+  slam.stop(start + 0.4);
 
-  const ping = ctx.createOscillator();
-  const pingGain = ctx.createGain();
-  ping.type = "square";
-  ping.frequency.value = 880;
-  pingGain.gain.setValueAtTime(0, start + 0.04);
-  pingGain.gain.linearRampToValueAtTime(0.15, start + 0.05);
-  pingGain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
-  ping.connect(pingGain);
-  pingGain.connect(master);
-  ping.start(start + 0.04);
-  ping.stop(start + 0.15);
+  const snap = ctx.createOscillator();
+  const snapGain = ctx.createGain();
+  snap.type = "sawtooth";
+  snap.frequency.setValueAtTime(720, start);
+  snap.frequency.exponentialRampToValueAtTime(100, start + 0.16);
+
+  snapGain.gain.setValueAtTime(0, start);
+  snapGain.gain.linearRampToValueAtTime(0.55, start + 0.004);
+  snapGain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+
+  snap.connect(snapGain);
+  snapGain.connect(master);
+  snap.start(start);
+  snap.stop(start + 0.22);
+
+  const thud = ctx.createOscillator();
+  const thudGain = ctx.createGain();
+  thud.type = "sine";
+  thud.frequency.value = 55;
+  thudGain.gain.setValueAtTime(0, start);
+  thudGain.gain.linearRampToValueAtTime(0.75, start + 0.006);
+  thudGain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+  thud.connect(thudGain);
+  thudGain.connect(master);
+  thud.start(start);
+  thud.stop(start + 0.32);
 }
 
 /**

@@ -10,9 +10,11 @@ permissions:
   pages: write
   id-token: write
 
+# Do not cancel in-progress Pages deploys — mid-flight cancellation often wedges
+# the next deployment with "Deployment failed, try again later."
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -57,11 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url || steps.deployment-retry-2.outputs.page_url }}
     steps:
-      # Pages allows only one deployment in flight. A cancelled run or a transient
-      # backend error can leave the next deploy failing immediately — retry after
-      # a short wait usually clears it.
+      # Pages allows only one deployment in flight. Transient backend errors are
+      # common; retry with increasing backoff before failing the workflow.
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
@@ -69,13 +70,25 @@ jobs:
         with:
           timeout: 600000
 
-      - name: Wait for in-flight deployment to settle
+      - name: Wait before retry (60s)
         if: steps.deployment.outcome == 'failure'
-        run: sleep 90
+        run: sleep 60
 
-      - name: Deploy to GitHub Pages (retry)
+      - name: Deploy to GitHub Pages (retry 1)
         if: steps.deployment.outcome == 'failure'
         id: deployment-retry
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+        with:
+          timeout: 600000
+
+      - name: Wait before retry (120s)
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'failure'
+        run: sleep 120
+
+      - name: Deploy to GitHub Pages (retry 2)
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'failure'
+        id: deployment-retry-2
         uses: actions/deploy-pages@v5
         with:
           timeout: 600000

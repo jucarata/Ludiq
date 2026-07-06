@@ -29,7 +29,7 @@ import {
   FINISH_CELEBRATION_MS,
   type CelebrationState,
 } from "@/lib/game/celebration";
-import { playCaptureSound } from "@/lib/game/sounds";
+import { playCaptureSound, playPieceStepSound } from "@/lib/game/sounds";
 import {
   createInitialPieces,
   getFinishedPieces,
@@ -143,16 +143,32 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     if (!animation) return;
 
     const interval = setInterval(() => {
-      setPieces((prev) =>
-        prev.map((piece) =>
+      setPieces((prev) => {
+        const moving = prev.find(
+          (piece) =>
+            piece.player === animation.player &&
+            piece.index === animation.index,
+        );
+
+        if (
+          !moving ||
+          moving.routeIndex === undefined ||
+          moving.routeIndex >= animation.target
+        ) {
+          return prev;
+        }
+
+        playPieceStepSound();
+
+        return prev.map((piece) =>
           piece.player === animation.player &&
           piece.index === animation.index &&
           piece.routeIndex !== undefined &&
           piece.routeIndex < animation.target
             ? { ...piece, routeIndex: piece.routeIndex + 1 }
             : piece,
-        ),
-      );
+        );
+      });
     }, MOVE_STEP_MS);
 
     return () => clearInterval(interval);
