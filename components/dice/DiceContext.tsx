@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useTurn } from "@/components/game/TurnContext";
 import { useGameState } from "@/components/game/GameStateContext";
+import { getVictoryCellCenter } from "@/lib/board/geometry";
 import {
   createPairedSpawnPoints,
   createPairedThrowVelocities,
@@ -49,6 +50,7 @@ interface DiceContextValue {
     bounds: { width: number; height: number };
   }) => void;
   autoRollDice: () => void;
+  registerDiceZone: (element: HTMLDivElement | null) => void;
   reportDieSettled: (key: number, value: number) => void;
 }
 
@@ -65,6 +67,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
   const [turnRoll, setTurnRoll] = useState<[number, number] | null>(null);
   const [activeDice, setActiveDice] = useState<ActiveDieRoll[] | null>(null);
   const settledDiceRef = useRef<Map<number, number>>(new Map());
+  const diceZoneRef = useRef<HTMLDivElement | null>(null);
 
   const canRoll = !hasRolledThisTurn && !isRolling;
 
@@ -178,13 +181,25 @@ export function DiceProvider({ children }: { children: ReactNode }) {
     [isAiming, canRoll, startRollSession],
   );
 
+  const registerDiceZone = useCallback((element: HTMLDivElement | null) => {
+    diceZoneRef.current = element;
+  }, []);
+
   const autoRollDice = useCallback(() => {
     if (!canRoll) return;
 
-    const bounds = { width: 480, height: 480 };
+    const zone = diceZoneRef.current;
+    if (!zone) return;
+
+    const bounds = {
+      width: zone.clientWidth,
+      height: zone.clientHeight,
+    };
+    const center = getVictoryCellCenter(bounds);
+
     startRollSession({
-      x: bounds.width / 2,
-      y: bounds.height / 2,
+      x: center.x,
+      y: center.y,
       vx: 420,
       vy: -380,
       bounds,
@@ -217,6 +232,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
         setBoardDragging,
         throwDice,
         autoRollDice,
+        registerDiceZone,
         reportDieSettled,
       }}
     >

@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { useDice } from "@/components/dice/DiceContext";
 import { useGameState } from "@/components/game/GameStateContext";
 import { PieceMoveMenuOverlay } from "@/components/board/PieceMoveMenu";
@@ -20,11 +27,25 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   const zoneRef = useRef<HTMLDivElement>(null);
   const samplesRef = useRef<VelocitySample[]>([]);
   const isDraggingRef = useRef(false);
-  const { isAiming, isRolling, canRoll, throwDice, reportDieSettled, activeDice, setBoardDragging } = useDice();
+  const {
+    isAiming,
+    isRolling,
+    canRoll,
+    throwDice,
+    reportDieSettled,
+    activeDice,
+    setBoardDragging,
+    registerDiceZone,
+  } = useDice();
   const { selectedPiece, clearSelection, canHumanInteractWithPieces } = useGameState();
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
+
+  useEffect(() => {
+    registerDiceZone(zoneRef.current);
+    return () => registerDiceZone(null);
+  }, [registerDiceZone]);
 
   const getLocalCoords = (clientX: number, clientY: number) => {
     const rect = zoneRef.current!.getBoundingClientRect();
