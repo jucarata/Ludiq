@@ -19,6 +19,58 @@ interface PlayerSetupProps {
   onStart: (setup: GameSetup) => void;
 }
 
+function RoleSwitch({
+  isBot,
+  disabled,
+  onToggle,
+}: {
+  isBot: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isBot}
+      aria-label={isBot ? "Máquina" : "Humano"}
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      className={`relative grid h-10 w-[11.5rem] shrink-0 grid-cols-2 overflow-hidden rounded-full border-2 p-1 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 sm:h-11 sm:w-[12.5rem] ${
+        isBot
+          ? "border-[#5a9fd4] bg-[#2d4a5e]"
+          : "border-[#5c5c78] bg-[#252540]"
+      }`}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-1 bottom-1 rounded-full bg-[#fefae0] shadow-[0_2px_10px_rgba(0,0,0,0.28)] transition-[left,width] duration-200 ease-out"
+        style={{
+          left: isBot ? "calc(50% + 2px)" : "4px",
+          width: "calc(50% - 6px)",
+        }}
+      />
+      <span
+        className={`relative z-10 flex items-center justify-center text-[11px] font-bold uppercase tracking-wide transition-colors duration-200 sm:text-xs ${
+          !isBot ? "text-[#1a1a2e]" : "text-[#fefae0]/65"
+        }`}
+      >
+        Humano
+      </span>
+      <span
+        className={`relative z-10 flex items-center justify-center text-[11px] font-bold uppercase tracking-wide transition-colors duration-200 sm:text-xs ${
+          isBot ? "text-[#1a1a2e]" : "text-[#fefae0]/65"
+        }`}
+      >
+        Máquina
+      </span>
+    </button>
+  );
+}
+
 export function PlayerSetup({ onStart }: PlayerSetupProps) {
   const [selected, setSelected] = useState<PlayerColor[]>([...PLAYER_ORDER]);
   const [bots, setBots] = useState<PlayerColor[]>([]);
@@ -34,9 +86,7 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
     });
   };
 
-  const toggleBot = (color: PlayerColor, event: React.MouseEvent) => {
-    event.stopPropagation();
-
+  const toggleBot = (color: PlayerColor) => {
     if (!selected.includes(color)) return;
 
     setBots((prev) => {
@@ -52,8 +102,8 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
     });
   };
 
-  const humanCount = selected.length - bots.filter((c) => selected.includes(c)).length;
   const botCount = bots.filter((c) => selected.includes(c)).length;
+  const humanCount = selected.length - botCount;
   const canStart =
     selected.length >= MIN_PLAYERS &&
     humanCount >= MIN_HUMANS &&
@@ -72,14 +122,14 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
         <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
           Jugadores
         </h1>
-        <p className="max-w-sm text-sm text-[var(--board-path-border)]">
-          Elige quién juega y marca cuáles son la máquina — mínimo{" "}
-          {MIN_PLAYERS} jugadores, al menos {MIN_HUMANS} humano, máximo{" "}
-          {MAX_BOTS} IAs
+        <p className="max-w-md text-sm text-[var(--board-path-border)]">
+          Toca un color para activarlo o quitarlo. Usa el switch para elegir
+          humano o máquina — mínimo {MIN_PLAYERS} jugadores, al menos{" "}
+          {MIN_HUMANS} humano, máximo {MAX_BOTS} IAs.
         </p>
       </div>
 
-      <div className="grid w-full max-w-sm grid-cols-2 gap-4">
+      <ul className="flex w-full max-w-md flex-col gap-3">
         {PLAYER_ORDER.map((color) => {
           const { fill, label } = PLAYER_COLORS[color];
           const isSelected = selected.includes(color);
@@ -91,54 +141,51 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
             botCount < MAX_BOTS &&
             humansLeft > MIN_HUMANS;
           const canUnmarkBot = isSelected && isBot;
+          const canToggleRole = canMarkBot || canUnmarkBot;
 
           return (
-            <div
-              key={color}
-              className={`flex flex-col items-center gap-2 rounded-2xl border-4 px-3 py-4 transition-all ${
-                isSelected
-                  ? "border-[var(--board-path-border)] bg-[#2a2a3e]"
-                  : "border-transparent bg-[#1a1a2e] opacity-40"
-              }`}
-              style={
-                isSelected
-                  ? { boxShadow: `0 0 20px ${fill}44` }
-                  : undefined
-              }
-            >
-              <button
-                type="button"
+            <li key={color}>
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => toggleColor(color)}
-                className="flex w-full flex-col items-center gap-2"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggleColor(color);
+                  }
+                }}
                 aria-pressed={isSelected}
+                className={`flex w-full cursor-pointer items-center justify-between gap-4 rounded-2xl border-4 px-4 py-3 transition-all sm:px-5 sm:py-3.5 ${
+                  isSelected
+                    ? "border-[var(--board-path-border)] bg-[#2a2a3e]"
+                    : "border-transparent bg-[#1a1a2e] opacity-40"
+                }`}
+                style={
+                  isSelected
+                    ? { boxShadow: `0 0 20px ${fill}44` }
+                    : undefined
+                }
               >
-                <div className="h-12 w-12 sm:h-14 sm:w-14">
-                  <GamePiece color={color} className="h-full w-full" />
-                </div>
-                <span className="text-sm font-semibold text-[var(--board-path)]">
-                  {label}
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center sm:h-11 sm:w-11">
+                    <GamePiece color={color} className="h-full w-full" />
+                  </span>
+                  <span className="truncate text-base font-semibold text-[var(--board-path)] sm:text-lg">
+                    {label}
+                  </span>
                 </span>
-              </button>
 
-              {isSelected && (
-                <button
-                  type="button"
-                  onClick={(event) => toggleBot(color, event)}
-                  disabled={!canMarkBot && !canUnmarkBot}
-                  className={`w-full rounded-lg px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${
-                    isBot
-                      ? "bg-[#457b9d] text-[#fefae0]"
-                      : "bg-[#1a1a2e] text-[var(--board-path-border)] hover:bg-[#252540] hover:text-[var(--board-path)]"
-                  } disabled:cursor-not-allowed disabled:opacity-40`}
-                  aria-pressed={isBot}
-                >
-                  {isBot ? "Máquina" : "Humano"}
-                </button>
-              )}
-            </div>
+                <RoleSwitch
+                  isBot={isBot}
+                  disabled={!isSelected || !canToggleRole}
+                  onToggle={() => toggleBot(color)}
+                />
+              </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       <p className="text-center text-sm text-[var(--board-path-border)]">
         {selected.length} jugador{selected.length !== 1 ? "es" : ""} ·{" "}
