@@ -2,11 +2,13 @@
 
 import { useDice } from "@/components/dice/DiceContext";
 import { useTurn } from "@/components/game/TurnContext";
+import { useIsBot } from "@/components/game/PlayersContext";
 import { DieFace } from "@/components/dice/DieFace";
 import { PLAYER_COLORS } from "@/lib/board/types";
 
 export function DiceLauncher() {
   const { currentPlayer } = useTurn();
+  const isBot = useIsBot();
   const {
     isAiming,
     isRolling,
@@ -18,6 +20,7 @@ export function DiceLauncher() {
   } = useDice();
 
   const { label } = PLAYER_COLORS[currentPlayer];
+  const currentIsBot = isBot(currentPlayer);
 
   if (hasRolledThisTurn && turnRoll !== null) {
     return (
@@ -32,6 +35,22 @@ export function DiceLauncher() {
           <span className="text-xl font-bold text-[#d4c5a0]/80 md:text-2xl">+</span>
           <span className="font-mono text-4xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-5xl">
             {turnRoll[1]}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentIsBot) {
+    return (
+      <div className="mb-4 flex flex-col items-center gap-2 border-b border-[#d4c5a0]/25 pb-4">
+        <div className="flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
+          <div className="flex items-center gap-2" aria-hidden>
+            <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
+            <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
+            {isRolling ? "La máquina lanza…" : "Turno de la máquina"}
           </span>
         </div>
       </div>

@@ -1,32 +1,56 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { PlayerColor } from "@/lib/board/types";
+import { isBotPlayer } from "@/lib/game/player-config";
 
 interface PlayersContextValue {
   activePlayers: PlayerColor[];
+  botPlayers: PlayerColor[];
+  isBot: (color: PlayerColor) => boolean;
 }
 
 const PlayersContext = createContext<PlayersContextValue | null>(null);
 
 export function PlayersProvider({
   activePlayers,
+  botPlayers,
   children,
 }: {
   activePlayers: PlayerColor[];
+  botPlayers: PlayerColor[];
   children: ReactNode;
 }) {
+  const value = useMemo(
+    () => ({
+      activePlayers,
+      botPlayers,
+      isBot: (color: PlayerColor) => isBotPlayer(botPlayers, color),
+    }),
+    [activePlayers, botPlayers],
+  );
+
   return (
-    <PlayersContext.Provider value={{ activePlayers }}>
-      {children}
-    </PlayersContext.Provider>
+    <PlayersContext.Provider value={value}>{children}</PlayersContext.Provider>
   );
 }
 
-export function useActivePlayers(): PlayerColor[] {
+function usePlayersContext(): PlayersContextValue {
   const value = useContext(PlayersContext);
   if (!value) {
-    throw new Error("useActivePlayers debe usarse dentro de PlayersProvider");
+    throw new Error("usePlayersContext debe usarse dentro de PlayersProvider");
   }
-  return value.activePlayers;
+  return value;
+}
+
+export function useActivePlayers(): PlayerColor[] {
+  return usePlayersContext().activePlayers;
+}
+
+export function useBotPlayers(): PlayerColor[] {
+  return usePlayersContext().botPlayers;
+}
+
+export function useIsBot(): (color: PlayerColor) => boolean {
+  return usePlayersContext().isBot;
 }

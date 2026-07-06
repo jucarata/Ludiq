@@ -1,7 +1,7 @@
 "use client";
 
 import { useTurn } from "@/components/game/TurnContext";
-import { useActivePlayers } from "@/components/game/PlayersContext";
+import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
 import { GamePiece } from "@/components/board/GamePiece";
 import { DiceLauncher } from "@/components/dice/DiceLauncher";
 import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
@@ -10,10 +10,12 @@ function TeamEntry({
   color,
   isActive,
   timeLeft,
+  isBot,
 }: {
   color: PlayerColor;
   isActive: boolean;
   timeLeft: number;
+  isBot: boolean;
 }) {
   const { fill, label } = PLAYER_COLORS[color];
 
@@ -34,9 +36,16 @@ function TeamEntry({
       <div className="flex h-8 w-8 shrink-0 items-center justify-center md:h-9 md:w-9">
         <GamePiece color={color} className="h-full w-full" />
       </div>
-      <span className="min-w-0 flex-1 truncate font-medium text-sm text-[#fefae0] md:text-base">
-        {label}
-      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-medium text-sm text-[#fefae0] md:text-base">
+          {label}
+        </span>
+        {isBot && (
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#457b9d] md:text-xs">
+            Máquina
+          </span>
+        )}
+      </div>
       {isActive && (
         <span className="shrink-0 rounded-md bg-[#fcd34d] px-1.5 py-0.5 font-mono text-xs font-bold tabular-nums text-[#1a1a2e] shadow-[0_0_10px_rgba(252,211,77,0.45)] md:text-sm">
           {timeLeft}s
@@ -49,6 +58,7 @@ function TeamEntry({
 export function TurnPanel() {
   const { currentPlayer, timeLeft } = useTurn();
   const activePlayers = useActivePlayers();
+  const isBot = useIsBot();
 
   return (
     <aside
@@ -63,6 +73,7 @@ export function TurnPanel() {
             color={color}
             isActive={color === currentPlayer}
             timeLeft={timeLeft}
+            isBot={isBot(color)}
           />
         ))}
       </ul>

@@ -47,6 +47,7 @@ interface DiceContextValue {
     vy: number;
     bounds: { width: number; height: number };
   }) => void;
+  autoRollDice: () => void;
   reportDieSettled: (key: number, value: number) => void;
 }
 
@@ -125,7 +126,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
     setIsAiming(false);
   }, [isRolling]);
 
-  const throwDice = useCallback(
+  const startRollSession = useCallback(
     (params: {
       x: number;
       y: number;
@@ -133,7 +134,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
       vy: number;
       bounds: { width: number; height: number };
     }) => {
-      if (!isAiming || !canRoll) return;
+      if (!canRoll) return;
 
       const values = rollDicePair();
       const velocities = createPairedThrowVelocities(params.vx, params.vy);
@@ -158,8 +159,35 @@ export function DiceProvider({ children }: { children: ReactNode }) {
         })),
       );
     },
-    [isAiming, canRoll, pauseForDiceRoll],
+    [canRoll, pauseForDiceRoll],
   );
+
+  const throwDice = useCallback(
+    (params: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      bounds: { width: number; height: number };
+    }) => {
+      if (!isAiming || !canRoll) return;
+      startRollSession(params);
+    },
+    [isAiming, canRoll, startRollSession],
+  );
+
+  const autoRollDice = useCallback(() => {
+    if (!canRoll) return;
+
+    const bounds = { width: 480, height: 480 };
+    startRollSession({
+      x: bounds.width / 2,
+      y: bounds.height / 2,
+      vx: 420,
+      vy: -380,
+      bounds,
+    });
+  }, [canRoll, startRollSession]);
 
   useEffect(() => {
     if (!isAiming) return;
@@ -186,6 +214,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
         cancelAim,
         setBoardDragging,
         throwDice,
+        autoRollDice,
         reportDieSettled,
       }}
     >

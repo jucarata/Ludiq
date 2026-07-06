@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTurn } from "@/components/game/TurnContext";
-import { useActivePlayers } from "@/components/game/PlayersContext";
+import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
 import type { PlayerColor } from "@/lib/board/types";
 import {
   canMovePiece,
@@ -23,6 +23,7 @@ import {
   type DieMoveChoice,
   type MoveOption,
 } from "@/lib/game/movement";
+import type { BotMoveDecision } from "@/lib/game/bot";
 import { resolveRoll, type PostRollAction } from "@/lib/game/roll-resolution";
 import {
   FINISH_CELEBRATION_MS,
@@ -67,6 +68,7 @@ interface GameStateContextValue {
   clearSelection: () => void;
   getMoveOptionsForSelection: () => MoveOption[];
   applyMove: (choice: DieMoveChoice) => boolean;
+  executeMove: (decision: BotMoveDecision) => boolean;
   getPiecesAtStart: (player: PlayerColor) => PieceState[];
   getPiecesAtAnchor: (anchor: number, half?: 0 | 1) => PieceState[];
   isPieceAtStartSlot: (player: PlayerColor, slot: number) => boolean;
@@ -83,6 +85,7 @@ const GameStateContext = createContext<GameStateContextValue | null>(null);
 
 export function GameStateProvider({ children }: { children: ReactNode }) {
   const activePlayers = useActivePlayers();
+  const isBot = useIsBot();
   const { currentPlayer, turnPhase, advanceTurn, endGame } = useTurn();
   const [pieces, setPieces] = useState<PieceState[]>(() =>
     createInitialPieces(activePlayers),
@@ -265,6 +268,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
    */
   useEffect(() => {
     if (!canInteractWithPieces || !remainingDice?.length) return;
+    if (isBot(currentPlayer)) return;
 
     const routePieces = pieces.filter(
       (p) => p.player === currentPlayer && p.location === "route",
@@ -276,7 +280,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     if (value === null) return;
 
     movePiece({ player: piece.player, index: piece.index }, { value });
-  }, [canInteractWithPieces, remainingDice, pieces, currentPlayer, movePiece]);
+  }, [
+    canInteractWithPieces,
+    remainingDice,
+    pieces,
+    currentPlayer,
+    movePiece,
+    isBot,
+  ]);
 
   const selectPiece = useCallback(
     (piece: SelectedPiece, anchor: MenuAnchor) => {
@@ -323,6 +334,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     [selectedPiece, movePiece],
   );
 
+  const executeMove = useCallback(
+    (decision: BotMoveDecision): boolean => {
+      return movePiece(
+        { player: decision.player, index: decision.index },
+        decision.choice,
+      );
+    },
+    [movePiece],
+  );
+
   const value: GameStateContextValue = {
     pieces,
     remainingDice,
@@ -338,6 +359,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     clearSelection,
     getMoveOptionsForSelection,
     applyMove,
+    executeMove,
     getPiecesAtStart: (player) => getPiecesAtStart(pieces, player),
     getPiecesAtAnchor: (anchor, half) =>
       getPiecesAtAnchor(pieces, anchor, half),

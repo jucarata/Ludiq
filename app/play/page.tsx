@@ -3,16 +3,19 @@
 import { useState } from "react";
 import { GameView } from "@/components/game/GameView";
 import { PlayerSetup } from "@/components/setup/PlayerSetup";
-import type { PlayerColor } from "@/lib/board/types";
+import type { GameSetup } from "@/lib/game/player-config";
 
 export default function PlayPage() {
-  const [activePlayers, setActivePlayers] = useState<PlayerColor[] | null>(
-    null,
-  );
+  const [gameSetup, setGameSetup] = useState<GameSetup | null>(null);
 
-  if (!activePlayers) {
-    return <PlayerSetup onStart={setActivePlayers} />;
+  if (!gameSetup) {
+    return <PlayerSetup onStart={setGameSetup} />;
   }
 
-  return <GameView activePlayers={activePlayers} />;
+  return (
+    <GameView
+      activePlayers={gameSetup.activePlayers}
+      botPlayers={gameSetup.botPlayers}
+    />
+  );
 }

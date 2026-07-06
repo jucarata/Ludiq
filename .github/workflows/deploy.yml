@@ -41,6 +41,11 @@ jobs:
       - name: Prepare Pages artifact
         run: touch out/.nojekyll
 
+      - name: Verify Pages artifact
+        run: |
+          test -f out/index.html || { echo "::error::Missing out/index.html"; ls -laR out; exit 1; }
+          echo "Pages artifact is valid ($(find out -type f | wc -l) files)"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
@@ -52,9 +57,25 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
     steps:
+      # Pages allows only one deployment in flight. A cancelled run or a transient
+      # backend error can leave the next deploy failing immediately — retry after
+      # a short wait usually clears it.
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          timeout: 600000
+
+      - name: Wait for in-flight deployment to settle
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 90
+
+      - name: Deploy to GitHub Pages (retry)
+        if: steps.deployment.outcome == 'failure'
+        id: deployment-retry
+        uses: actions/deploy-pages@v5
+        with:
+          timeout: 600000
