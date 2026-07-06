@@ -41,8 +41,15 @@ function TeamEntry({
         <span className="truncate font-medium text-sm text-[#fefae0] md:text-base">
           {label}
         </span>
-        {isBot && (
+        {isBot ? (
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[#457b9d] md:text-xs">
+            Máquina
+          </span>
+        ) : (
+          <span
+            className="text-[10px] font-semibold uppercase tracking-wide opacity-0 md:text-xs"
+            aria-hidden
+          >
             Máquina
           </span>
         )}

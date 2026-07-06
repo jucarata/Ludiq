@@ -28,9 +28,9 @@ export function DiceLauncher() {
 
   if (hasRolledThisTurn && turnRoll !== null) {
     return (
-      <div className="mb-4 flex flex-col items-center gap-2">
+      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
         <div
-          className="flex min-h-[5.5rem] items-center justify-center gap-3 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem] md:gap-4"
+          className="flex min-h-[5.5rem] w-full items-center justify-center gap-3 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem] md:gap-4"
           aria-label={`${label} sacó ${turnRoll[0]} y ${turnRoll[1]}`}
         >
           <span className="font-mono text-4xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-5xl">
@@ -47,8 +47,8 @@ export function DiceLauncher() {
 
   if (currentIsBot || currentIsAutoHuman) {
     return (
-      <div className="mb-4 flex flex-col items-center gap-2">
-        <div className="flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
+      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
+        <div className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
           <div className="flex items-center gap-2" aria-hidden>
             <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
             <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
@@ -66,12 +66,12 @@ export function DiceLauncher() {
   }
 
   return (
-    <div className="mb-4 flex flex-col items-center gap-2">
+    <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
       <button
         type="button"
         onClick={isAiming ? cancelAim : armDice}
         disabled={!canRoll || isRolling}
-        className={`flex flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all ${
+        className={`flex w-full flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all ${
           isAiming
             ? "bg-[#353550] ring-2 ring-[#fcd34d] ring-offset-2 ring-offset-[#2a2a3e]"
             : "bg-[#1a1a2e] hover:bg-[#252540] disabled:cursor-not-allowed disabled:opacity-50"
@@ -91,11 +91,13 @@ export function DiceLauncher() {
           {isAiming ? "Cancelar" : "Lanzar dados"}
         </span>
       </button>
-      {isAiming && (
-        <p className="text-center text-xs text-[#fefae0]/70">
-          Toca el tablero para lanzar
-        </p>
-      )}
+      <p
+        className={`min-h-[1rem] text-center text-xs text-[#fefae0]/70 ${
+          isAiming ? "visible" : "invisible"
+        }`}
+      >
+        Toca el tablero para lanzar
+      </p>
     </div>
   );
 }

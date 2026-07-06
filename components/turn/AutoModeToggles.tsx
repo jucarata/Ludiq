@@ -11,19 +11,27 @@ export function AutoModeToggles() {
   const isBot = useIsBot();
   const { isAutoEnabled, setAutoEnabled } = useAutoMode();
 
-  if (isBot(currentPlayer)) return null;
-
+  const isHumanTurn = !isBot(currentPlayer);
   const { label, fill } = PLAYER_COLORS[currentPlayer];
   const enabled = isAutoEnabled(currentPlayer);
 
   return (
     <div
-      className="mb-4 border-b border-[#d4c5a0]/25 pb-4"
-      aria-label="Modo automático"
+      className={`mb-4 border-b pb-4 ${
+        isHumanTurn ? "border-[#d4c5a0]/25" : "border-transparent"
+      }`}
+      aria-label={isHumanTurn ? "Modo automático" : undefined}
+      aria-hidden={!isHumanTurn}
     >
       <label
-        className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
-          enabled ? "bg-[#353550]" : "bg-[#1a1a2e]/80 hover:bg-[#1a1a2e]"
+        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
+          isHumanTurn
+            ? `cursor-pointer ${
+                enabled
+                  ? "bg-[#353550]"
+                  : "bg-[#1a1a2e]/80 hover:bg-[#1a1a2e]"
+              }`
+            : "pointer-events-none invisible"
         }`}
       >
         <input
@@ -32,6 +40,8 @@ export function AutoModeToggles() {
           onChange={(event) =>
             setAutoEnabled(currentPlayer, event.target.checked)
           }
+          disabled={!isHumanTurn}
+          tabIndex={isHumanTurn ? 0 : -1}
           className="h-4 w-4 shrink-0 cursor-pointer accent-[#fcd34d]"
           aria-label={`Automático — ${label}`}
         />
