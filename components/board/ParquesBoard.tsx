@@ -15,15 +15,15 @@ function gridAreaStyle(
   };
 }
 
-export function ParquesBoard({ size }: { size?: string }) {
-  const boardSize = size ?? "min(calc(100dvw - 2rem), calc(100dvh - 2rem))";
-
+export function ParquesBoard({
+  className,
+}: {
+  className?: string;
+}) {
   return (
     <div
-      className="grid shrink-0 gap-[2px] rounded-2xl border-[6px] border-[#d4c5a0] bg-[#d4c5a0] p-[2px] shadow-2xl"
+      className={`grid h-[var(--board-dim)] w-[var(--board-dim)] max-h-full max-w-full shrink-0 gap-[2px] rounded-2xl border-[6px] border-[#d4c5a0] bg-[#d4c5a0] p-[2px] shadow-2xl ${className ?? ""}`}
       style={{
-        width: boardSize,
-        height: boardSize,
         gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
       }}

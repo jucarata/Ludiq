@@ -63,7 +63,7 @@ export function TurnPanel() {
 
   return (
     <aside
-      className="flex w-[var(--turn-panel-width)] shrink-0 flex-col rounded-2xl border-[6px] border-[#d4c5a0] bg-[#2a2a3e] p-4 shadow-2xl"
+      className="flex w-full max-w-full shrink-0 flex-col rounded-2xl border-[6px] border-[#d4c5a0] bg-[#2a2a3e] p-3 shadow-2xl sm:p-4 md:w-[var(--turn-panel-width)] md:max-w-none"
       aria-label="Panel de turnos"
     >
       <DiceLauncher />
