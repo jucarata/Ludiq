@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useGameState } from "@/components/game/GameStateContext";
-import { playFinishSound } from "@/lib/game/celebration";
+import { playFinishSound } from "@/lib/game/sounds";
 import { PLAYER_COLORS } from "@/lib/board/types";
 
 const STAR_COUNT = 12;

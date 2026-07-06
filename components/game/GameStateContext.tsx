@@ -29,6 +29,7 @@ import {
   FINISH_CELEBRATION_MS,
   type CelebrationState,
 } from "@/lib/game/celebration";
+import { playCaptureSound } from "@/lib/game/sounds";
 import {
   createInitialPieces,
   getFinishedPieces,
@@ -177,6 +178,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
        * juego); con las 4 terminadas, el jugador gana y el juego se detiene.
        */
       const landed = resolveLanding(pieces, animation.player, animation.index);
+
+      const captured = landed.some((piece) => {
+        if (piece.location !== "start") return false;
+        const before = pieces.find(
+          (p) => p.player === piece.player && p.index === piece.index,
+        );
+        return before?.location === "route";
+      });
+      if (captured) playCaptureSound();
+
       setPieces(landed);
 
       /* La ficha llegó a la casilla café → ráfaga de celebración */

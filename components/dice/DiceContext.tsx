@@ -17,6 +17,7 @@ import {
   DICE_COUNT,
   rollDicePair,
 } from "@/lib/game/dice";
+import { playDiceRollSound } from "@/lib/game/sounds";
 
 export interface ActiveDieRoll {
   key: number;
@@ -144,6 +145,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
       setIsAiming(false);
       setIsRolling(true);
       pauseForDiceRoll();
+      playDiceRollSound();
       settledDiceRef.current.clear();
 
       setActiveDice(

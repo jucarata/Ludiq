@@ -1,11 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { useGameState } from "@/components/game/GameStateContext";
 import { PLAYER_COLORS } from "@/lib/board/types";
+import { playVictorySound } from "@/lib/game/sounds";
 
 /** Overlay persistente al terminar el juego: anuncia al ganador */
 export function WinnerAnnouncement() {
   const { winner } = useGameState();
+
+  useEffect(() => {
+    if (winner) playVictorySound();
+  }, [winner]);
 
   if (!winner) return null;
 
