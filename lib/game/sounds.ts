@@ -96,7 +96,8 @@ function getDiceRollAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined") return null;
 
   if (!diceRollAudio) {
-    diceRollAudio = new Audio("/sounds/dice-roll.mp3");
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    diceRollAudio = new Audio(`${basePath}/sounds/dice-roll.mp3`);
     diceRollAudio.preload = "auto";
     diceRollAudio.volume = 0.8;
   }
