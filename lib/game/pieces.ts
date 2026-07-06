@@ -116,9 +116,9 @@ export function getPiecesAtRouteCell(
 }
 
 /**
- * Saca fichas de inicio a la casilla de salida (máx. 2).
- * - Si hay fichas PROPIAS en la salida, la zona está obstruida: no sale
- *   ninguna y el par se usa para mover normalmente.
+ * Saca fichas de inicio a la casilla de salida (máx. 2 por par).
+ * - Respeta el límite de 2 fichas propias en la salida: si ya hay 1, sale 1;
+ *   si hay 2, no sale ninguna y el par se usa para mover normalmente.
  * - Si hay fichas ENEMIGAS en la salida, mueren y vuelven a su inicio.
  */
 export function exitPiecesFromStartOnDoubles(
@@ -128,38 +128,48 @@ export function exitPiecesFromStartOnDoubles(
   const exitCell = getRouteCell(player, 0)!;
   const occupants = getPiecesAtRouteCell(pieces, exitCell);
 
-  const exitBlockedByOwn = occupants.some(
-    (piece) => piece.player === player,
-  );
-  if (exitBlockedByOwn) return pieces;
-
-  const startPieces = getPiecesAtStart(pieces, player).sort(
-    (a, b) => a.index - b.index,
-  );
-  if (startPieces.length === 0) return pieces;
-
-  const exitingIndices = new Set(
-    startPieces.slice(0, MAX_PIECES_PER_CELL).map((piece) => piece.index),
-  );
   const enemyKeys = new Set(
     occupants
       .filter((piece) => piece.player !== player)
       .map((piece) => `${piece.player}-${piece.index}`),
   );
 
-  return pieces.map((piece) => {
-    if (
-      piece.player === player &&
-      piece.location === "start" &&
-      exitingIndices.has(piece.index)
-    ) {
-      return { ...piece, location: "route" as const, routeIndex: 0 };
-    }
-    if (enemyKeys.has(`${piece.player}-${piece.index}`)) {
-      return { ...piece, location: "start" as const, routeIndex: undefined };
-    }
-    return piece;
-  });
+  let nextPieces = pieces;
+  if (enemyKeys.size > 0) {
+    nextPieces = nextPieces.map((piece) =>
+      enemyKeys.has(`${piece.player}-${piece.index}`)
+        ? { ...piece, location: "start" as const, routeIndex: undefined }
+        : piece,
+    );
+  }
+
+  const ownAtExit = getPiecesAtRouteCell(nextPieces, exitCell).filter(
+    (piece) => piece.player === player,
+  );
+  const availableSlots = MAX_PIECES_PER_CELL - ownAtExit.length;
+  if (availableSlots <= 0) return nextPieces;
+
+  const startPieces = getPiecesAtStart(nextPieces, player).sort(
+    (a, b) => a.index - b.index,
+  );
+  if (startPieces.length === 0) return nextPieces;
+
+  const exitCount = Math.min(
+    startPieces.length,
+    MAX_PIECES_PER_CELL,
+    availableSlots,
+  );
+  const exitingIndices = new Set(
+    startPieces.slice(0, exitCount).map((piece) => piece.index),
+  );
+
+  return nextPieces.map((piece) =>
+    piece.player === player &&
+    piece.location === "start" &&
+    exitingIndices.has(piece.index)
+      ? { ...piece, location: "route" as const, routeIndex: 0 }
+      : piece,
+  );
 }
 
 export function getPiecesAtStart(
