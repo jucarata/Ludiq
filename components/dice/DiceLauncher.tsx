@@ -66,7 +66,7 @@ export function DiceLauncher() {
       </button>
       {isAiming && (
         <p className="text-center text-xs text-[#fefae0]/70">
-          Arrastra y suelta en el tablero para tirar
+          Toca el tablero para lanzar
         </p>
       )}
     </div>
