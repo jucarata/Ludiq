@@ -3,9 +3,7 @@ import { isProtectedAnchor } from "@/lib/board/cell-placements";
 import type { PlayerColor } from "@/lib/board/types";
 import {
   canMovePiece,
-  canMovePieceSequence,
   consumeDice,
-  getAutoMoveValue,
   getDestinationRouteIndex,
   resolveLanding,
   type DieMoveChoice,
@@ -22,30 +20,56 @@ export interface BotMoveDecision {
   choice: DieMoveChoice;
 }
 
-/** Pesos de prioridad — ajustables para cambiar la estrategia del bot */
-export interface BotStrategyWeights {
-  capture: number;
-  safeZone: number;
-  victory: number;
-  progress: number;
-  sequenceBonus: number;
+/**
+ * Calidad de un movimiento con prioridad estricta:
+ * 1. Victoria (meta)
+ * 2. Captura rival
+ * 3. Aterrizar en casilla segura (SAFE / EXIT)
+ * 4. Avanzar lo máximo posible (más pasos, luego más lejos en el recorrido)
+ */
+interface MoveQuality {
+  isVictory: boolean;
+  captures: number;
+  landsSafe: boolean;
+  steps: number;
+  destination: number;
 }
 
-const DEFAULT_WEIGHTS: BotStrategyWeights = {
-  capture: 1000,
-  safeZone: 500,
-  victory: 2000,
-  progress: 10,
-  sequenceBonus: 0.5,
+const NO_MOVE: MoveQuality = {
+  isVictory: false,
+  captures: 0,
+  landsSafe: false,
+  steps: 0,
+  destination: -1,
 };
 
+function isBetterMove(a: MoveQuality, b: MoveQuality): boolean {
+  if (a.isVictory !== b.isVictory) return a.isVictory;
+  if (a.captures !== b.captures) return a.captures > b.captures;
+  if (a.landsSafe !== b.landsSafe) return a.landsSafe;
+  if (a.steps !== b.steps) return a.steps > b.steps;
+  return a.destination > b.destination;
+}
+
+function mergeSequenceQuality(
+  first: MoveQuality,
+  second: MoveQuality,
+): MoveQuality {
+  return {
+    isVictory: first.isVictory || second.isVictory,
+    captures: first.captures + second.captures,
+    landsSafe: second.landsSafe,
+    steps: first.steps + second.steps,
+    destination: second.destination,
+  };
+}
+
 /**
- * Bot de Parqués con heurísticas configurables.
- * Evalúa capturas, zonas seguras, victoria y avance en el recorrido.
+ * Bot de Parqués con prioridades en orden estricto.
+ * Puede mover varias fichas en un turno: elige un movimiento por llamada
+ * y vuelve a evaluar con los dados restantes.
  */
 export class ParquesBot {
-  constructor(private readonly weights: BotStrategyWeights = DEFAULT_WEIGHTS) {}
-
   chooseMove(
     pieces: PieceState[],
     player: PlayerColor,
@@ -56,64 +80,23 @@ export class ParquesBot {
     );
     if (routePieces.length === 0) return null;
 
-    if (routePieces.length === 1) {
-      const autoValue = getAutoMoveValue(
-        pieces,
-        routePieces[0],
-        remainingDice,
-      );
-      if (autoValue !== null) {
-        return {
-          player: routePieces[0].player,
-          index: routePieces[0].index,
-          choice: { value: autoValue },
-        };
-      }
-    }
-
     let best: BotMoveDecision | null = null;
-    let bestScore = -Infinity;
+    let bestQuality = NO_MOVE;
 
     for (const piece of routePieces) {
-      const uniqueValues = [...new Set(remainingDice)];
-
-      for (const value of uniqueValues) {
+      for (const value of [...new Set(remainingDice)]) {
         if (!canMovePiece(pieces, piece, value)) continue;
 
-        let score = this.scoreMove(pieces, piece, value, player);
+        const quality = this.evaluateOption(
+          pieces,
+          piece,
+          value,
+          player,
+          remainingDice,
+        );
 
-        if (remainingDice.length === 2) {
-          const afterFirst = this.simulateMove(pieces, piece, value);
-          const nextDice = consumeDice(remainingDice, { value });
-
-          if (
-            nextDice.length > 0 &&
-            canMovePieceSequence(afterFirst, piece, remainingDice)
-          ) {
-            score += this.weights.sequenceBonus * 50;
-          }
-
-          const lookahead = this.chooseMove(afterFirst, player, nextDice);
-          if (lookahead) {
-            const nextPiece = afterFirst.find(
-              (p) =>
-                p.player === lookahead.player && p.index === lookahead.index,
-            );
-            if (nextPiece) {
-              score +=
-                this.weights.sequenceBonus *
-                this.scoreMove(
-                  afterFirst,
-                  nextPiece,
-                  lookahead.choice.value,
-                  player,
-                );
-            }
-          }
-        }
-
-        if (score > bestScore) {
-          bestScore = score;
+        if (isBetterMove(quality, bestQuality)) {
+          bestQuality = quality;
           best = {
             player: piece.player,
             index: piece.index,
@@ -126,34 +109,80 @@ export class ParquesBot {
     return best;
   }
 
-  private scoreMove(
+  /** Evalúa un movimiento y, si queda un dado encadenable en la misma ficha, la secuencia completa. */
+  private evaluateOption(
+    pieces: PieceState[],
+    piece: PieceState,
+    value: number,
+    player: PlayerColor,
+    remainingDice: number[],
+  ): MoveQuality {
+    let quality = this.evaluateMove(pieces, piece, value, player);
+
+    if (remainingDice.length <= 1) return quality;
+
+    const afterFirst = this.simulateMove(pieces, piece, value);
+    const nextDice = consumeDice(remainingDice, { value });
+    const movedPiece = afterFirst.find(
+      (p) => p.player === piece.player && p.index === piece.index,
+    );
+    if (!movedPiece || movedPiece.location !== "route") return quality;
+
+    for (const second of [...new Set(nextDice)]) {
+      if (!canMovePiece(afterFirst, movedPiece, second)) continue;
+
+      const secondQuality = this.evaluateMove(
+        afterFirst,
+        movedPiece,
+        second,
+        player,
+      );
+      const sequenceQuality = mergeSequenceQuality(quality, secondQuality);
+
+      if (isBetterMove(sequenceQuality, quality)) {
+        quality = sequenceQuality;
+      }
+    }
+
+    return quality;
+  }
+
+  private evaluateMove(
     pieces: PieceState[],
     piece: PieceState,
     steps: number,
     player: PlayerColor,
-  ): number {
+  ): MoveQuality {
     const destination = getDestinationRouteIndex(piece, steps);
-    if (destination === null) return -Infinity;
-
-    let score = destination * this.weights.progress;
+    if (destination === null) return NO_MOVE;
 
     if (destination === getVictoryRouteIndex(player)) {
-      score += this.weights.victory;
-      return score;
+      return {
+        isVictory: true,
+        captures: 0,
+        landsSafe: false,
+        steps,
+        destination,
+      };
     }
 
     const destinationCell = getRouteCell(player, destination)!;
+    const landsSafe = isProtectedAnchor(destinationCell.anchor);
 
-    if (isProtectedAnchor(destinationCell.anchor)) {
-      score += this.weights.safeZone;
-    } else {
-      const victims = getPiecesAtRouteCell(pieces, destinationCell).filter(
+    let captures = 0;
+    if (!landsSafe) {
+      captures = getPiecesAtRouteCell(pieces, destinationCell).filter(
         (other) => other.player !== player,
-      );
-      score += victims.length * this.weights.capture;
+      ).length;
     }
 
-    return score;
+    return {
+      isVictory: false,
+      captures,
+      landsSafe,
+      steps,
+      destination,
+    };
   }
 
   private simulateMove(

@@ -49,7 +49,7 @@ export function DiceLauncher() {
             <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
             <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
+          <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
             {isRolling ? "La máquina lanza…" : "Turno de la máquina"}
           </span>
         </div>

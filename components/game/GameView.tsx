@@ -26,7 +26,7 @@ export function GameView({ activePlayers, botPlayers }: GameViewProps) {
           <DiceProvider>
             <BotController />
             <main className="flex h-dvh w-full items-center justify-center overflow-hidden p-4">
-              <div className="flex w-full flex-col items-center gap-4 [--board-size:min(calc(100dvw-2rem),calc(100dvh-13rem))] md:w-auto md:flex-row md:items-stretch md:[--board-size:min(calc(100dvw-2rem-12rem),calc(100dvh-2rem))]">
+              <div className="flex w-full flex-col items-center gap-4 [--turn-panel-width:var(--board-size)] [--board-size:min(calc(100dvw-2rem),calc(100dvh-13rem))] md:w-auto md:flex-row md:items-stretch md:[--turn-panel-width:17rem] md:[--board-size:min(calc(100dvw-2rem-var(--turn-panel-width)-1rem),calc(100dvh-2rem))]">
                 <div className="relative shrink-0">
                   <BoardDiceZone>
                     <ParquesBoard size="var(--board-size)" />
