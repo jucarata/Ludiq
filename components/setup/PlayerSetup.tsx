@@ -14,6 +14,14 @@ import {
   MIN_PLAYERS,
   type GameSetup,
 } from "@/lib/game/player-config";
+import {
+  retroBackButtonClassName,
+  retroPlayButtonClassName,
+  retroRoleSwitchClassName,
+  retroRoleSwitchLabelActiveClassName,
+  retroRoleSwitchLabelInactiveClassName,
+  retroRoleSwitchThumbClassName,
+} from "@/lib/fonts";
 
 interface PlayerSetupProps {
   onStart: (setup: GameSetup) => void;
@@ -39,31 +47,31 @@ function RoleSwitch({
         event.stopPropagation();
         onToggle();
       }}
-      className={`relative grid h-10 w-[11.5rem] shrink-0 grid-cols-2 overflow-hidden rounded-full border-2 p-1 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 sm:h-11 sm:w-[12.5rem] ${
-        isBot
-          ? "border-[#5a9fd4] bg-[#2d4a5e]"
-          : "border-[#5c5c78] bg-[#252540]"
-      }`}
+      className={retroRoleSwitchClassName}
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute top-1 bottom-1 rounded-full bg-[#fefae0] shadow-[0_2px_10px_rgba(0,0,0,0.28)] transition-[left,width] duration-200 ease-out"
+        className={retroRoleSwitchThumbClassName}
         style={{
           left: isBot ? "calc(50% + 2px)" : "4px",
           width: "calc(50% - 6px)",
         }}
       />
       <span
-        className={`relative z-10 flex items-center justify-center text-[11px] font-bold uppercase tracking-wide transition-colors duration-200 sm:text-xs ${
-          !isBot ? "text-[#1a1a2e]" : "text-[#fefae0]/65"
-        }`}
+        className={
+          !isBot
+            ? retroRoleSwitchLabelActiveClassName
+            : retroRoleSwitchLabelInactiveClassName
+        }
       >
         Human
       </span>
       <span
-        className={`relative z-10 flex items-center justify-center text-[11px] font-bold uppercase tracking-wide transition-colors duration-200 sm:text-xs ${
-          isBot ? "text-[#1a1a2e]" : "text-[#fefae0]/65"
-        }`}
+        className={
+          isBot
+            ? retroRoleSwitchLabelActiveClassName
+            : retroRoleSwitchLabelInactiveClassName
+        }
       >
         CPU
       </span>
@@ -194,17 +202,14 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
       </p>
 
       <div className="flex flex-col items-center gap-4 sm:flex-row">
-        <Link
-          href="/"
-          className="rounded-full border-2 border-[var(--board-path-border)] px-8 py-3 text-sm font-bold uppercase tracking-widest text-[var(--board-path-border)] transition-colors hover:border-[var(--board-path)] hover:text-[var(--board-path)]"
-        >
+        <Link href="/" className={retroBackButtonClassName}>
           Back
         </Link>
         <button
           type="button"
           disabled={!canStart}
           onClick={handleStart}
-          className="rounded-full bg-[var(--board-green)] px-14 py-4 text-xl font-bold uppercase tracking-widest text-[var(--board-path)] shadow-lg transition-transform hover:scale-105 hover:bg-[var(--board-green-dark)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          className={retroPlayButtonClassName}
         >
           Play
         </button>
