@@ -410,7 +410,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 export function useGameState() {
   const value = useContext(GameStateContext);
   if (!value) {
-    throw new Error("useGameState debe usarse dentro de GameStateProvider");
+    throw new Error("useGameState must be used within GameStateProvider");
   }
   return value;
 }

@@ -28,7 +28,7 @@ export function ParquesBoard({
         gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
       }}
       role="img"
-      aria-label="Tablero de Parqués"
+      aria-label="Parqués board"
     >
       {layout.map(({ row, col, cell }) => (
         <BoardCell

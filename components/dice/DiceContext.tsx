@@ -244,7 +244,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
 export function useDice() {
   const value = useContext(DiceContext);
   if (!value) {
-    throw new Error("useDice debe usarse dentro de DiceProvider");
+    throw new Error("useDice must be used within DiceProvider");
   }
   return value;
 }

@@ -168,7 +168,7 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
       style={{ left: renderState.x, top: renderState.y }}
       aria-live="polite"
       role="status"
-      aria-label={`Dado: ${phase === "result" ? roll.value : "rodando"}`}
+      aria-label={`Die: ${phase === "result" ? roll.value : "rolling"}`}
     >
       <div className={phase === "result" ? "dice-roll--result" : ""}>
         <Die3D

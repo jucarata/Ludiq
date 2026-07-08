@@ -31,7 +31,7 @@ export function DiceLauncher() {
       <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
         <div
           className="flex min-h-[5.5rem] w-full items-center justify-center gap-3 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem] md:gap-4"
-          aria-label={`${label} sacó ${turnRoll[0]} y ${turnRoll[1]}`}
+          aria-label={`${label} rolled ${turnRoll[0]} and ${turnRoll[1]}`}
         >
           <span className="font-mono text-4xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-5xl">
             {turnRoll[0]}
@@ -55,10 +55,10 @@ export function DiceLauncher() {
           </div>
           <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
             {isRolling
-              ? "Lanzando dados…"
+              ? "Rolling dice…"
               : currentIsBot
-                ? "Turno de la máquina"
-                : "Modo automático"}
+                ? "CPU's turn"
+                : "Auto mode"}
           </span>
         </div>
       </div>
@@ -79,8 +79,8 @@ export function DiceLauncher() {
         aria-pressed={isAiming}
         aria-label={
           isAiming
-            ? "Cancelar lanzamiento de dados"
-            : `Lanzar dados — turno de ${label}`
+            ? "Cancel dice roll"
+            : `Roll dice — ${label}'s turn`
         }
       >
         <div className="flex items-center gap-2" aria-hidden>
@@ -88,7 +88,7 @@ export function DiceLauncher() {
           <DieFace value={5} className="h-14 w-14 md:h-16 md:w-16" />
         </div>
         <span className="text-xs font-semibold uppercase tracking-wide text-[#d4c5a0]">
-          {isAiming ? "Cancelar" : "Lanzar dados"}
+          {isAiming ? "Cancel" : "Roll dice"}
         </span>
       </button>
       <p
@@ -96,7 +96,7 @@ export function DiceLauncher() {
           isAiming ? "visible" : "invisible"
         }`}
       >
-        Toca el tablero para lanzar
+        Tap the board to roll
       </p>
     </div>
   );

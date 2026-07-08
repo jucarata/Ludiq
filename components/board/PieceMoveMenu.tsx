@@ -16,7 +16,7 @@ export function PieceMoveMenu({ options, onSelect }: PieceMoveMenuProps) {
     <div
       className="flex gap-1"
       role="menu"
-      aria-label="Valores de dado"
+      aria-label="Dice values"
       onClick={(event) => event.stopPropagation()}
     >
       {options.map((option) => (

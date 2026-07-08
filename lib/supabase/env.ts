@@ -6,7 +6,7 @@ const supabaseKey =
 export function getSupabaseEnv() {
   if (!supabaseUrl || !supabaseKey) {
     throw new Error(
-      "Faltan NEXT_PUBLIC_SUPABASE_URL o la clave pública (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY o NEXT_PUBLIC_SUPABASE_ANON_KEY). Copia .env.local.example a .env.local.",
+      "Missing NEXT_PUBLIC_SUPABASE_URL or the public key (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY). Copy .env.local.example to .env.local.",
     );
   }
 

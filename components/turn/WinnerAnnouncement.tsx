@@ -28,7 +28,7 @@ export function WinnerAnnouncement() {
         style={{ borderColor: fill, backgroundColor: dark }}
       >
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
-          ¡Fin del juego! Ganó
+          Game over! Winner
         </p>
         <p
           className="mt-1 text-3xl font-black uppercase tracking-wide md:text-4xl"

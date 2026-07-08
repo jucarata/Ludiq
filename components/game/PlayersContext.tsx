@@ -38,7 +38,7 @@ export function PlayersProvider({
 function usePlayersContext(): PlayersContextValue {
   const value = useContext(PlayersContext);
   if (!value) {
-    throw new Error("usePlayersContext debe usarse dentro de PlayersProvider");
+    throw new Error("usePlayersContext must be used within PlayersProvider");
   }
   return value;
 }

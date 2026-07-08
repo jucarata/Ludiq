@@ -44,7 +44,7 @@ export function AutoModeProvider({ children }: { children: ReactNode }) {
 export function useAutoMode() {
   const value = useContext(AutoModeContext);
   if (!value) {
-    throw new Error("useAutoMode debe usarse dentro de AutoModeProvider");
+    throw new Error("useAutoMode must be used within AutoModeProvider");
   }
   return value;
 }

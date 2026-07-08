@@ -33,7 +33,7 @@ function RoleSwitch({
       type="button"
       role="switch"
       aria-checked={isBot}
-      aria-label={isBot ? "Máquina" : "Humano"}
+      aria-label={isBot ? "CPU" : "Human"}
       disabled={disabled}
       onClick={(event) => {
         event.stopPropagation();
@@ -58,14 +58,14 @@ function RoleSwitch({
           !isBot ? "text-[#1a1a2e]" : "text-[#fefae0]/65"
         }`}
       >
-        Humano
+        Human
       </span>
       <span
         className={`relative z-10 flex items-center justify-center text-[11px] font-bold uppercase tracking-wide transition-colors duration-200 sm:text-xs ${
           isBot ? "text-[#1a1a2e]" : "text-[#fefae0]/65"
         }`}
       >
-        Máquina
+        CPU
       </span>
     </button>
   );
@@ -120,12 +120,12 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
-          Jugadores
+          Players
         </h1>
         <p className="max-w-md text-sm text-[var(--board-path-border)]">
-          Toca un color para activarlo o quitarlo. Usa el switch para elegir
-          humano o máquina — mínimo {MIN_PLAYERS} jugadores, al menos{" "}
-          {MIN_HUMANS} humano, máximo {MAX_BOTS} IAs.
+          Tap a color to enable or remove it. Use the switch to choose human or
+          CPU — minimum {MIN_PLAYERS} players, at least {MIN_HUMANS} human,
+          maximum {MAX_BOTS} CPUs.
         </p>
       </div>
 
@@ -188,8 +188,8 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
       </ul>
 
       <p className="text-center text-sm text-[var(--board-path-border)]">
-        {selected.length} jugador{selected.length !== 1 ? "es" : ""} ·{" "}
-        {humanCount} humano{humanCount !== 1 ? "s" : ""} · {botCount} IA
+        {selected.length} player{selected.length !== 1 ? "s" : ""} ·{" "}
+        {humanCount} human{humanCount !== 1 ? "s" : ""} · {botCount} CPU
         {botCount !== 1 ? "s" : ""}
       </p>
 
@@ -198,7 +198,7 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
           href="/"
           className="rounded-full border-2 border-[var(--board-path-border)] px-8 py-3 text-sm font-bold uppercase tracking-widest text-[var(--board-path-border)] transition-colors hover:border-[var(--board-path)] hover:text-[var(--board-path)]"
         >
-          Volver
+          Back
         </Link>
         <button
           type="button"
@@ -206,7 +206,7 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
           onClick={handleStart}
           className="rounded-full bg-[var(--board-green)] px-14 py-4 text-xl font-bold uppercase tracking-widest text-[var(--board-path)] shadow-lg transition-transform hover:scale-105 hover:bg-[var(--board-green-dark)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
         >
-          Jugar
+          Play
         </button>
       </div>
     </main>

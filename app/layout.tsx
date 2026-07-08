@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Ludiq — Parqués",
-  description: "Parqués multijugador",
+  description: "Multiplayer Parqués",
 };
 
 export const viewport: Viewport = {
@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body className="flex min-h-dvh flex-col antialiased">
         <HomePlayProvider>
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>

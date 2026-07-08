@@ -172,7 +172,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
 export function useTurn() {
   const value = useContext(TurnContext);
   if (!value) {
-    throw new Error("useTurn debe usarse dentro de TurnProvider");
+    throw new Error("useTurn must be used within TurnProvider");
   }
   return value;
 }

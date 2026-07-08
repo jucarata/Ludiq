@@ -20,7 +20,7 @@ export function AutoModeToggles() {
       className={`mb-4 border-b pb-4 ${
         isHumanTurn ? "border-[#d4c5a0]/25" : "border-transparent"
       }`}
-      aria-label={isHumanTurn ? "Modo automático" : undefined}
+      aria-label={isHumanTurn ? "Auto mode" : undefined}
       aria-hidden={!isHumanTurn}
     >
       <label
@@ -43,11 +43,11 @@ export function AutoModeToggles() {
           disabled={!isHumanTurn}
           tabIndex={isHumanTurn ? 0 : -1}
           className="h-4 w-4 shrink-0 cursor-pointer accent-[#fcd34d]"
-          aria-label={`Automático — ${label}`}
+          aria-label={`Auto — ${label}`}
         />
         <GamePiece color={currentPlayer} className="h-5 w-5 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#fefae0] md:text-sm">
-          Automático
+          Auto
         </span>
         <span
           className="h-2 w-2 shrink-0 rounded-full"

@@ -26,7 +26,7 @@ export function TurnAnnouncement() {
         }}
       >
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
-          Es el turno de
+          Turn
         </p>
         <p
           className="mt-1 text-3xl font-black uppercase tracking-wide md:text-4xl"

@@ -43,14 +43,14 @@ function TeamEntry({
         </span>
         {isBot ? (
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[#457b9d] md:text-xs">
-            Máquina
+            CPU
           </span>
         ) : (
           <span
             className="text-[10px] font-semibold uppercase tracking-wide opacity-0 md:text-xs"
             aria-hidden
           >
-            Máquina
+            CPU
           </span>
         )}
       </div>
@@ -71,7 +71,7 @@ export function TurnPanel() {
   return (
     <aside
       className="flex w-full max-w-full shrink-0 flex-col rounded-2xl border-[6px] border-[#d4c5a0] bg-[#2a2a3e] p-3 shadow-2xl sm:p-4 md:w-[var(--turn-panel-width)] md:max-w-none"
-      aria-label="Panel de turnos"
+      aria-label="Turn panel"
     >
       <DiceLauncher />
       <AutoModeToggles />

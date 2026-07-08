@@ -71,7 +71,7 @@ export function PieceSlot({
             y: rect.top,
           });
         }}
-        aria-label={`Mover ficha ${index + 1}`}
+        aria-label={`Move piece ${index + 1}`}
         data-piece-button
       >
         {content}
@@ -139,7 +139,7 @@ export function CellPieces({
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
       }}
-      aria-label={`${visible.length} ficha(s)`}
+      aria-label={`${visible.length} piece${visible.length !== 1 ? "s" : ""}`}
     >
       {visible.map((piece) => (
         <PieceSlot

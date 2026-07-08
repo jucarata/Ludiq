@@ -99,10 +99,10 @@ export const PLAYER_COLORS: Record<
   PlayerColor,
   { fill: string; dark: string; label: string }
 > = {
-  red: { fill: "#e63946", dark: "#c1121f", label: "Rojo" },
-  green: { fill: "#2a9d8f", dark: "#264653", label: "Verde" },
-  yellow: { fill: "#f4a261", dark: "#e76f51", label: "Amarillo" },
-  blue: { fill: "#457b9d", dark: "#1d3557", label: "Azul" },
+  red: { fill: "#e63946", dark: "#c1121f", label: "Red" },
+  green: { fill: "#2a9d8f", dark: "#264653", label: "Green" },
+  yellow: { fill: "#f4a261", dark: "#e76f51", label: "Yellow" },
+  blue: { fill: "#457b9d", dark: "#1d3557", label: "Blue" },
 };
 
 /** Orden de equipos en el tablero (↺ desde rojo) */
@@ -111,5 +111,5 @@ export const PLAYER_ORDER: PlayerColor[] = ["red", "green", "yellow", "blue"];
 export const VICTORY_COLOR = {
   fill: "#8d6e4a",
   dark: "#6b4f35",
-  label: "Victoria",
+  label: "Victory",
 };
