@@ -8,6 +8,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useHomePlay } from "@/components/home/HomePlayContext";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -24,10 +25,14 @@ const GAME_MODES = [
   },
 ] as const;
 
-const CARD_WIDTH_CLASS = "w-[15rem] sm:w-[16.5rem]";
-const CAROUSEL_PADDING_CLASS = "px-[calc((100%-15rem)/2)] sm:px-[calc((100%-16.5rem)/2)]";
+const CARD_CLASS =
+  "h-[min(70dvh,calc(100dvh-8.5rem-env(safe-area-inset-bottom,0px)))] w-auto max-w-[70vw] aspect-[9/16] sm:h-auto sm:w-[16.5rem] sm:max-w-none";
+
+const CAROUSEL_PADDING_CLASS =
+  "px-[calc((100%-min(70vw,calc(min(70dvh,calc(100dvh-8.5rem-env(safe-area-inset-bottom,0px)))*9/16)))/2)] sm:px-[calc((100%-16.5rem)/2)]";
 
 export function GameModeCarousel() {
+  const { setActiveMode } = useHomePlay();
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({
     active: false,
@@ -186,16 +191,24 @@ export function GameModeCarousel() {
 
   const activeMode = GAME_MODES[activeIndex];
 
+  useEffect(() => {
+    setActiveMode({
+      id: activeMode.id,
+      title: activeMode.title,
+    });
+  }, [activeMode, setActiveMode]);
+
   return (
-    <main className="flex h-dvh flex-col items-center justify-center px-4 pb-8">
-      <div className="w-full">
-        <div
-          ref={scrollRef}
-          onPointerDown={handlePointerDown}
-          className={`flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden scroll-smooth touch-pan-x overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${CAROUSEL_PADDING_CLASS} ${
-            isDragging ? "cursor-grabbing" : "cursor-grab"
-          }`}
-        >
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-end pb-10 sm:justify-center sm:pb-0">
+        <div className="flex w-full flex-col items-center gap-3">
+          <div
+            ref={scrollRef}
+            onPointerDown={handlePointerDown}
+            className={`flex w-full snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden scroll-smooth touch-pan-x overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${CAROUSEL_PADDING_CLASS} ${
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            }`}
+          >
             {GAME_MODES.map((mode, index) => {
               const isActive = activeIndex === index;
 
@@ -206,7 +219,7 @@ export function GameModeCarousel() {
                   data-index={index}
                   aria-label={mode.title}
                   aria-current={isActive ? "true" : undefined}
-                  className={`relative ${CARD_WIDTH_CLASS} aspect-[9/16] shrink-0 snap-center overflow-hidden rounded-[1.75rem] border-2 bg-[#252540] shadow-[0_18px_40px_rgba(0,0,0,0.35)] transition-[transform,border-color] duration-300 select-none ${
+                  className={`relative ${CARD_CLASS} shrink-0 snap-center overflow-hidden rounded-[1.75rem] border-2 bg-[#252540] shadow-[0_18px_40px_rgba(0,0,0,0.35)] transition-[transform,border-color] duration-300 select-none ${
                     isActive
                       ? "scale-100 border-[var(--board-path-border)]/50"
                       : "scale-[0.96] border-[var(--board-path-border)]/20"
@@ -240,39 +253,30 @@ export function GameModeCarousel() {
                 </article>
               );
             })}
-        </div>
-      </div>
+          </div>
 
-      <div className="mt-4 flex flex-col items-center gap-3">
-        <div
-          className="flex items-center gap-2"
-          role="tablist"
-          aria-label="Game modes"
-        >
-          {GAME_MODES.map((mode, index) => (
-            <button
-              key={mode.id}
-              type="button"
-              role="tab"
-              aria-selected={activeIndex === index}
-              aria-label={mode.title}
-              onClick={() => scrollToIndex(index)}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                activeIndex === index
-                  ? "w-8 bg-[var(--board-green)]"
-                  : "w-2.5 bg-[var(--board-path-border)]/50 hover:bg-[var(--board-path-border)]"
-              }`}
-            />
-          ))}
+          <div
+            className="flex items-center gap-2"
+            role="tablist"
+            aria-label="Game modes"
+          >
+            {GAME_MODES.map((mode, index) => (
+              <button
+                key={mode.id}
+                type="button"
+                role="tab"
+                aria-selected={activeIndex === index}
+                aria-label={mode.title}
+                onClick={() => scrollToIndex(index)}
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  activeIndex === index
+                    ? "w-8 bg-[var(--board-green)]"
+                    : "w-2.5 bg-[var(--board-path-border)]/50 hover:bg-[var(--board-path-border)]"
+                }`}
+              />
+            ))}
+          </div>
         </div>
-
-        <button
-          type="button"
-          aria-label={`Play ${activeMode.title}`}
-          className="rounded-full bg-[var(--board-green)] px-14 py-4 text-xl font-bold uppercase tracking-widest text-[var(--board-path)] shadow-lg transition-transform hover:scale-105 hover:bg-[var(--board-green-dark)] active:scale-95"
-        >
-          Play
-        </button>
       </div>
     </main>
   );

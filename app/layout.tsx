@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { HomePlayProvider } from "@/components/home/HomePlayContext";
+import { AppFooter } from "@/components/nav/AppFooter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +21,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased">{children}</body>
+      <body className="flex min-h-dvh flex-col antialiased">
+        <HomePlayProvider>
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+          <AppFooter />
+        </HomePlayProvider>
+      </body>
     </html>
   );
 }

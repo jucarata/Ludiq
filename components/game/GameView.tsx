@@ -21,13 +21,14 @@ interface GameViewProps {
 
 export function GameView({ activePlayers, botPlayers }: GameViewProps) {
   return (
-    <PlayersProvider activePlayers={activePlayers} botPlayers={botPlayers}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PlayersProvider activePlayers={activePlayers} botPlayers={botPlayers}>
       <AutoModeProvider>
         <TurnProvider>
         <GameStateProvider>
           <DiceProvider>
             <BotController />
-            <main className="flex h-dvh w-full max-w-full flex-col overflow-hidden py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:py-4 sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))] md:items-center md:justify-center">
+            <main className="flex min-h-0 flex-1 w-full max-w-full flex-col overflow-hidden py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:py-4 sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))] md:items-center md:justify-center">
               <div className="flex min-h-0 w-full max-w-full flex-1 flex-col gap-2 md:w-auto md:flex-none md:flex-row md:items-stretch md:gap-4 md:[--board-size:min(calc(100dvw-2rem-var(--turn-panel-width)-1rem),calc(100dvh-2rem))] md:[--turn-panel-width:17rem]">
                 <div className="relative flex min-h-0 min-w-0 w-full max-w-full flex-1 items-center justify-center overflow-hidden [container-type:size] md:w-auto md:flex-none md:shrink-0 md:overflow-visible md:[container-type:normal]">
                   <BoardDiceZone>
@@ -45,5 +46,6 @@ export function GameView({ activePlayers, botPlayers }: GameViewProps) {
       </TurnProvider>
       </AutoModeProvider>
     </PlayersProvider>
+    </div>
   );
 }

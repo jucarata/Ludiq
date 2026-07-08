@@ -117,7 +117,7 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
   };
 
   return (
-    <main className="flex h-dvh flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
+    <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
           Jugadores
