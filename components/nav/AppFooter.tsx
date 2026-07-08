@@ -1,22 +1,16 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { useHomePlayOptional } from "@/components/home/HomePlayContext";
 import { retroActionFont } from "@/lib/fonts";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const playButtonClassName = `${retroActionFont.className} flex h-14 min-w-[12.5rem] items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-green)] px-10 text-sm uppercase tracking-normal text-[var(--board-path)] shadow-[4px_4px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532] sm:h-[3.75rem] sm:min-w-[14rem] sm:px-12 sm:text-base`;
 
-function isHomePath(pathname: string) {
-  if (pathname === "/") return true;
-  if (!basePath) return false;
-  return pathname === basePath || pathname === `${basePath}/`;
-}
+const comingSoonButtonClassName = `${retroActionFont.className} flex h-14 min-w-[12.5rem] cursor-not-allowed items-center justify-center rounded-xl border-[3px] border-[#5c5c78] bg-[#4a6670] px-6 text-[0.62rem] uppercase leading-tight tracking-normal text-[var(--board-path)]/80 shadow-[4px_4px_0_#2f3f47] sm:h-[3.75rem] sm:min-w-[14rem] sm:px-8 sm:text-xs`;
 
 export function AppFooter() {
-  const pathname = usePathname();
   const homePlay = useHomePlayOptional();
-  const isHome = isHomePath(pathname);
-  const activeMode = isHome ? homePlay?.activeMode : null;
+  const activeMode = homePlay?.activeMode ?? null;
 
   return (
     <footer
@@ -26,13 +20,22 @@ export function AppFooter() {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <nav className="mx-auto flex h-20 w-full max-w-5xl items-center justify-center px-4 sm:px-6">
-        {activeMode ? (
-          <button
-            type="button"
+        {activeMode?.id === "offline" ? (
+          <Link
+            href="/play"
             aria-label={`Play ${activeMode.title}`}
-            className={`${retroActionFont.className} flex h-14 min-w-[12.5rem] items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-green)] px-10 text-sm uppercase tracking-normal text-[var(--board-path)] shadow-[4px_4px_0_#173532] transition-[transform,box-shadow] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532] sm:h-[3.75rem] sm:min-w-[14rem] sm:px-12 sm:text-base`}
+            className={playButtonClassName}
           >
             Play
+          </Link>
+        ) : activeMode?.id === "multiplayer" ? (
+          <button
+            type="button"
+            aria-label="Multiplayer coming soon"
+            disabled
+            className={comingSoonButtonClassName}
+          >
+            Coming Soon
           </button>
         ) : null}
       </nav>
