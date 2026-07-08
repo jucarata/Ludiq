@@ -20,18 +20,8 @@ export function AppFooter() {
       className="flex h-[calc(5rem+env(safe-area-inset-bottom,0px))] shrink-0 items-stretch justify-center border-t border-[var(--board-path-border)] bg-[var(--board-path)] shadow-[0_-4px_20px_rgba(26,26,46,0.08)] sm:h-[calc(5rem+env(safe-area-inset-bottom,0px))]"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <nav className="mx-auto grid h-20 w-full max-w-5xl grid-cols-3 items-center px-4 sm:px-6">
-        <div className="flex justify-start">
-          <button
-            type="button"
-            aria-label="Settings"
-            className={retroIconButtonClassName}
-          >
-            <FaGear className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
-          </button>
-        </div>
-
-        <div className="flex justify-center">
+      <nav className="mx-auto flex h-20 w-full max-w-5xl items-center justify-center px-4 sm:px-6">
+        <div className="relative flex items-center justify-center">
           {activeMode?.id === "offline" ? (
             <Link
               href="/play"
@@ -49,14 +39,22 @@ export function AppFooter() {
             >
               Coming Soon
             </button>
-          ) : null}
-        </div>
+          ) : (
+            <span className="invisible flex h-14 min-w-[12.5rem] sm:h-[3.75rem] sm:min-w-[14rem]" aria-hidden />
+          )}
 
-        <div className="flex justify-end">
+          <button
+            type="button"
+            aria-label="Settings"
+            className={`${retroIconButtonClassName} absolute right-full mr-3`}
+          >
+            <FaGear className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+          </button>
+
           <button
             type="button"
             aria-label="Profile"
-            className={retroIconButtonClassName}
+            className={`${retroIconButtonClassName} absolute left-full ml-3`}
           >
             <FaUser className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
           </button>
