@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { requirePrivyUserId } from "@/lib/privy/request-auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { verifyPrivyAuthToken } from "@/lib/privy/server";
 import {
   normalizeUsername,
   normalizeWalletAddress,
@@ -14,32 +14,6 @@ type ProfileBody = {
   email?: string | null;
   username?: string;
 };
-
-function getBearerToken(request: Request): string | null {
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-  return header.slice("Bearer ".length).trim() || null;
-}
-
-async function requirePrivyUserId(request: Request): Promise<string> {
-  const token = getBearerToken(request);
-  if (!token) {
-    throw new Response(JSON.stringify({ error: "Missing auth token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  try {
-    const claims = await verifyPrivyAuthToken(token);
-    return claims.user_id;
-  } catch {
-    throw new Response(JSON.stringify({ error: "Invalid auth token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-}
 
 export async function GET(request: Request) {
   try {

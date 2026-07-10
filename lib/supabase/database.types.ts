@@ -94,7 +94,9 @@ export interface Database {
         Row: {
           id: string;
           room_id: string;
-          user_id: string;
+          user_id: string | null;
+          guest_name: string | null;
+          guest_session_id: string | null;
           color: PlayerColor;
           is_ready: boolean;
           is_bot: boolean;
@@ -103,7 +105,9 @@ export interface Database {
         Insert: {
           id?: string;
           room_id: string;
-          user_id: string;
+          user_id?: string | null;
+          guest_name?: string | null;
+          guest_session_id?: string | null;
           color: PlayerColor;
           is_ready?: boolean;
           is_bot?: boolean;
@@ -112,7 +116,9 @@ export interface Database {
         Update: {
           id?: string;
           room_id?: string;
-          user_id?: string;
+          user_id?: string | null;
+          guest_name?: string | null;
+          guest_session_id?: string | null;
           color?: PlayerColor;
           is_ready?: boolean;
           is_bot?: boolean;

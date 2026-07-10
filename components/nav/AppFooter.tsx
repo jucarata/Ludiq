@@ -6,7 +6,6 @@ import { FaRankingStar, FaUser } from "react-icons/fa6";
 import { useHomePlayOptional } from "@/components/home/HomePlayContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
-  retroComingSoonButtonClassName,
   retroIconButtonClassName,
   retroPlayButtonClassName,
 } from "@/lib/fonts";
@@ -44,14 +43,13 @@ export function AppFooter() {
               {t("nav.play")}
             </Link>
           ) : activeMode?.id === "multiplayer" ? (
-            <button
-              type="button"
-              aria-label={t("nav.multiplayerComingSoon")}
-              disabled
-              className={retroComingSoonButtonClassName}
+            <Link
+              href="/multiplayer"
+              aria-label={t("nav.playMode", { title: activeMode.title })}
+              className={retroPlayButtonClassName}
             >
-              {t("nav.comingSoon")}
-            </button>
+              {t("nav.play")}
+            </Link>
           ) : (
             <span className="invisible flex h-14 min-w-[12.5rem] sm:h-[3.75rem] sm:min-w-[14rem]" aria-hidden />
           )}
