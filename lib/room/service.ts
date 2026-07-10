@@ -379,6 +379,46 @@ export async function closeRoom(params: {
   if (updateError) throw new Error(updateError.message);
 }
 
+/** Leave the lobby. Host leave closes the room for everyone. */
+export async function leaveRoom(params: {
+  code: string;
+  identity: RoomIdentity;
+}): Promise<{ closed: boolean }> {
+  const supabase = getSupabaseAdminClient();
+  const roomRow = await findActiveRoomByCode(params.code);
+
+  if (!roomRow) {
+    const finished = await findRoomRowByCode(params.code);
+    if (finished?.status === "finished") return { closed: true };
+    throw new Response(JSON.stringify({ error: "Room not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const players = await fetchRoomPlayers(roomRow.id);
+  const self = players.find((player) =>
+    isSelfPlayer(player, params.identity),
+  );
+
+  if (!self) {
+    return { closed: roomRow.status !== "waiting" };
+  }
+
+  if (isRoomHost(roomRow, players, params.identity)) {
+    await closeRoom(params);
+    return { closed: true };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("game_room_players")
+    .delete()
+    .eq("id", self.id);
+
+  if (deleteError) throw new Error(deleteError.message);
+  return { closed: false };
+}
+
 export async function changePlayerColor(params: {
   code: string;
   color: PlayerColor;

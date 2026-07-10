@@ -15,6 +15,7 @@ import {
   getStoredHostRoomCode,
   setStoredHostRoomCode,
 } from "@/lib/room/guest";
+import { withOptimisticColor } from "@/lib/room/optimistic";
 import type { RoomView } from "@/lib/room/types";
 import { useRoomRealtime } from "@/lib/room/use-room-realtime";
 
@@ -27,8 +28,11 @@ export function CreateRoomView() {
   const [loading, setLoading] = useState(true);
   const [changingColor, setChangingColor] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const bootstrapped = useRef(false);
   const closingRef = useRef(false);
+  const leavingRef = useRef(false);
+  const pendingColorRef = useRef<PlayerColor | null>(null);
 
   const authHeaders = useCallback(async () => {
     const headers: Record<string, string> = {
@@ -43,14 +47,23 @@ export function CreateRoomView() {
     return headers;
   }, [authenticated, getAccessToken]);
 
+  const applyRoomUpdate = useCallback((next: RoomView) => {
+    if (pendingColorRef.current) {
+      setRoom(withOptimisticColor(next, pendingColorRef.current));
+      return;
+    }
+    setRoom(next);
+  }, []);
+
   useRoomRealtime({
     room,
     getAuthHeaders: authHeaders,
-    onRoom: setRoom,
+    onRoom: applyRoomUpdate,
     onClosed: () => {
-      if (closingRef.current) return;
+      if (closingRef.current || leavingRef.current) return;
       clearStoredHostRoomCode();
-      router.push("/multiplayer");
+      setRoom(null);
+      router.replace("/multiplayer?closed=1");
     },
   });
 
@@ -144,19 +157,22 @@ export function CreateRoomView() {
     );
     if (taken) return;
 
+    const previousRoom = room;
+    pendingColorRef.current = color;
+    setRoom(withOptimisticColor(room, color));
     setChangingColor(true);
     setError(null);
 
     try {
       const headers = await authHeaders();
-      const selfPlayer = room.players.find((player) => player.isSelf);
+      const selfPlayer = previousRoom.players.find((player) => player.isSelf);
       const body: {
         code: string;
         color: PlayerColor;
         guestSessionId?: string;
         guestName?: string;
       } = {
-        code: room.code,
+        code: previousRoom.code,
         color,
       };
 
@@ -180,11 +196,61 @@ export function CreateRoomView() {
       }
 
       const data = (await res.json()) as { room: RoomView };
+      pendingColorRef.current = null;
       setRoom(data.room);
     } catch (err) {
+      pendingColorRef.current = null;
+      setRoom(previousRoom);
       setError(err instanceof Error ? err.message : t("room.colorError"));
     } finally {
       setChangingColor(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!room || leaving || closing) return;
+
+    leavingRef.current = true;
+    setLeaving(true);
+    setError(null);
+
+    try {
+      const headers = await authHeaders();
+      const selfPlayer = room.players.find((player) => player.isSelf);
+      const body: {
+        code: string;
+        guestSessionId?: string;
+        guestName?: string;
+      } = {
+        code: room.code,
+      };
+
+      if (selfPlayer?.isGuest) {
+        const guest = getGuestIdentity();
+        body.guestSessionId = guest.guestSessionId;
+        body.guestName = selfPlayer.username || guest.guestName;
+      }
+
+      const res = await fetch("/api/rooms/leave", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? t("room.leaveError"));
+      }
+
+      clearStoredHostRoomCode();
+      setRoom(null);
+      router.replace("/multiplayer");
+    } catch (err) {
+      leavingRef.current = false;
+      setError(err instanceof Error ? err.message : t("room.leaveError"));
+      setLeaving(false);
     }
   };
 
@@ -276,8 +342,10 @@ export function CreateRoomView() {
       room={room}
       changingColor={changingColor}
       closing={closing}
+      leaving={leaving}
       error={error}
       onSelectColor={(color) => void handleSelectColor(color)}
+      onLeave={() => void handleLeaveRoom()}
       onCloseRoom={() => void handleCloseRoom()}
     />
   );

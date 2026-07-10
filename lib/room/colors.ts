@@ -6,3 +6,10 @@ export function firstAvailableColor(
   const takenSet = new Set(taken);
   return PLAYER_ORDER.find((color) => !takenSet.has(color)) ?? null;
 }
+
+export function availableColors(
+  taken: Iterable<PlayerColor>,
+): PlayerColor[] {
+  const takenSet = new Set(taken);
+  return PLAYER_ORDER.filter((color) => !takenSet.has(color));
+}
