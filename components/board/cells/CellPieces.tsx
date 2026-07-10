@@ -1,6 +1,9 @@
+"use client";
+
 import type { BasicOrientation } from "@/lib/board/cell-shapes";
 import type { PlayerColor } from "@/lib/board/types";
 import type { MenuAnchor } from "@/components/game/GameStateContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { MAX_PIECES_PER_CELL } from "@/lib/game/pieces";
 import { GamePiece } from "../GamePiece";
 
@@ -43,6 +46,7 @@ export function PieceSlot({
   selected?: boolean;
   onClick?: (anchor: MenuAnchor) => void;
 }) {
+  const { t } = useTranslations();
   const content = (
     <GamePiece
       color={player}
@@ -71,7 +75,7 @@ export function PieceSlot({
             y: rect.top,
           });
         }}
-        aria-label={`Move piece ${index + 1}`}
+        aria-label={t("board.movePiece", { n: index + 1 })}
         data-piece-button
       >
         {content}
@@ -94,6 +98,8 @@ export function CellPieces({
   onPieceClick,
   selectedPiece = null,
 }: CellPiecesProps) {
+  const { tp } = useTranslations();
+
   if (pieces.length === 0) return null;
 
   const visible = pieces.slice(0, MAX_PIECES_PER_CELL);
@@ -139,7 +145,7 @@ export function CellPieces({
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
       }}
-      aria-label={`${visible.length} piece${visible.length !== 1 ? "s" : ""}`}
+      aria-label={tp("board.piece", visible.length)}
     >
       {visible.map((piece) => (
         <PieceSlot

@@ -2,12 +2,15 @@
 
 import { useEffect } from "react";
 import { useGameState } from "@/components/game/GameStateContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS } from "@/lib/board/types";
 import { playVictorySound } from "@/lib/game/sounds";
 
 /** Overlay persistente al terminar el juego: anuncia al ganador */
 export function WinnerAnnouncement() {
   const { winner } = useGameState();
+  const { t, locale } = useTranslations();
 
   useEffect(() => {
     if (winner) playVictorySound();
@@ -15,7 +18,8 @@ export function WinnerAnnouncement() {
 
   if (!winner) return null;
 
-  const { fill, dark, label } = PLAYER_COLORS[winner];
+  const { fill, dark } = PLAYER_COLORS[winner];
+  const label = getPlayerColorLabel(locale, winner);
 
   return (
     <div
@@ -28,7 +32,7 @@ export function WinnerAnnouncement() {
         style={{ borderColor: fill, backgroundColor: dark }}
       >
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
-          Game over! Winner
+          {t("turn.gameOverWinner")}
         </p>
         <p
           className="mt-1 text-3xl font-black uppercase tracking-wide md:text-4xl"

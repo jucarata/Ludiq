@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FaRankingStar, FaUser } from "react-icons/fa6";
 import { useHomePlayOptional } from "@/components/home/HomePlayContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
   retroComingSoonButtonClassName,
   retroIconButtonClassName,
@@ -13,13 +14,14 @@ import {
 export function AppFooter() {
   const pathname = usePathname();
   const homePlay = useHomePlayOptional();
+  const { t } = useTranslations();
   const activeMode = homePlay?.activeMode ?? null;
   const isHome = pathname === "/" || pathname === "";
 
   return (
     <footer
       role="navigation"
-      aria-label="Main navigation"
+      aria-label={t("nav.mainNavigation")}
       className="flex h-[calc(5rem+env(safe-area-inset-bottom,0px))] shrink-0 items-stretch justify-center border-t border-[var(--board-path-border)] bg-[var(--board-path)] shadow-[0_-4px_20px_rgba(26,26,46,0.08)] sm:h-[calc(5rem+env(safe-area-inset-bottom,0px))]"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
@@ -28,27 +30,27 @@ export function AppFooter() {
           {!isHome ? (
             <Link
               href="/"
-              aria-label="Home"
+              aria-label={t("nav.home")}
               className={retroPlayButtonClassName}
             >
-              Home
+              {t("nav.home")}
             </Link>
           ) : activeMode?.id === "offline" ? (
             <Link
               href="/play"
-              aria-label={`Play ${activeMode.title}`}
+              aria-label={t("nav.playMode", { title: activeMode.title })}
               className={retroPlayButtonClassName}
             >
-              Play
+              {t("nav.play")}
             </Link>
           ) : activeMode?.id === "multiplayer" ? (
             <button
               type="button"
-              aria-label="Multiplayer coming soon"
+              aria-label={t("nav.multiplayerComingSoon")}
               disabled
               className={retroComingSoonButtonClassName}
             >
-              Coming Soon
+              {t("nav.comingSoon")}
             </button>
           ) : (
             <span className="invisible flex h-14 min-w-[12.5rem] sm:h-[3.75rem] sm:min-w-[14rem]" aria-hidden />
@@ -56,7 +58,7 @@ export function AppFooter() {
 
           <button
             type="button"
-            aria-label="Leaderboard"
+            aria-label={t("nav.leaderboard")}
             className={`${retroIconButtonClassName} absolute right-full mr-3`}
           >
             <FaRankingStar className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
@@ -64,7 +66,7 @@ export function AppFooter() {
 
           <Link
             href="/profile"
-            aria-label="Profile"
+            aria-label={t("nav.profile")}
             className={`${retroIconButtonClassName} absolute left-full ml-3`}
           >
             <FaUser className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />

@@ -1,4 +1,7 @@
+"use client";
+
 import { buildBoardLayout, BOARD_SIZE } from "@/lib/board/layout";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { BoardCell } from "./BoardCell";
 
 const layout = buildBoardLayout();
@@ -20,6 +23,8 @@ export function ParquesBoard({
 }: {
   className?: string;
 }) {
+  const { t } = useTranslations();
+
   return (
     <div
       className={`grid h-[var(--board-dim)] w-[var(--board-dim)] max-h-full max-w-full shrink-0 gap-[2px] rounded-2xl border-[6px] border-[#d4c5a0] bg-[#d4c5a0] p-[2px] shadow-2xl ${className ?? ""}`}
@@ -28,7 +33,7 @@ export function ParquesBoard({
         gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
       }}
       role="img"
-      aria-label="Parqués board"
+      aria-label={t("board.ariaLabel")}
     >
       {layout.map(({ row, col, cell }) => (
         <BoardCell

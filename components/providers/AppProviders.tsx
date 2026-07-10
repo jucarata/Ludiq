@@ -3,12 +3,15 @@
 import { PrivyProvider } from "@privy-io/react-auth";
 import { celo, celoSepolia } from "viem/chains";
 import type { ReactNode } from "react";
+import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 export function AppProviders({ children }: { children: ReactNode }) {
+  const content = <LocaleProvider>{children}</LocaleProvider>;
+
   if (!appId) {
-    return <>{children}</>;
+    return content;
   }
 
   return (
@@ -30,7 +33,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         supportedChains: [celo, celoSepolia],
       }}
     >
-      {children}
+      {content}
     </PrivyProvider>
   );
 }

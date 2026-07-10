@@ -9,18 +9,20 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useHomePlay } from "@/components/home/HomePlayContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const GAME_MODES = [
   {
     id: "multiplayer",
-    title: "Multiplayer",
+    titleKey: "home.multiplayer" as const satisfies MessageKey,
     image: `${basePath}/images/game_preview.jpeg`,
   },
   {
     id: "offline",
-    title: "Play Offline",
+    titleKey: "home.playOffline" as const satisfies MessageKey,
     image: `${basePath}/images/game_preview.jpeg`,
   },
 ] as const;
@@ -33,6 +35,7 @@ const CAROUSEL_PADDING_CLASS =
 
 export function GameModeCarousel() {
   const { setActiveMode } = useHomePlay();
+  const { t } = useTranslations();
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({
     active: false,
@@ -190,13 +193,14 @@ export function GameModeCarousel() {
   };
 
   const activeMode = GAME_MODES[activeIndex];
+  const activeTitle = t(activeMode.titleKey);
 
   useEffect(() => {
     setActiveMode({
       id: activeMode.id,
-      title: activeMode.title,
+      title: activeTitle,
     });
-  }, [activeMode, setActiveMode]);
+  }, [activeMode.id, activeTitle, setActiveMode]);
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -211,13 +215,14 @@ export function GameModeCarousel() {
           >
             {GAME_MODES.map((mode, index) => {
               const isActive = activeIndex === index;
+              const title = t(mode.titleKey);
 
               return (
                 <article
                   key={mode.id}
                   data-mode-card
                   data-index={index}
-                  aria-label={mode.title}
+                  aria-label={title}
                   aria-current={isActive ? "true" : undefined}
                   className={`relative ${CARD_CLASS} shrink-0 snap-center overflow-hidden rounded-[1.75rem] border-2 bg-[#252540] shadow-[0_18px_40px_rgba(0,0,0,0.35)] transition-[transform,border-color] duration-300 select-none ${
                     isActive
@@ -227,7 +232,7 @@ export function GameModeCarousel() {
                 >
                   <img
                     src={mode.image}
-                    alt={mode.title}
+                    alt={title}
                     className="pointer-events-none h-full w-full object-cover object-top"
                     draggable={false}
                   />
@@ -248,7 +253,7 @@ export function GameModeCarousel() {
                         : "text-[var(--board-path)] opacity-75"
                     }`}
                   >
-                    {mode.title}
+                    {title}
                   </h2>
                 </article>
               );
@@ -258,7 +263,7 @@ export function GameModeCarousel() {
           <div
             className="flex items-center gap-2"
             role="tablist"
-            aria-label="Game modes"
+            aria-label={t("home.gameModes")}
           >
             {GAME_MODES.map((mode, index) => (
               <button
@@ -266,7 +271,7 @@ export function GameModeCarousel() {
                 type="button"
                 role="tab"
                 aria-selected={activeIndex === index}
-                aria-label={mode.title}
+                aria-label={t(mode.titleKey)}
                 onClick={() => scrollToIndex(index)}
                 className={`h-2.5 rounded-full transition-all duration-300 ${
                   activeIndex === index

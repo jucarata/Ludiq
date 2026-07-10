@@ -2,7 +2,7 @@ import type { MovementLabelOrientation } from "@/lib/board/cell-shapes";
 import { getMovementLabelRotation } from "@/lib/board/cell-shapes";
 
 export interface MovementLabelProps {
-  text: "SAFE" | "EXIT";
+  text: string;
   orientation: MovementLabelOrientation;
 }
 

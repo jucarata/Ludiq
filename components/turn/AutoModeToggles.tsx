@@ -4,15 +4,19 @@ import { useTurn } from "@/components/game/TurnContext";
 import { useIsBot } from "@/components/game/PlayersContext";
 import { useAutoMode } from "@/components/game/AutoModeContext";
 import { GamePiece } from "@/components/board/GamePiece";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS } from "@/lib/board/types";
 
 export function AutoModeToggles() {
   const { currentPlayer } = useTurn();
   const isBot = useIsBot();
   const { isAutoEnabled, setAutoEnabled } = useAutoMode();
+  const { t, locale } = useTranslations();
 
   const isHumanTurn = !isBot(currentPlayer);
-  const { label, fill } = PLAYER_COLORS[currentPlayer];
+  const { fill } = PLAYER_COLORS[currentPlayer];
+  const label = getPlayerColorLabel(locale, currentPlayer);
   const enabled = isAutoEnabled(currentPlayer);
 
   return (
@@ -20,7 +24,7 @@ export function AutoModeToggles() {
       className={`mb-4 border-b pb-4 ${
         isHumanTurn ? "border-[#d4c5a0]/25" : "border-transparent"
       }`}
-      aria-label={isHumanTurn ? "Auto mode" : undefined}
+      aria-label={isHumanTurn ? t("turn.autoMode") : undefined}
       aria-hidden={!isHumanTurn}
     >
       <label
@@ -43,11 +47,11 @@ export function AutoModeToggles() {
           disabled={!isHumanTurn}
           tabIndex={isHumanTurn ? 0 : -1}
           className="h-4 w-4 shrink-0 cursor-pointer accent-[#fcd34d]"
-          aria-label={`Auto — ${label}`}
+          aria-label={t("turn.autoFor", { label })}
         />
         <GamePiece color={currentPlayer} className="h-5 w-5 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#fefae0] md:text-sm">
-          Auto
+          {t("turn.auto")}
         </span>
         <span
           className="h-2 w-2 shrink-0 rounded-full"

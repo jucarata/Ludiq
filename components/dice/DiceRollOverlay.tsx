@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ActiveDieRoll } from "@/components/dice/DiceContext";
 import { Die3D, getFaceRotation } from "@/components/dice/Die3D";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
   createDicePhysics,
   DICE_RESULT_HOLD_MS,
@@ -75,6 +76,7 @@ function randomBakedFlips(): string[] {
 }
 
 export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
+  const { t } = useTranslations();
   const [phase, setPhase] = useState<"rolling" | "result">("rolling");
   const [orientation, setOrientation] = useState("rotateX(0deg)");
   const [renderState, setRenderState] = useState<DicePhysicsState>(() => {
@@ -168,7 +170,11 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
       style={{ left: renderState.x, top: renderState.y }}
       aria-live="polite"
       role="status"
-      aria-label={`Die: ${phase === "result" ? roll.value : "rolling"}`}
+      aria-label={
+        phase === "result"
+          ? t("dice.dieValue", { value: roll.value })
+          : t("dice.dieRolling")
+      }
     >
       <div className={phase === "result" ? "dice-roll--result" : ""}>
         <Die3D

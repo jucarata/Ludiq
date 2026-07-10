@@ -5,6 +5,8 @@ import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
 import { GamePiece } from "@/components/board/GamePiece";
 import { DiceLauncher } from "@/components/dice/DiceLauncher";
 import { AutoModeToggles } from "@/components/turn/AutoModeToggles";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
 
 function TeamEntry({
@@ -18,7 +20,10 @@ function TeamEntry({
   timeLeft: number;
   isBot: boolean;
 }) {
-  const { fill, label } = PLAYER_COLORS[color];
+  const { t, locale } = useTranslations();
+  const { fill } = PLAYER_COLORS[color];
+  const label = getPlayerColorLabel(locale, color);
+  const cpuLabel = t("turn.cpu");
 
   return (
     <li
@@ -43,14 +48,14 @@ function TeamEntry({
         </span>
         {isBot ? (
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[#457b9d] md:text-xs">
-            CPU
+            {cpuLabel}
           </span>
         ) : (
           <span
             className="text-[10px] font-semibold uppercase tracking-wide opacity-0 md:text-xs"
             aria-hidden
           >
-            CPU
+            {cpuLabel}
           </span>
         )}
       </div>
@@ -67,11 +72,12 @@ export function TurnPanel() {
   const { currentPlayer, timeLeft } = useTurn();
   const activePlayers = useActivePlayers();
   const isBot = useIsBot();
+  const { t } = useTranslations();
 
   return (
     <aside
       className="flex w-full max-w-full shrink-0 flex-col rounded-2xl border-[6px] border-[#d4c5a0] bg-[#2a2a3e] p-3 shadow-2xl sm:p-4 md:w-[var(--turn-panel-width)] md:max-w-none"
-      aria-label="Turn panel"
+      aria-label={t("turn.panel")}
     >
       <DiceLauncher />
       <AutoModeToggles />

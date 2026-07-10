@@ -4,6 +4,7 @@ import { verifyPrivyAuthToken } from "@/lib/privy/server";
 import {
   normalizeUsername,
   normalizeWalletAddress,
+  usernameValidationMessage,
   validateUsername,
   type Profile,
 } from "@/lib/profile/types";
@@ -89,7 +90,10 @@ export async function POST(request: Request) {
 
     const usernameError = validateUsername(username);
     if (usernameError) {
-      return NextResponse.json({ error: usernameError }, { status: 400 });
+      return NextResponse.json(
+        { error: usernameValidationMessage(usernameError) },
+        { status: 400 },
+      );
     }
 
     const supabase = getSupabaseAdminClient();

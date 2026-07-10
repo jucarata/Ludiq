@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { GamePiece } from "@/components/board/GamePiece";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
   PLAYER_COLORS,
   PLAYER_ORDER,
@@ -14,6 +15,7 @@ import {
   MIN_PLAYERS,
   type GameSetup,
 } from "@/lib/game/player-config";
+import { getPlayerColorLabel } from "@/lib/i18n";
 import {
   retroBackButtonClassName,
   retroPlayButtonClassName,
@@ -31,17 +33,21 @@ function RoleSwitch({
   isBot,
   disabled,
   onToggle,
+  humanLabel,
+  cpuLabel,
 }: {
   isBot: boolean;
   disabled: boolean;
   onToggle: () => void;
+  humanLabel: string;
+  cpuLabel: string;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={isBot}
-      aria-label={isBot ? "CPU" : "Human"}
+      aria-label={isBot ? cpuLabel : humanLabel}
       disabled={disabled}
       onClick={(event) => {
         event.stopPropagation();
@@ -64,7 +70,7 @@ function RoleSwitch({
             : retroRoleSwitchLabelInactiveClassName
         }
       >
-        Human
+        {humanLabel}
       </span>
       <span
         className={
@@ -73,13 +79,14 @@ function RoleSwitch({
             : retroRoleSwitchLabelInactiveClassName
         }
       >
-        CPU
+        {cpuLabel}
       </span>
     </button>
   );
 }
 
 export function PlayerSetup({ onStart }: PlayerSetupProps) {
+  const { t, tp, locale } = useTranslations();
   const [selected, setSelected] = useState<PlayerColor[]>([...PLAYER_ORDER]);
   const [bots, setBots] = useState<PlayerColor[]>([]);
 
@@ -128,18 +135,21 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
-          Players
+          {t("setup.players")}
         </h1>
         <p className="max-w-md text-sm text-[var(--board-path-border)]">
-          Tap a color to enable or remove it. Use the switch to choose human or
-          CPU — minimum {MIN_PLAYERS} players, at least {MIN_HUMANS} human,
-          maximum {MAX_BOTS} CPUs.
+          {t("setup.instructions", {
+            minPlayers: MIN_PLAYERS,
+            minHumans: MIN_HUMANS,
+            maxBots: MAX_BOTS,
+          })}
         </p>
       </div>
 
       <ul className="flex w-full max-w-md flex-col gap-3">
         {PLAYER_ORDER.map((color) => {
-          const { fill, label } = PLAYER_COLORS[color];
+          const { fill } = PLAYER_COLORS[color];
+          const label = getPlayerColorLabel(locale, color);
           const isSelected = selected.includes(color);
           const isBot = bots.includes(color);
           const humansLeft = selected.length - botCount;
@@ -188,6 +198,8 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
                   isBot={isBot}
                   disabled={!isSelected || !canToggleRole}
                   onToggle={() => toggleBot(color)}
+                  humanLabel={t("setup.human")}
+                  cpuLabel={t("setup.cpu")}
                 />
               </div>
             </li>
@@ -196,14 +208,16 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
       </ul>
 
       <p className="text-center text-sm text-[var(--board-path-border)]">
-        {selected.length} player{selected.length !== 1 ? "s" : ""} ·{" "}
-        {humanCount} human{humanCount !== 1 ? "s" : ""} · {botCount} CPU
-        {botCount !== 1 ? "s" : ""}
+        {t("setup.summary", {
+          players: tp("setup.player", selected.length),
+          humans: tp("setup.human", humanCount),
+          cpus: tp("setup.cpu", botCount),
+        })}
       </p>
 
       <div className="flex flex-col items-center gap-4 sm:flex-row">
         <Link href="/" className={retroBackButtonClassName}>
-          Back
+          {t("setup.back")}
         </Link>
         <button
           type="button"
@@ -211,7 +225,7 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
           onClick={handleStart}
           className={retroPlayButtonClassName}
         >
-          Play
+          {t("setup.play")}
         </button>
       </div>
     </main>

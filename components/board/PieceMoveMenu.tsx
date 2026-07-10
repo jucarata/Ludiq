@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import type { DieMoveChoice } from "@/lib/game/movement";
 import { useGameState } from "@/components/game/GameStateContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface PieceMoveMenuProps {
   options: { id: string; label: string; choice: DieMoveChoice }[];
@@ -12,11 +13,13 @@ interface PieceMoveMenuProps {
 
 /** Mini-menú con los valores de dado disponibles para mover la ficha */
 export function PieceMoveMenu({ options, onSelect }: PieceMoveMenuProps) {
+  const { t } = useTranslations();
+
   return (
     <div
       className="flex gap-1"
       role="menu"
-      aria-label="Dice values"
+      aria-label={t("board.diceValues")}
       onClick={(event) => event.stopPropagation()}
     >
       {options.map((option) => (

@@ -1,15 +1,19 @@
 "use client";
 
 import { useTurn } from "@/components/game/TurnContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS } from "@/lib/board/types";
 import { TURN_ANNOUNCEMENT_MS } from "@/lib/game/turns";
 
 export function TurnAnnouncement() {
   const { announcement } = useTurn();
+  const { t, locale } = useTranslations();
 
   if (!announcement) return null;
 
-  const { fill, dark, label } = PLAYER_COLORS[announcement];
+  const { fill, dark } = PLAYER_COLORS[announcement];
+  const label = getPlayerColorLabel(locale, announcement);
 
   return (
     <div
@@ -26,7 +30,7 @@ export function TurnAnnouncement() {
         }}
       >
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
-          Turn
+          {t("turn.turn")}
         </p>
         <p
           className="mt-1 text-3xl font-black uppercase tracking-wide md:text-4xl"

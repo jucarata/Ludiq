@@ -2,9 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { FaWallet } from "react-icons/fa6";
+import { FaGear, FaWallet } from "react-icons/fa6";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { Profile } from "@/lib/profile/types";
-import { validateUsername } from "@/lib/profile/types";
+import {
+  mapApiErrorToMessageKey,
+  validateUsername,
+} from "@/lib/profile/types";
+import {
+  languageOptionToLocale,
+  localeToLanguageOption,
+  type LanguageOption,
+  type MessageKey,
+} from "@/lib/i18n";
 import {
   retroActionFont,
   retroBackButtonClassName,
@@ -52,6 +62,7 @@ function WalletModal({
   address: string | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslations();
   const [copied, setCopied] = useState(false);
 
   const copyAddress = async () => {
@@ -70,7 +81,7 @@ function WalletModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5"
       role="dialog"
       aria-modal="true"
-      aria-label="Wallet"
+      aria-label={t("profile.wallet")}
       onClick={onClose}
     >
       <div
@@ -79,20 +90,20 @@ function WalletModal({
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className={`${retroActionFont.className} text-[0.65rem]`}>
-            Wallet
+            {t("profile.wallet")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg border-2 border-[#173532] px-2 py-1 text-xs font-semibold uppercase"
-            aria-label="Close wallet modal"
+            aria-label={t("profile.closeWallet")}
           >
-            Close
+            {t("profile.close")}
           </button>
         </div>
 
         <p className="mb-2 text-xs uppercase tracking-wide opacity-60">
-          Address
+          {t("profile.address")}
         </p>
         {address ? (
           <>
@@ -105,32 +116,108 @@ function WalletModal({
               onClick={() => void copyAddress()}
               className={`${retroBackButtonClassName} mt-5 w-full`}
             >
-              {copied ? "Copied" : "Copy"}
+              {copied ? t("profile.copied") : t("profile.copy")}
             </button>
           </>
         ) : (
-          <p className="text-sm opacity-70">Creating wallet…</p>
+          <p className="text-sm opacity-70">{t("profile.creatingWallet")}</p>
         )}
       </div>
     </div>
   );
 }
 
+function SettingsModal({
+  language,
+  onLanguageChange,
+  onClose,
+}: {
+  language: LanguageOption;
+  onLanguageChange: (value: LanguageOption) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslations();
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("profile.settings")}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] p-5 text-[#173532] shadow-[6px_6px_0_#173532]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className={`${retroActionFont.className} text-[0.65rem]`}>
+            {t("profile.settings")}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border-2 border-[#173532] px-2 py-1 text-xs font-semibold uppercase"
+            aria-label={t("profile.closeSettings")}
+          >
+            {t("profile.close")}
+          </button>
+        </div>
+
+        <label
+          htmlFor="settings-language"
+          className="mb-2 block text-xs uppercase tracking-wide opacity-60"
+        >
+          {t("profile.language")}
+        </label>
+        <select
+          id="settings-language"
+          value={language}
+          onChange={(event) =>
+            onLanguageChange(event.target.value as LanguageOption)
+          }
+          className="w-full rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-4 py-3 text-sm text-[#173532] outline-none focus:brightness-95"
+        >
+          <option value="ENGLISH">{t("profile.languageEnglish")}</option>
+          <option value="ESPAÑOL">{t("profile.languageSpanish")}</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
 function ProfileGate() {
+  const { t } = useTranslations();
+
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <h1 className={`${retroActionFont.className} text-sm sm:text-base`}>
-          Profile
+          {t("profile.title")}
         </h1>
         <p className="max-w-md text-sm text-[var(--board-path)]/80">
-          Add{" "}
-          <code className="text-[var(--board-green)]">
-            NEXT_PUBLIC_PRIVY_APP_ID
-          </code>{" "}
-          and{" "}
-          <code className="text-[var(--board-green)]">PRIVY_APP_SECRET</code> to{" "}
-          <code>.env.local</code>, then restart the dev server.
+          {t("profile.missingPrivy", {
+            privyAppId: "NEXT_PUBLIC_PRIVY_APP_ID",
+            privySecret: "PRIVY_APP_SECRET",
+            envFile: ".env.local",
+          })
+            .split(/(NEXT_PUBLIC_PRIVY_APP_ID|PRIVY_APP_SECRET|\.env\.local)/)
+            .map((part, index) =>
+              part === "NEXT_PUBLIC_PRIVY_APP_ID" ||
+              part === "PRIVY_APP_SECRET" ||
+              part === ".env.local" ? (
+                <code
+                  key={`${part}-${index}`}
+                  className={
+                    part === ".env.local" ? undefined : "text-[var(--board-green)]"
+                  }
+                >
+                  {part}
+                </code>
+              ) : (
+                <span key={`${part}-${index}`}>{part}</span>
+              ),
+            )}
         </p>
       </main>
     );
@@ -142,13 +229,38 @@ function ProfileGate() {
 function ProfileAuthenticatedView() {
   const { ready, authenticated, user, login, logout, getAccessToken } =
     usePrivy();
+  const { t } = useTranslations();
+  const { locale, setLocale } = useLocale();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [username, setUsername] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
+  const [errorFallback, setErrorFallback] = useState<string | null>(null);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const language = localeToLanguageOption(locale);
+
+  const resolveApiError = useCallback(
+    (error: string | undefined, fallbackKey: MessageKey) => {
+      const mapped = mapApiErrorToMessageKey(error);
+      if (mapped) {
+        setErrorKey(mapped);
+        setErrorFallback(null);
+        return;
+      }
+      if (error) {
+        setErrorKey(null);
+        setErrorFallback(error);
+        return;
+      }
+      setErrorKey(fallbackKey);
+      setErrorFallback(null);
+    },
+    [],
+  );
 
   const walletAddress = useMemo(() => {
     const embedded = user?.wallet?.address;
@@ -169,12 +281,13 @@ function ProfileAuthenticatedView() {
     }
 
     setLoadingProfile(true);
-    setError(null);
+    setErrorKey(null);
+    setErrorFallback(null);
 
     try {
       const token = await getAccessToken();
       if (!token) {
-        setError("Could not get Privy session.");
+        setErrorKey("profile.errorSession");
         return;
       }
 
@@ -187,7 +300,7 @@ function ProfileAuthenticatedView() {
       };
 
       if (!res.ok) {
-        setError(json.error ?? "Failed to load profile");
+        resolveApiError(json.error, "profile.errorLoad");
         return;
       }
 
@@ -196,11 +309,11 @@ function ProfileAuthenticatedView() {
         setUsername(json.profile.username);
       }
     } catch {
-      setError("Failed to load profile");
+      setErrorKey("profile.errorLoad");
     } finally {
       setLoadingProfile(false);
     }
-  }, [authenticated, getAccessToken]);
+  }, [authenticated, getAccessToken, resolveApiError]);
 
   useEffect(() => {
     void fetchProfile();
@@ -209,21 +322,24 @@ function ProfileAuthenticatedView() {
   const saveProfile = async () => {
     const validationError = validateUsername(username);
     if (validationError) {
-      setError(validationError);
+      setErrorKey(validationError);
+      setErrorFallback(null);
       return;
     }
     if (!walletAddress) {
-      setError("Wallet is still being created. Try again in a moment.");
+      setErrorKey("profile.errorWalletPending");
+      setErrorFallback(null);
       return;
     }
 
     setSaving(true);
-    setError(null);
+    setErrorKey(null);
+    setErrorFallback(null);
 
     try {
       const token = await getAccessToken();
       if (!token) {
-        setError("Could not get Privy session.");
+        setErrorKey("profile.errorSession");
         return;
       }
 
@@ -246,16 +362,20 @@ function ProfileAuthenticatedView() {
       };
 
       if (!res.ok || !json.profile) {
-        setError(json.error ?? "Failed to save profile");
+        resolveApiError(json.error, "profile.errorSave");
         return;
       }
 
       setProfile(json.profile);
     } catch {
-      setError("Failed to save profile");
+      setErrorKey("profile.errorSave");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleLanguageChange = (option: LanguageOption) => {
+    setLocale(languageOptionToLocale(option));
   };
 
   if (!ready) {
@@ -264,7 +384,7 @@ function ProfileAuthenticatedView() {
         <p
           className={`${retroActionFont.className} text-xs text-[var(--board-path)]/70`}
         >
-          Loading…
+          {t("profile.loading")}
         </p>
       </main>
     );
@@ -275,11 +395,10 @@ function ProfileAuthenticatedView() {
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
         <div className="space-y-3">
           <h1 className={`${retroActionFont.className} text-sm sm:text-base`}>
-            Profile
+            {t("profile.title")}
           </h1>
           <p className="max-w-sm text-sm leading-relaxed text-[var(--board-path)]/80">
-            Sign in with your email. We&apos;ll create your wallet and save your
-            username so your profile follows you on any device.
+            {t("profile.signInBlurb")}
           </p>
         </div>
         <button
@@ -287,13 +406,16 @@ function ProfileAuthenticatedView() {
           onClick={login}
           className={retroPlayButtonClassName}
         >
-          Sign in
+          {t("profile.signIn")}
         </button>
       </main>
     );
   }
 
   const needsUsername = !profile?.username;
+  const errorMessage = errorKey
+    ? t(errorKey)
+    : errorFallback;
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto px-6 py-8">
@@ -302,7 +424,7 @@ function ProfileAuthenticatedView() {
           <p
             className={`${retroActionFont.className} text-[0.55rem] opacity-70`}
           >
-            Loading profile…
+            {t("profile.loadingProfile")}
           </p>
         </div>
       ) : needsUsername ? (
@@ -310,16 +432,16 @@ function ProfileAuthenticatedView() {
           <ProfileAvatar />
           <div className="space-y-2">
             <h2 className={`${retroActionFont.className} text-[0.65rem]`}>
-              Choose username
+              {t("profile.chooseUsername")}
             </h2>
             <p className="text-sm text-[var(--board-path)]/75">
-              This is how other players will see you.
+              {t("profile.usernameHint")}
             </p>
           </div>
           <input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
-            placeholder="e.g. ludiq_pro"
+            placeholder={t("profile.usernamePlaceholder")}
             maxLength={20}
             className="w-full rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-4 py-3 text-center text-[#173532] outline-none focus:brightness-95"
             autoComplete="username"
@@ -330,7 +452,7 @@ function ProfileAuthenticatedView() {
             onClick={() => void saveProfile()}
             className={retroPlayButtonClassName}
           >
-            {saving ? "Saving…" : "Create profile"}
+            {saving ? t("profile.saving") : t("profile.createProfile")}
           </button>
         </section>
       ) : (
@@ -352,23 +474,33 @@ function ProfileAuthenticatedView() {
               onClick={() => void logout()}
               className={`${retroActionFont.className} flex h-10 min-w-[7.5rem] items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 text-[0.5rem] uppercase tracking-normal text-[#173532] shadow-[3px_3px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532] sm:h-11 sm:min-w-[8.5rem] sm:px-6 sm:text-[0.55rem]`}
             >
-              Sign out
+              {t("profile.signOut")}
             </button>
-            <button
-              type="button"
-              onClick={() => setWalletOpen(true)}
-              className={`${retroPlayButtonClassName} mt-4 gap-3`}
-            >
-              <FaWallet className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
-              Wallet
-            </button>
+            <div className="mt-4 flex w-[min(100%,15rem)] flex-col gap-3 sm:w-[16rem]">
+              <button
+                type="button"
+                onClick={() => setWalletOpen(true)}
+                className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.65rem] leading-none sm:gap-3 sm:px-5 sm:text-xs`}
+              >
+                <FaWallet className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden />
+                <span className="whitespace-nowrap">{t("profile.wallet")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.65rem] leading-none sm:gap-3 sm:px-5 sm:text-xs`}
+              >
+                <FaGear className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden />
+                <span className="whitespace-nowrap">{t("profile.settings")}</span>
+              </button>
+            </div>
           </div>
         </section>
       )}
 
-      {error ? (
+      {errorMessage ? (
         <p className="mt-4 text-center text-sm text-[var(--board-red)]" role="alert">
-          {error}
+          {errorMessage}
         </p>
       ) : null}
 
@@ -376,6 +508,14 @@ function ProfileAuthenticatedView() {
         <WalletModal
           address={walletAddress}
           onClose={() => setWalletOpen(false)}
+        />
+      ) : null}
+
+      {settingsOpen ? (
+        <SettingsModal
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          onClose={() => setSettingsOpen(false)}
         />
       ) : null}
     </main>
