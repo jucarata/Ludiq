@@ -401,13 +401,31 @@ function ProfileAuthenticatedView() {
             {t("profile.signInBlurb")}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={login}
-          className={retroPlayButtonClassName}
-        >
-          {t("profile.signIn")}
-        </button>
+        <div className="flex w-[min(100%,15rem)] flex-col items-center gap-3 sm:w-[16rem]">
+          <button
+            type="button"
+            onClick={login}
+            className={`${retroPlayButtonClassName} w-full min-w-0`}
+          >
+            {t("profile.signIn")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.65rem] leading-none sm:gap-3 sm:px-5 sm:text-xs`}
+          >
+            <FaGear className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden />
+            <span className="whitespace-nowrap">{t("profile.settings")}</span>
+          </button>
+        </div>
+
+        {settingsOpen ? (
+          <SettingsModal
+            language={language}
+            onLanguageChange={handleLanguageChange}
+            onClose={() => setSettingsOpen(false)}
+          />
+        ) : null}
       </main>
     );
   }
