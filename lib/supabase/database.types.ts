@@ -15,6 +15,9 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          privy_user_id: string;
+          wallet_address: string;
+          email: string | null;
           username: string | null;
           display_name: string | null;
           avatar_url: string | null;
@@ -24,7 +27,10 @@ export interface Database {
           updated_at: string;
         };
         Insert: {
-          id: string;
+          id?: string;
+          privy_user_id: string;
+          wallet_address: string;
+          email?: string | null;
           username?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
@@ -35,6 +41,9 @@ export interface Database {
         };
         Update: {
           id?: string;
+          privy_user_id?: string;
+          wallet_address?: string;
+          email?: string | null;
           username?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;

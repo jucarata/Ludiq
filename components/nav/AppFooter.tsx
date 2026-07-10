@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FaGear, FaUser } from "react-icons/fa6";
+import { usePathname } from "next/navigation";
+import { FaRankingStar, FaUser } from "react-icons/fa6";
 import { useHomePlayOptional } from "@/components/home/HomePlayContext";
 import {
   retroComingSoonButtonClassName,
@@ -10,8 +11,10 @@ import {
 } from "@/lib/fonts";
 
 export function AppFooter() {
+  const pathname = usePathname();
   const homePlay = useHomePlayOptional();
   const activeMode = homePlay?.activeMode ?? null;
+  const isHome = pathname === "/" || pathname === "";
 
   return (
     <footer
@@ -22,7 +25,15 @@ export function AppFooter() {
     >
       <nav className="mx-auto flex h-20 w-full max-w-5xl items-center justify-center px-4 sm:px-6">
         <div className="relative flex items-center justify-center">
-          {activeMode?.id === "offline" ? (
+          {!isHome ? (
+            <Link
+              href="/"
+              aria-label="Home"
+              className={retroPlayButtonClassName}
+            >
+              Home
+            </Link>
+          ) : activeMode?.id === "offline" ? (
             <Link
               href="/play"
               aria-label={`Play ${activeMode.title}`}
@@ -45,19 +56,19 @@ export function AppFooter() {
 
           <button
             type="button"
-            aria-label="Settings"
+            aria-label="Leaderboard"
             className={`${retroIconButtonClassName} absolute right-full mr-3`}
           >
-            <FaGear className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+            <FaRankingStar className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
           </button>
 
-          <button
-            type="button"
+          <Link
+            href="/profile"
             aria-label="Profile"
             className={`${retroIconButtonClassName} absolute left-full ml-3`}
           >
             <FaUser className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
-          </button>
+          </Link>
         </div>
       </nav>
     </footer>
