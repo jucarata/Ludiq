@@ -28,7 +28,14 @@ function rollAnimKey(version: number, roll: [number, number]): string {
 }
 
 export function OnlineDiceProvider({ children }: { children: ReactNode }) {
-  const { game, selfColor, isMyTurn, postRoll } = useOnlineSession();
+  const {
+    game,
+    selfColor,
+    isMyTurn,
+    postRoll,
+    sendLiveRoll,
+    subscribeLiveRoll,
+  } = useOnlineSession();
   const { currentPlayer, turnPhase, pauseForDiceRoll, resumePlaying } =
     useTurn();
   const [isAiming, setIsAiming] = useState(false);
@@ -47,6 +54,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
   const lastAnimatedKeyRef = useRef<string | null>(
     game.lastRoll ? rollAnimKey(game.version, game.lastRoll) : null,
   );
+  const lastLiveRollRef = useRef<[number, number] | null>(null);
   const gameRef = useRef(game);
   gameRef.current = game;
 
@@ -107,6 +115,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
 
       rollingRef.current = true;
       setHasRolledThisTurn(false);
+      setTurnRoll(roll);
       spawnDiceAnimation(roll, {
         x: center.x,
         y: center.y,
@@ -119,17 +128,36 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    return subscribeLiveRoll((payload) => {
+      lastLiveRollRef.current = payload.roll;
+      lastAnimatedKeyRef.current = `live:${payload.roll[0]}x${payload.roll[1]}`;
+      playRemoteRoll(payload.roll);
+    });
+  }, [playRemoteRoll, subscribeLiveRoll]);
+
+  useEffect(() => {
     if (game.version === lastSeenVersion.current) return;
     lastSeenVersion.current = game.version;
 
     if (game.lastRoll) {
       setTurnRoll(game.lastRoll);
       const key = rollAnimKey(game.version, game.lastRoll);
+      const live = lastLiveRollRef.current;
+      const alreadyLive =
+        live != null &&
+        live[0] === game.lastRoll[0] &&
+        live[1] === game.lastRoll[1];
 
       if (selfRollPendingRef.current) {
         lastAnimatedKeyRef.current = key;
         selfRollPendingRef.current = false;
         setHasRolledThisTurn(true);
+      } else if (alreadyLive || lastAnimatedKeyRef.current === key) {
+        lastAnimatedKeyRef.current = key;
+        lastLiveRollRef.current = null;
+        if (!rollingRef.current) {
+          setHasRolledThisTurn(true);
+        }
       } else if (lastAnimatedKeyRef.current !== key) {
         lastAnimatedKeyRef.current = key;
         playRemoteRoll(game.lastRoll);
@@ -139,6 +167,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     } else if (game.turnPhase === "playing") {
       setTurnRoll(null);
       setHasRolledThisTurn(false);
+      lastLiveRollRef.current = null;
       if (!rollingRef.current) {
         setActiveDice(null);
         settledDiceRef.current.clear();
@@ -156,14 +185,12 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
 
       const latest = gameRef.current;
 
-      /* Fase de decisión del rival (o propia): dejar el resultado visible. */
       if (latest.turnPhase === "deciding" || latest.turnPhase === "ended") {
         setHasRolledThisTurn(true);
         resumePlaying();
         return;
       }
 
-      /* playing: reintento propio, o el rival perdió el turno y ahora es el mío. */
       if (latest.currentTurn === selfColor) {
         setHasRolledThisTurn(true);
         window.setTimeout(() => {
@@ -223,10 +250,13 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
 
       const roll = rollDicePair();
       lastAnimatedKeyRef.current = `local:${roll[0]}x${roll[1]}`;
+      lastLiveRollRef.current = roll;
+      sendLiveRoll(roll);
       spawnDiceAnimation(roll, params);
 
       void postRoll(roll).catch(() => {
         selfRollPendingRef.current = false;
+        lastLiveRollRef.current = null;
         setActiveDice(null);
         setIsRolling(false);
         rollingRef.current = false;
@@ -234,7 +264,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
         resumePlaying();
       });
     },
-    [canRoll, postRoll, resumePlaying, spawnDiceAnimation],
+    [canRoll, postRoll, resumePlaying, sendLiveRoll, spawnDiceAnimation],
   );
 
   const throwDice = useCallback(

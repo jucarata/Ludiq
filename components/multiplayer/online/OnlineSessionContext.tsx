@@ -5,11 +5,17 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import type { PlayerColor } from "@/lib/board/types";
 import type { OnlineGameStateView } from "@/lib/game/online-types";
 import type { PieceIndex } from "@/lib/game/pieces";
+import {
+  useGameLiveChannel,
+  type LiveMovePayload,
+  type LiveRollPayload,
+} from "@/lib/game/use-game-live-channel";
 import { getGuestIdentity } from "@/lib/room/guest";
 import type { RoomView } from "@/lib/room/types";
 
@@ -31,8 +37,19 @@ type OnlineSessionContextValue = {
     game: OnlineGameStateView;
     roll: [number, number];
   }>;
-  postMove: (pieceIndex: PieceIndex, dieValue: number) => Promise<OnlineGameStateView>;
+  postMove: (
+    pieceIndex: PieceIndex,
+    dieValue: number,
+  ) => Promise<OnlineGameStateView>;
   postAdvanceTurn: () => Promise<OnlineGameStateView>;
+  sendLiveRoll: (roll: [number, number]) => void;
+  sendLiveMove: (params: {
+    pieceIndex: PieceIndex;
+    dieValue: number;
+    fromRouteIndex: number;
+  }) => void;
+  subscribeLiveRoll: (handler: (payload: LiveRollPayload) => void) => () => void;
+  subscribeLiveMove: (handler: (payload: LiveMovePayload) => void) => () => void;
 };
 
 const OnlineSessionContext = createContext<OnlineSessionContextValue | null>(
@@ -56,6 +73,52 @@ export function OnlineSessionProvider({
   getAuthHeaders: () => Promise<Record<string, string>>;
   children: ReactNode;
 }) {
+  const rollHandlersRef = useRef(
+    new Set<(payload: LiveRollPayload) => void>(),
+  );
+  const moveHandlersRef = useRef(
+    new Set<(payload: LiveMovePayload) => void>(),
+  );
+
+  const onRemoteRoll = useCallback((payload: LiveRollPayload) => {
+    for (const handler of rollHandlersRef.current) {
+      handler(payload);
+    }
+  }, []);
+
+  const onRemoteMove = useCallback((payload: LiveMovePayload) => {
+    for (const handler of moveHandlersRef.current) {
+      handler(payload);
+    }
+  }, []);
+
+  const { sendLiveRoll, sendLiveMove } = useGameLiveChannel({
+    roomId: room.id,
+    selfColor,
+    onRemoteRoll,
+    onRemoteMove,
+  });
+
+  const subscribeLiveRoll = useCallback(
+    (handler: (payload: LiveRollPayload) => void) => {
+      rollHandlersRef.current.add(handler);
+      return () => {
+        rollHandlersRef.current.delete(handler);
+      };
+    },
+    [],
+  );
+
+  const subscribeLiveMove = useCallback(
+    (handler: (payload: LiveMovePayload) => void) => {
+      moveHandlersRef.current.add(handler);
+      return () => {
+        moveHandlersRef.current.delete(handler);
+      };
+    },
+    [],
+  );
+
   const guestBody = useCallback((): GuestBody => {
     const self = room.players.find((player) => player.isSelf);
     if (!self?.isGuest) return {};
@@ -147,6 +210,10 @@ export function OnlineSessionProvider({
       postRoll,
       postMove,
       postAdvanceTurn,
+      sendLiveRoll,
+      sendLiveMove,
+      subscribeLiveRoll,
+      subscribeLiveMove,
     }),
     [
       applyGame,
@@ -159,6 +226,10 @@ export function OnlineSessionProvider({
       postRoll,
       room,
       selfColor,
+      sendLiveMove,
+      sendLiveRoll,
+      subscribeLiveMove,
+      subscribeLiveRoll,
     ],
   );
 

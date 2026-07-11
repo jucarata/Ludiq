@@ -49,7 +49,15 @@ interface MoveAnimation {
 }
 
 export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
-  const { game, selfColor, isMyTurn, postMove, applyGame } = useOnlineSession();
+  const {
+    game,
+    selfColor,
+    isMyTurn,
+    postMove,
+    applyGame,
+    sendLiveMove,
+    subscribeLiveMove,
+  } = useOnlineSession();
   const { currentPlayer, turnPhase, extendDecisionTime } = useTurn();
   const [displayPieces, setDisplayPieces] = useState<PieceState[]>(game.pieces);
   const [optimisticDice, setOptimisticDice] = useState<number[] | null>(null);
@@ -63,24 +71,70 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     PieceState[] | null
   >(null);
   const movingRef = useRef(false);
+  const liveMovePendingRef = useRef(false);
   const lastSyncedVersion = useRef(game.version);
   const postChainRef = useRef(Promise.resolve());
   const piecesBeforeMoveRef = useRef<PieceState[]>(game.pieces);
   const diceBeforeMoveRef = useRef<number[] | null>(game.remainingDice);
+  const displayPiecesRef = useRef(displayPieces);
+  const remainingDiceRef = useRef(optimisticDice ?? game.remainingDice);
+  displayPiecesRef.current = displayPieces;
+  remainingDiceRef.current = optimisticDice ?? game.remainingDice;
 
   const remainingDice = optimisticDice ?? game.remainingDice;
   const winner = game.winner;
 
   useEffect(() => {
-    if (animation || movingRef.current) return;
+    if (animation || movingRef.current) {
+      if (
+        liveMovePendingRef.current &&
+        game.version > lastSyncedVersion.current
+      ) {
+        lastSyncedVersion.current = game.version;
+        setPendingServerPieces(game.pieces);
+      }
+      return;
+    }
     if (game.version < lastSyncedVersion.current) return;
 
     lastSyncedVersion.current = game.version;
+    liveMovePendingRef.current = false;
     setDisplayPieces(game.pieces);
     setOptimisticDice(null);
     setSelectedPiece(null);
     setMenuAnchor(null);
   }, [game.pieces, game.version, game.remainingDice, animation]);
+
+  useEffect(() => {
+    return subscribeLiveMove((payload) => {
+      if (movingRef.current) return;
+
+      const pieces = displayPiecesRef.current;
+      const piece = pieces.find(
+        (p) =>
+          p.player === payload.color && p.index === payload.pieceIndex,
+      );
+      if (!piece || piece.location !== "route") return;
+
+      const from =
+        piece.routeIndex ?? payload.fromRouteIndex;
+      const dice = remainingDiceRef.current;
+      if (dice?.length) {
+        setOptimisticDice(consumeDice(dice, { value: payload.dieValue }));
+      }
+
+      liveMovePendingRef.current = true;
+      movingRef.current = true;
+      setSelectedPiece(null);
+      setMenuAnchor(null);
+      setAnimation({
+        player: payload.color,
+        index: payload.pieceIndex,
+        from,
+        target: from + payload.dieValue,
+      });
+    });
+  }, [subscribeLiveMove]);
 
   useEffect(() => {
     if (!celebration) return;
@@ -239,6 +293,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
       const pieceIndex = piece.index;
       const dieValue = choice.value;
+      sendLiveMove({
+        pieceIndex,
+        dieValue,
+        fromRouteIndex: from,
+      });
 
       postChainRef.current = postChainRef.current
         .catch(() => undefined)
@@ -271,6 +330,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       postMove,
       remainingDice,
       selfColor,
+      sendLiveMove,
     ],
   );
 
