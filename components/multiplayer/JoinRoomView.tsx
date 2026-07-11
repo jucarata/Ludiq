@@ -1,18 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { AppFooter } from "@/components/nav/AppFooter";
 import type { PlayerColor } from "@/lib/board/types";
 import type { Profile } from "@/lib/profile/types";
-import {
-  retroActionFont,
-  retroBackButtonClassName,
-  retroPlayButtonClassName,
-} from "@/lib/fonts";
+import { retroActionFont, retroPlayButtonClassName } from "@/lib/fonts";
 import type { MessageKey } from "@/lib/i18n";
 import {
   isValidRoomCode,
@@ -387,57 +383,56 @@ export function JoinRoomView() {
   const canJoin = isValidRoomCode(codeInput) && !joining;
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
-          {t("room.joinTitle")}
-        </h1>
-        <p className="max-w-md text-sm text-[var(--board-path-border)]">
-          {t("room.joinSubtitle")}
-        </p>
-      </div>
+    <>
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+            {t("room.joinTitle")}
+          </h1>
+          <p className="max-w-md text-sm text-[var(--board-path-border)]">
+            {t("room.joinSubtitle")}
+          </p>
+        </div>
 
-      <form
-        className="flex w-full max-w-sm flex-col items-center gap-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void handleJoin();
-        }}
-      >
-        <label className="flex w-full flex-col items-center gap-3">
-          <span className="text-sm font-semibold uppercase tracking-wide text-[var(--board-path-border)]">
-            {t("room.codeLabel")}
-          </span>
-          <input
-            value={codeInput}
-            onChange={(event) => handleCodeChange(event.target.value)}
-            maxLength={ROOM_CODE_LENGTH}
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-            inputMode="text"
-            placeholder="ABCD"
-            aria-label={t("room.codeLabel")}
-            className={`${retroActionFont.className} w-full rounded-2xl border-4 border-[var(--board-path-border)] bg-[#2a2a3e] px-6 py-5 text-center text-3xl tracking-[0.35em] text-[var(--board-path)] outline-none placeholder:text-[var(--board-path-border)]/40 focus:border-[var(--board-green)] sm:text-4xl`}
-          />
-        </label>
-
-        {error ? (
-          <p className="text-center text-sm text-[var(--board-red)]">{error}</p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={!canJoin}
-          className={retroPlayButtonClassName}
+        <form
+          className="flex w-full max-w-sm flex-col items-center gap-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleJoin();
+          }}
         >
-          {joining ? t("room.joining") : t("room.joinAction")}
-        </button>
-      </form>
+          <label className="flex w-full flex-col items-center gap-3">
+            <span className="text-sm font-semibold uppercase tracking-wide text-[var(--board-path-border)]">
+              {t("room.codeLabel")}
+            </span>
+            <input
+              value={codeInput}
+              onChange={(event) => handleCodeChange(event.target.value)}
+              maxLength={ROOM_CODE_LENGTH}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="text"
+              placeholder="ABCD"
+              aria-label={t("room.codeLabel")}
+              className={`${retroActionFont.className} w-full rounded-2xl border-4 border-[var(--board-path-border)] bg-[#2a2a3e] px-6 py-5 text-center text-3xl tracking-[0.35em] text-[var(--board-path)] outline-none placeholder:text-[var(--board-path-border)]/40 focus:border-[var(--board-green)] sm:text-4xl`}
+            />
+          </label>
 
-      <Link href="/multiplayer" className={retroBackButtonClassName}>
-        {t("room.back")}
-      </Link>
-    </main>
+          {error ? (
+            <p className="text-center text-sm text-[var(--board-red)]">{error}</p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={!canJoin}
+            className={retroPlayButtonClassName}
+          >
+            {joining ? t("room.joining") : t("room.joinAction")}
+          </button>
+        </form>
+      </main>
+      <AppFooter />
+    </>
   );
 }
