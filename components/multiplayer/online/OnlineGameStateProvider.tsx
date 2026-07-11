@@ -48,6 +48,16 @@ interface MoveAnimation {
   target: number;
 }
 
+function piecesSignature(pieces: PieceState[]): string {
+  return pieces
+    .map(
+      (piece) =>
+        `${piece.player}:${piece.index}:${piece.location}:${piece.routeIndex ?? "-"}`,
+    )
+    .sort()
+    .join("|");
+}
+
 export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const {
     game,
@@ -95,8 +105,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       pendingServerPiecesRef.current = null;
       setPendingServerPieces(null);
       setHoldOptimisticBoard(false);
-      setDisplayPieces(pieces);
       setOptimisticDice(null);
+      /* Solo reemplazar si el server discrepa: evita un “salto” visual innecesario. */
+      setDisplayPieces((prev) =>
+        piecesSignature(prev) === piecesSignature(pieces) ? prev : pieces,
+      );
     },
     [],
   );
