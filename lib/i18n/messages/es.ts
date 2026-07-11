@@ -107,6 +107,8 @@ export const es: Messages = {
     rollTurn: "Tirar dados — turno de {label}",
     dieRolling: "Dado: tirando",
     dieValue: "Dado: {value}",
+    exitAttempt: "Intento {current} de {max}",
+    noDoubles: "Sin par",
   },
   turn: {
     turn: "Turno",
@@ -136,6 +138,8 @@ export const es: Messages = {
     closeWallet: "Cerrar modal de billetera",
     closeSettings: "Cerrar modal de ajustes",
     address: "Dirección",
+    loadingBalances: "Cargando saldos…",
+    errorBalances: "No se pudieron cargar los saldos",
     copy: "Copiar",
     copied: "Copiado",
     creatingWallet: "Creando billetera…",

@@ -2,22 +2,27 @@
 
 import { useDice } from "@/components/dice/DiceContext";
 import { useAutoMode } from "@/components/game/AutoModeContext";
+import { useGameState } from "@/components/game/GameStateContext";
 import { useTurn } from "@/components/game/TurnContext";
 import { useIsBot } from "@/components/game/PlayersContext";
 import { DieFace } from "@/components/dice/DieFace";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
+import { hasAnyPieceOnRoute } from "@/lib/game/pieces";
 
 export function DiceLauncher() {
   const { currentPlayer } = useTurn();
   const isBot = useIsBot();
   const { isAutoEnabled } = useAutoMode();
+  const { pieces } = useGameState();
   const { t, locale } = useTranslations();
   const {
     isAiming,
     isRolling,
     canRoll,
     hasRolledThisTurn,
+    exitRollAttempts,
+    maxExitRollAttempts,
     turnRoll,
     armDice,
     cancelAim,
@@ -27,6 +32,12 @@ export function DiceLauncher() {
   const currentIsBot = isBot(currentPlayer);
   const currentIsAutoHuman =
     !currentIsBot && isAutoEnabled(currentPlayer);
+  const needsExitDoubles = !hasAnyPieceOnRoute(pieces, currentPlayer);
+  const attemptNumber = Math.min(
+    exitRollAttempts + 1,
+    maxExitRollAttempts,
+  );
+  const showExitAttempts = needsExitDoubles && !hasRolledThisTurn;
 
   if (hasRolledThisTurn && turnRoll !== null) {
     return (
@@ -66,6 +77,14 @@ export function DiceLauncher() {
                 ? t("dice.cpuTurn")
                 : t("dice.autoMode")}
           </span>
+          {showExitAttempts && (
+            <span className="text-[10px] font-medium text-[#d4c5a0]/80">
+              {t("dice.exitAttempt", {
+                current: attemptNumber,
+                max: maxExitRollAttempts,
+              })}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -73,6 +92,27 @@ export function DiceLauncher() {
 
   return (
     <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
+      {showExitAttempts && turnRoll !== null && exitRollAttempts > 0 && (
+        <div
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1a1a2e]/80 px-3 py-1.5"
+          aria-label={t("dice.rolled", {
+            label,
+            d1: turnRoll[0],
+            d2: turnRoll[1],
+          })}
+        >
+          <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
+            {turnRoll[0]}
+          </span>
+          <span className="text-sm text-[#d4c5a0]/60">+</span>
+          <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
+            {turnRoll[1]}
+          </span>
+          <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-[#e07a5f]">
+            {t("dice.noDoubles")}
+          </span>
+        </div>
+      )}
       <button
         type="button"
         onClick={isAiming ? cancelAim : armDice}
@@ -96,6 +136,14 @@ export function DiceLauncher() {
         <span className="text-xs font-semibold uppercase tracking-wide text-[#d4c5a0]">
           {isAiming ? t("dice.cancel") : t("dice.rollDice")}
         </span>
+        {showExitAttempts && (
+          <span className="text-[10px] font-medium normal-case tracking-normal text-[#fefae0]/70">
+            {t("dice.exitAttempt", {
+              current: attemptNumber,
+              max: maxExitRollAttempts,
+            })}
+          </span>
+        )}
       </button>
       <p
         className={`min-h-[1rem] text-center text-xs text-[#fefae0]/70 ${

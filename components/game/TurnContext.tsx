@@ -29,6 +29,7 @@ interface TurnState {
 type TurnAction =
   | { type: "tick" }
   | { type: "pause_for_roll" }
+  | { type: "resume_playing" }
   | { type: "start_decision" }
   | { type: "extend_decision" }
   | { type: "advance_turn" }
@@ -40,6 +41,8 @@ interface TurnContextValue {
   turnPhase: TurnPhase;
   announcement: PlayerColor | null;
   pauseForDiceRoll: () => void;
+  /** Vuelve a fase de tirada tras un intento de salida fallido */
+  resumePlaying: () => void;
   startDecisionPhase: () => void;
   extendDecisionTime: () => void;
   advanceTurn: () => void;
@@ -59,6 +62,13 @@ function turnReducer(
   switch (action.type) {
     case "pause_for_roll":
       return { ...state, phase: "rolling" };
+
+    case "resume_playing":
+      return {
+        ...state,
+        phase: "playing",
+        timeLeft: TURN_DURATION_SECONDS,
+      };
 
     case "start_decision":
       return {
@@ -120,6 +130,10 @@ export function TurnProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "pause_for_roll" });
   }, []);
 
+  const resumePlaying = useCallback(() => {
+    dispatch({ type: "resume_playing" });
+  }, []);
+
   const startDecisionPhase = useCallback(() => {
     dispatch({ type: "start_decision" });
   }, []);
@@ -158,6 +172,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
         turnPhase: phase,
         announcement,
         pauseForDiceRoll,
+        resumePlaying,
         startDecisionPhase,
         extendDecisionTime,
         advanceTurn,

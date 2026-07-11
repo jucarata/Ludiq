@@ -65,6 +65,7 @@ interface GameStateContextValue {
   handleRollResult: (
     player: PlayerColor,
     roll: [number, number],
+    exitAttemptsUsed?: number,
   ) => PostRollAction;
   beginMovementPhase: (roll: [number, number]) => void;
   selectPiece: (piece: SelectedPiece, anchor: MenuAnchor) => void;
@@ -230,11 +231,15 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   }, [pieces, animation, advanceTurn, endGame]);
 
   const handleRollResult = useCallback(
-    (player: PlayerColor, roll: [number, number]): PostRollAction => {
+    (
+      player: PlayerColor,
+      roll: [number, number],
+      exitAttemptsUsed = 0,
+    ): PostRollAction => {
       let resolution!: ReturnType<typeof resolveRoll>;
 
       setPieces((prev) => {
-        resolution = resolveRoll(prev, player, roll);
+        resolution = resolveRoll(prev, player, roll, exitAttemptsUsed);
         return resolution.nextPieces;
       });
       setSelectedPiece(null);

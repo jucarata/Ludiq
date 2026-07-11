@@ -105,6 +105,8 @@ export const en = {
     rollTurn: "Roll dice — {label}'s turn",
     dieRolling: "Die: rolling",
     dieValue: "Die: {value}",
+    exitAttempt: "Attempt {current} of {max}",
+    noDoubles: "No doubles",
   },
   turn: {
     turn: "Turn",
@@ -134,6 +136,8 @@ export const en = {
     closeWallet: "Close wallet modal",
     closeSettings: "Close settings modal",
     address: "Address",
+    loadingBalances: "Loading balances…",
+    errorBalances: "Could not load balances",
     copy: "Copy",
     copied: "Copied",
     creatingWallet: "Creating wallet…",

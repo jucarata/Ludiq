@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { FaGear, FaWallet } from "react-icons/fa6";
+import { FaCheck, FaCopy, FaGear, FaWallet } from "react-icons/fa6";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { Profile } from "@/lib/profile/types";
 import {
@@ -17,13 +17,12 @@ import {
 } from "@/lib/i18n";
 import {
   retroActionFont,
-  retroBackButtonClassName,
   retroPlayButtonClassName,
 } from "@/lib/fonts";
-
-function shortAddress(address: string): string {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
+import {
+  fetchCeloTokenBalances,
+  type TokenBalance,
+} from "@/lib/celo/tokens";
 
 function ProfileAvatar() {
   return (
@@ -64,6 +63,42 @@ function WalletModal({
 }) {
   const { t } = useTranslations();
   const [copied, setCopied] = useState(false);
+  const [balances, setBalances] = useState<TokenBalance[] | null>(null);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+  const [balancesError, setBalancesError] = useState(false);
+
+  useEffect(() => {
+    if (!address) {
+      setBalances(null);
+      setBalancesLoading(false);
+      setBalancesError(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadBalances = async () => {
+      setBalancesLoading(true);
+      setBalancesError(false);
+      try {
+        const next = await fetchCeloTokenBalances(address);
+        if (!cancelled) setBalances(next);
+      } catch {
+        if (!cancelled) {
+          setBalances(null);
+          setBalancesError(true);
+        }
+      } finally {
+        if (!cancelled) setBalancesLoading(false);
+      }
+    };
+
+    void loadBalances();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
 
   const copyAddress = async () => {
     if (!address) return;
@@ -102,22 +137,60 @@ function WalletModal({
           </button>
         </div>
 
-        <p className="mb-2 text-xs uppercase tracking-wide opacity-60">
-          {t("profile.address")}
-        </p>
         {address ? (
           <>
-            <p className="break-all font-mono text-sm leading-relaxed">
-              {address}
-            </p>
-            <p className="mt-2 text-xs opacity-55">{shortAddress(address)}</p>
-            <button
-              type="button"
-              onClick={() => void copyAddress()}
-              className={`${retroBackButtonClassName} mt-5 w-full`}
-            >
-              {copied ? t("profile.copied") : t("profile.copy")}
-            </button>
+            {balancesLoading ? (
+              <p className="mb-5 text-sm opacity-70">
+                {t("profile.loadingBalances")}
+              </p>
+            ) : balancesError ? (
+              <p className="mb-5 text-sm text-[var(--board-red)]">
+                {t("profile.errorBalances")}
+              </p>
+            ) : balances ? (
+              <div className="mb-5 grid grid-cols-2 gap-3">
+                {balances.map((token) => (
+                  <div key={token.symbol} className="flex flex-col items-center">
+                    <div className="flex w-full items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-green)] px-3 py-4 shadow-[3px_3px_0_#173532]">
+                      <span className="font-mono text-base font-semibold tabular-nums text-[var(--board-path)]">
+                        {token.formatted}
+                      </span>
+                    </div>
+                    <span className="mt-2 text-xs font-semibold tracking-wide opacity-70">
+                      {token.symbol}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide">
+                {t("profile.address")}
+              </p>
+              <div className="flex items-center gap-2 rounded-xl border-[3px] border-[#173532] bg-[#fefae0]/55 px-3 py-2.5 shadow-[inset_2px_2px_0_rgba(23,53,50,0.12)]">
+                <p className="min-w-0 flex-1 break-all font-mono text-[0.8rem] leading-relaxed tracking-tight">
+                  {address}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void copyAddress()}
+                  className={`shrink-0 rounded-lg border-2 border-[#173532] p-2 transition-[transform,box-shadow,background-color] duration-150 ${
+                    copied
+                      ? "bg-[var(--board-green)] text-[var(--board-path)] shadow-[2px_2px_0_#173532]"
+                      : "bg-[var(--board-path)] text-[#173532] shadow-[2px_2px_0_#173532] hover:brightness-95 active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_#173532]"
+                  }`}
+                  aria-label={copied ? t("profile.copied") : t("profile.copy")}
+                  title={copied ? t("profile.copied") : t("profile.copy")}
+                >
+                  {copied ? (
+                    <FaCheck className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <FaCopy className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                </button>
+              </div>
+            </div>
           </>
         ) : (
           <p className="text-sm opacity-70">{t("profile.creatingWallet")}</p>

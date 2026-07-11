@@ -18,6 +18,7 @@ import {
   DICE_COUNT,
   rollDicePair,
 } from "@/lib/game/dice";
+import { MAX_EXIT_ROLL_ATTEMPTS } from "@/lib/game/roll-resolution";
 import { playDiceRollSound } from "@/lib/game/sounds";
 
 export interface ActiveDieRoll {
@@ -37,6 +38,9 @@ interface DiceContextValue {
   isBoardDragging: boolean;
   canRoll: boolean;
   hasRolledThisTurn: boolean;
+  /** Tiradas de salida fallidas en este turno (0–2) */
+  exitRollAttempts: number;
+  maxExitRollAttempts: number;
   turnRoll: [number, number] | null;
   activeDice: ActiveDieRoll[] | null;
   armDice: () => void;
@@ -57,22 +61,31 @@ interface DiceContextValue {
 const DiceContext = createContext<DiceContextValue | null>(null);
 
 export function DiceProvider({ children }: { children: ReactNode }) {
-  const { currentPlayer, pauseForDiceRoll, startDecisionPhase, advanceTurn } =
-    useTurn();
+  const {
+    currentPlayer,
+    pauseForDiceRoll,
+    resumePlaying,
+    startDecisionPhase,
+    advanceTurn,
+  } = useTurn();
   const { handleRollResult, beginMovementPhase } = useGameState();
   const [isAiming, setIsAiming] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [isBoardDragging, setBoardDragging] = useState(false);
   const [hasRolledThisTurn, setHasRolledThisTurn] = useState(false);
+  const [exitRollAttempts, setExitRollAttempts] = useState(0);
   const [turnRoll, setTurnRoll] = useState<[number, number] | null>(null);
   const [activeDice, setActiveDice] = useState<ActiveDieRoll[] | null>(null);
   const settledDiceRef = useRef<Map<number, number>>(new Map());
   const diceZoneRef = useRef<HTMLDivElement | null>(null);
+  const exitRollAttemptsRef = useRef(0);
 
   const canRoll = !hasRolledThisTurn && !isRolling;
 
   useEffect(() => {
     setHasRolledThisTurn(false);
+    setExitRollAttempts(0);
+    exitRollAttemptsRef.current = 0;
     setTurnRoll(null);
     setIsAiming(false);
     setActiveDice(null);
@@ -82,12 +95,23 @@ export function DiceProvider({ children }: { children: ReactNode }) {
   const finishRollSession = useCallback(
     (values: [number, number]) => {
       setTurnRoll(values);
-      setHasRolledThisTurn(true);
       setActiveDice(null);
       setIsRolling(false);
       settledDiceRef.current.clear();
 
-      const action = handleRollResult(currentPlayer, values);
+      const attemptsUsed = exitRollAttemptsRef.current;
+      const action = handleRollResult(currentPlayer, values, attemptsUsed);
+
+      if (action === "retry_roll") {
+        const nextAttempts = attemptsUsed + 1;
+        exitRollAttemptsRef.current = nextAttempts;
+        setExitRollAttempts(nextAttempts);
+        setHasRolledThisTurn(false);
+        resumePlaying();
+        return;
+      }
+
+      setHasRolledThisTurn(true);
 
       if (action === "skip_turn") {
         advanceTurn();
@@ -102,6 +126,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
       beginMovementPhase,
       advanceTurn,
       startDecisionPhase,
+      resumePlaying,
     ],
   );
 
@@ -225,6 +250,8 @@ export function DiceProvider({ children }: { children: ReactNode }) {
         isBoardDragging,
         canRoll,
         hasRolledThisTurn,
+        exitRollAttempts,
+        maxExitRollAttempts: MAX_EXIT_ROLL_ATTEMPTS,
         turnRoll,
         activeDice,
         armDice,
