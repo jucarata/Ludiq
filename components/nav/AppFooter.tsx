@@ -34,7 +34,7 @@ export function AppFooter() {
             >
               {t("nav.home")}
             </Link>
-          ) : activeMode?.id === "offline" ? (
+          ) : activeMode?.id === "local" ? (
             <Link
               href="/play"
               aria-label={t("nav.playMode", { title: activeMode.title })}

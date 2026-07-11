@@ -21,8 +21,8 @@ const GAME_MODES = [
     image: `${basePath}/images/game_preview.jpeg`,
   },
   {
-    id: "offline",
-    titleKey: "home.playOffline" as const satisfies MessageKey,
+    id: "local",
+    titleKey: "home.playLocal" as const satisfies MessageKey,
     image: `${basePath}/images/game_preview.jpeg`,
   },
 ] as const;

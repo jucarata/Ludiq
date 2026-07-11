@@ -12,7 +12,7 @@ export const es: Messages = {
   },
   home: {
     multiplayer: "Multijugador",
-    playOffline: "Jugar offline",
+    playLocal: "Local",
     gameModes: "Modos de juego",
   },
   multiplayer: {

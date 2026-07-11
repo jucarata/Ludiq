@@ -23,7 +23,7 @@ export function AutoModeProvider({
   canControlAuto,
 }: {
   children: ReactNode;
-  /** Offline: all humans. Online: only your own color. */
+  /** Local: all humans. Online: only your own color. */
   canControlAuto?: (color: PlayerColor) => boolean;
 }) {
   const [autoByPlayer, setAutoByPlayer] = useState<

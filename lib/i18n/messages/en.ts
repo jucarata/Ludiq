@@ -10,7 +10,7 @@ export const en = {
   },
   home: {
     multiplayer: "Multiplayer",
-    playOffline: "Play Offline",
+    playLocal: "Local",
     gameModes: "Game modes",
   },
   multiplayer: {
