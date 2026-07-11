@@ -60,6 +60,13 @@ export const en = {
     hostLeaveConfirm: "Leave & close",
     hostLeaveCancel: "Stay",
     retry: "Retry",
+    play: "Play",
+    starting: "Starting…",
+    playHint: "Need at least 2 players to start.",
+    startError: "Could not start the game.",
+    loadingGame: "Loading game…",
+    gameError: "Could not load the game.",
+    waitingTurn: "Waiting for {label}…",
   },
   setup: {
     players: "Players",

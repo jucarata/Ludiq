@@ -133,6 +133,11 @@ export interface Database {
           turn_phase: string | null;
           pieces: Json;
           remaining_dice: Json | null;
+          active_players: Json;
+          exit_roll_attempts: number;
+          last_roll: Json | null;
+          winner: PlayerColor | null;
+          turn_started_at: string;
           version: number;
           updated_at: string;
         };
@@ -142,6 +147,11 @@ export interface Database {
           turn_phase?: string | null;
           pieces?: Json;
           remaining_dice?: Json | null;
+          active_players?: Json;
+          exit_roll_attempts?: number;
+          last_roll?: Json | null;
+          winner?: PlayerColor | null;
+          turn_started_at?: string;
           version?: number;
           updated_at?: string;
         };
@@ -151,6 +161,11 @@ export interface Database {
           turn_phase?: string | null;
           pieces?: Json;
           remaining_dice?: Json | null;
+          active_players?: Json;
+          exit_roll_attempts?: number;
+          last_roll?: Json | null;
+          winner?: PlayerColor | null;
+          turn_started_at?: string;
           version?: number;
           updated_at?: string;
         };

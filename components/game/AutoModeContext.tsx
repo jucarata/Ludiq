@@ -13,27 +13,45 @@ import type { PlayerColor } from "@/lib/board/types";
 interface AutoModeContextValue {
   isAutoEnabled: (color: PlayerColor) => boolean;
   setAutoEnabled: (color: PlayerColor, enabled: boolean) => void;
+  canControlAuto: (color: PlayerColor) => boolean;
 }
 
 const AutoModeContext = createContext<AutoModeContextValue | null>(null);
 
-export function AutoModeProvider({ children }: { children: ReactNode }) {
+export function AutoModeProvider({
+  children,
+  canControlAuto,
+}: {
+  children: ReactNode;
+  /** Offline: all humans. Online: only your own color. */
+  canControlAuto?: (color: PlayerColor) => boolean;
+}) {
   const [autoByPlayer, setAutoByPlayer] = useState<
     Partial<Record<PlayerColor, boolean>>
   >({});
 
-  const isAutoEnabled = useCallback(
-    (color: PlayerColor) => autoByPlayer[color] === true,
-    [autoByPlayer],
+  const canControl = useCallback(
+    (color: PlayerColor) => (canControlAuto ? canControlAuto(color) : true),
+    [canControlAuto],
   );
 
-  const setAutoEnabled = useCallback((color: PlayerColor, enabled: boolean) => {
-    setAutoByPlayer((prev) => ({ ...prev, [color]: enabled }));
-  }, []);
+  const isAutoEnabled = useCallback(
+    (color: PlayerColor) =>
+      canControl(color) && autoByPlayer[color] === true,
+    [autoByPlayer, canControl],
+  );
+
+  const setAutoEnabled = useCallback(
+    (color: PlayerColor, enabled: boolean) => {
+      if (!canControl(color)) return;
+      setAutoByPlayer((prev) => ({ ...prev, [color]: enabled }));
+    },
+    [canControl],
+  );
 
   const value = useMemo(
-    () => ({ isAutoEnabled, setAutoEnabled }),
-    [isAutoEnabled, setAutoEnabled],
+    () => ({ isAutoEnabled, setAutoEnabled, canControlAuto: canControl }),
+    [isAutoEnabled, setAutoEnabled, canControl],
   );
 
   return (

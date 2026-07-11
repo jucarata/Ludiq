@@ -87,6 +87,8 @@ interface MoveAnimation {
 
 const GameStateContext = createContext<GameStateContextValue | null>(null);
 
+export { GameStateContext };
+
 export function GameStateProvider({ children }: { children: ReactNode }) {
   const activePlayers = useActivePlayers();
   const isBot = useIsBot();

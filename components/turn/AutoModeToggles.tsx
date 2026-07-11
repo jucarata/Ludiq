@@ -11,10 +11,11 @@ import { PLAYER_COLORS } from "@/lib/board/types";
 export function AutoModeToggles() {
   const { currentPlayer } = useTurn();
   const isBot = useIsBot();
-  const { isAutoEnabled, setAutoEnabled } = useAutoMode();
+  const { isAutoEnabled, setAutoEnabled, canControlAuto } = useAutoMode();
   const { t, locale } = useTranslations();
 
   const isHumanTurn = !isBot(currentPlayer);
+  const canToggle = isHumanTurn && canControlAuto(currentPlayer);
   const { fill } = PLAYER_COLORS[currentPlayer];
   const label = getPlayerColorLabel(locale, currentPlayer);
   const enabled = isAutoEnabled(currentPlayer);
@@ -22,14 +23,14 @@ export function AutoModeToggles() {
   return (
     <div
       className={`mb-4 border-b pb-4 ${
-        isHumanTurn ? "border-[#d4c5a0]/25" : "border-transparent"
+        canToggle ? "border-[#d4c5a0]/25" : "border-transparent"
       }`}
-      aria-label={isHumanTurn ? t("turn.autoMode") : undefined}
-      aria-hidden={!isHumanTurn}
+      aria-label={canToggle ? t("turn.autoMode") : undefined}
+      aria-hidden={!canToggle}
     >
       <label
         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
-          isHumanTurn
+          canToggle
             ? `cursor-pointer ${
                 enabled
                   ? "bg-[#353550]"
@@ -44,8 +45,8 @@ export function AutoModeToggles() {
           onChange={(event) =>
             setAutoEnabled(currentPlayer, event.target.checked)
           }
-          disabled={!isHumanTurn}
-          tabIndex={isHumanTurn ? 0 : -1}
+          disabled={!canToggle}
+          tabIndex={canToggle ? 0 : -1}
           className="h-4 w-4 shrink-0 cursor-pointer accent-[#fcd34d]"
           aria-label={t("turn.autoFor", { label })}
         />

@@ -62,6 +62,13 @@ export const es: Messages = {
     hostLeaveConfirm: "Salir y cerrar",
     hostLeaveCancel: "Quedarme",
     retry: "Reintentar",
+    play: "Jugar",
+    starting: "Empezando…",
+    playHint: "Se necesitan al menos 2 jugadores para empezar.",
+    startError: "No se pudo empezar la partida.",
+    loadingGame: "Cargando partida…",
+    gameError: "No se pudo cargar la partida.",
+    waitingTurn: "Esperando a {label}…",
   },
   setup: {
     players: "Jugadores",

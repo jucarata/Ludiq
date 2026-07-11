@@ -12,6 +12,7 @@ import {
   retroActionFont,
   retroBackButtonClassName,
   retroDangerButtonClassName,
+  retroPlayButtonClassName,
 } from "@/lib/fonts";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { availableColors } from "@/lib/room/colors";
@@ -24,10 +25,12 @@ type RoomLobbyProps = {
   changingColor?: boolean;
   closing?: boolean;
   leaving?: boolean;
+  starting?: boolean;
   error?: string | null;
   onSelectColor: (color: PlayerColor) => void;
   onLeave: () => void;
   onCloseRoom?: () => void;
+  onStartGame?: () => void;
 };
 
 type BubbleAnchor = { x: number; y: number };
@@ -39,10 +42,12 @@ export function RoomLobby({
   changingColor = false,
   closing = false,
   leaving = false,
+  starting = false,
   error = null,
   onSelectColor,
   onLeave,
   onCloseRoom,
+  onStartGame,
 }: RoomLobbyProps) {
   const { t, locale } = useTranslations();
   const [picking, setPicking] = useState(false);
@@ -53,7 +58,13 @@ export function RoomLobby({
 
   const self = room.players.find((player) => player.isSelf) ?? null;
   const isHost = Boolean(self?.isHost);
-  const busy = changingColor || closing || leaving;
+  const canStartGame =
+    isHost &&
+    Boolean(onStartGame) &&
+    room.status === "waiting" &&
+    room.players.length >= 2 &&
+    room.players.length <= 4;
+  const busy = changingColor || closing || leaving || starting;
   const takenColors = room.players.map((player) => player.color);
   const freeColors = availableColors(
     takenColors.filter((color) => color !== self?.color),
@@ -264,6 +275,25 @@ export function RoomLobby({
         <p className="max-w-sm text-center text-xs text-[var(--board-red)] sm:text-sm">
           {error}
         </p>
+      ) : null}
+
+      {isHost && onStartGame ? (
+        <div className="flex w-full max-w-sm flex-col items-center gap-2">
+          <button
+            type="button"
+            disabled={busy || !canStartGame}
+            onClick={onStartGame}
+            className={`${retroPlayButtonClassName} w-full min-w-0`}
+            aria-label={t("room.play")}
+          >
+            {starting ? t("room.starting") : t("room.play")}
+          </button>
+          {!canStartGame && !starting ? (
+            <p className="text-center text-[0.65rem] text-[var(--board-path-border)] sm:text-xs">
+              {t("room.playHint")}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="flex flex-col items-center gap-3 sm:flex-row">

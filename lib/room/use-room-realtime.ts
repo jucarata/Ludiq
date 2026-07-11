@@ -10,6 +10,7 @@ type UseRoomRealtimeOptions = {
   getAuthHeaders: () => Promise<Record<string, string>>;
   onRoom: (room: RoomView) => void;
   onClosed?: () => void;
+  onGameStarted?: (room: RoomView) => void;
 };
 
 type RoomStatusPayload = {
@@ -21,25 +22,39 @@ export function useRoomRealtime({
   getAuthHeaders,
   onRoom,
   onClosed,
+  onGameStarted,
 }: UseRoomRealtimeOptions) {
   const getAuthHeadersRef = useRef(getAuthHeaders);
   const onRoomRef = useRef(onRoom);
   const onClosedRef = useRef(onClosed);
+  const onGameStartedRef = useRef(onGameStarted);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closedRef = useRef(false);
+  const startedRef = useRef(false);
 
   getAuthHeadersRef.current = getAuthHeaders;
   onRoomRef.current = onRoom;
   onClosedRef.current = onClosed;
+  onGameStartedRef.current = onGameStarted;
 
   const emitClosed = useCallback(() => {
-    if (closedRef.current) return;
+    if (closedRef.current || startedRef.current) return;
     closedRef.current = true;
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
       refreshTimer.current = null;
     }
     onClosedRef.current?.();
+  }, []);
+
+  const emitStarted = useCallback((next: RoomView) => {
+    if (closedRef.current || startedRef.current) return;
+    startedRef.current = true;
+    if (refreshTimer.current) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+    onGameStartedRef.current?.(next);
   }, []);
 
   const refreshRoom = useCallback(async (code: string) => {
@@ -58,17 +73,21 @@ export function useRoomRealtime({
 
   const scheduleRefresh = useCallback(
     (code: string) => {
-      if (closedRef.current) return;
+      if (closedRef.current || startedRef.current) return;
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         void (async () => {
-          if (closedRef.current) return;
+          if (closedRef.current || startedRef.current) return;
           const next = await refreshRoom(code);
-          if (closedRef.current) return;
+          if (closedRef.current || startedRef.current) return;
 
-          // Room gone or no longer joinable → kick everyone out.
-          if (!next || next.status !== "waiting") {
+          if (!next || next.status === "finished") {
             emitClosed();
+            return;
+          }
+
+          if (next.status === "playing") {
+            emitStarted(next);
             return;
           }
 
@@ -76,11 +95,12 @@ export function useRoomRealtime({
         })();
       }, 80);
     },
-    [emitClosed, refreshRoom],
+    [emitClosed, emitStarted, refreshRoom],
   );
 
   useEffect(() => {
     closedRef.current = false;
+    startedRef.current = false;
     if (!room?.id || room.status !== "waiting") return;
 
     const supabase = getSupabaseBrowserClient();
@@ -106,8 +126,12 @@ export function useRoomRealtime({
         },
         (payload) => {
           const nextStatus = (payload.new as RoomStatusPayload | null)?.status;
-          if (nextStatus && nextStatus !== "waiting") {
+          if (nextStatus === "finished") {
             emitClosed();
+            return;
+          }
+          if (nextStatus === "playing") {
+            scheduleRefresh(room.code);
             return;
           }
           scheduleRefresh(room.code);

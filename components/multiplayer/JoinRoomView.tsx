@@ -50,8 +50,10 @@ export function JoinRoomView() {
   const [changingColor, setChangingColor] = useState(false);
   const [closing, setClosing] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [starting, setStarting] = useState(false);
   const closingRef = useRef(false);
   const leavingRef = useRef(false);
+  const startingRef = useRef(false);
   const pendingColorRef = useRef<PlayerColor | null>(null);
 
   const authHeaders = useCallback(async () => {
@@ -80,10 +82,16 @@ export function JoinRoomView() {
     getAuthHeaders: authHeaders,
     onRoom: applyRoomUpdate,
     onClosed: () => {
-      if (closingRef.current || leavingRef.current) return;
+      if (closingRef.current || leavingRef.current || startingRef.current) {
+        return;
+      }
       clearStoredHostRoomCode();
       setRoom(null);
       router.replace("/multiplayer?closed=1");
+    },
+    onGameStarted: (next) => {
+      clearStoredHostRoomCode();
+      router.replace(`/multiplayer/play/${next.code}`);
     },
   });
 
@@ -300,6 +308,53 @@ export function JoinRoomView() {
     }
   };
 
+  const handleStartGame = async () => {
+    if (!room || starting || closing || leaving) return;
+    if (room.players.length < 2) return;
+
+    startingRef.current = true;
+    setStarting(true);
+    setError(null);
+
+    try {
+      const headers = await authHeaders();
+      const selfPlayer = room.players.find((player) => player.isSelf);
+      const body: {
+        code: string;
+        guestSessionId?: string;
+        guestName?: string;
+      } = {
+        code: room.code,
+      };
+
+      if (selfPlayer?.isGuest) {
+        const guest = getGuestIdentity();
+        body.guestSessionId = guest.guestSessionId;
+        body.guestName = selfPlayer.username || guest.guestName;
+      }
+
+      const res = await fetch("/api/rooms/start", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? t("room.startError"));
+      }
+
+      clearStoredHostRoomCode();
+      router.replace(`/multiplayer/play/${room.code}`);
+    } catch (err) {
+      startingRef.current = false;
+      setError(err instanceof Error ? err.message : t("room.startError"));
+      setStarting(false);
+    }
+  };
+
   if (!ready) {
     return (
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 py-8">
@@ -319,10 +374,12 @@ export function JoinRoomView() {
         changingColor={changingColor}
         closing={closing}
         leaving={leaving}
+        starting={starting}
         error={error}
         onSelectColor={(color) => void handleSelectColor(color)}
         onLeave={() => void handleLeaveRoom()}
         onCloseRoom={() => void handleCloseRoom()}
+        onStartGame={() => void handleStartGame()}
       />
     );
   }
