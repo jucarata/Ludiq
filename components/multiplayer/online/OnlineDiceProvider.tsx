@@ -55,6 +55,9 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     game.lastRoll ? rollAnimKey(game.version, game.lastRoll) : null,
   );
   const lastLiveRollRef = useRef<[number, number] | null>(null);
+  /** lastRoll / exitAttempts del estado ya procesado — un move no cambia lastRoll. */
+  const prevLastRollRef = useRef<[number, number] | null>(game.lastRoll);
+  const prevExitAttemptsRef = useRef(game.exitRollAttempts);
   const gameRef = useRef(game);
   gameRef.current = game;
 
@@ -139,6 +142,11 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     if (game.version === lastSeenVersion.current) return;
     lastSeenVersion.current = game.version;
 
+    const prevRoll = prevLastRollRef.current;
+    const prevAttempts = prevExitAttemptsRef.current;
+    prevLastRollRef.current = game.lastRoll;
+    prevExitAttemptsRef.current = game.exitRollAttempts;
+
     /* Nuevo turno limpio: no arrastrar el marcador del jugador anterior. */
     if (game.turnPhase === "playing" && !game.lastRoll) {
       lastLiveRollRef.current = null;
@@ -151,33 +159,50 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (game.lastRoll) {
-      setTurnRoll(game.lastRoll);
-      const key = rollAnimKey(game.version, game.lastRoll);
-      const live = lastLiveRollRef.current;
-      const alreadyLive =
-        live != null &&
-        live[0] === game.lastRoll[0] &&
-        live[1] === game.lastRoll[1];
+    if (!game.lastRoll) return;
 
-      if (selfRollPendingRef.current) {
-        lastAnimatedKeyRef.current = key;
-        selfRollPendingRef.current = false;
-        if (game.turnPhase === "deciding") {
-          setHasRolledThisTurn(true);
-        }
-      } else if (alreadyLive || lastAnimatedKeyRef.current === key) {
-        lastAnimatedKeyRef.current = key;
-        lastLiveRollRef.current = null;
-        if (!rollingRef.current && game.turnPhase === "deciding") {
-          setHasRolledThisTurn(true);
-        }
-      } else if (lastAnimatedKeyRef.current !== key) {
-        lastAnimatedKeyRef.current = key;
-        playRemoteRoll(game.lastRoll);
-      } else if (game.turnPhase === "deciding") {
+    setTurnRoll(game.lastRoll);
+
+    const sameRollValues =
+      prevRoll != null &&
+      prevRoll[0] === game.lastRoll[0] &&
+      prevRoll[1] === game.lastRoll[1];
+    /* Move / consume die: version↑ pero lastRoll igual. Reintento de salida: attempts↑. */
+    const isNewRollEvent =
+      !sameRollValues || game.exitRollAttempts > prevAttempts;
+
+    const key = rollAnimKey(game.version, game.lastRoll);
+    const live = lastLiveRollRef.current;
+    const alreadyLive =
+      live != null &&
+      live[0] === game.lastRoll[0] &&
+      live[1] === game.lastRoll[1];
+
+    if (!isNewRollEvent) {
+      /* p. ej. movió un dado del par: no re-animar la tirada. */
+      if (game.turnPhase === "deciding") {
         setHasRolledThisTurn(true);
       }
+      return;
+    }
+
+    if (selfRollPendingRef.current) {
+      lastAnimatedKeyRef.current = key;
+      selfRollPendingRef.current = false;
+      if (game.turnPhase === "deciding") {
+        setHasRolledThisTurn(true);
+      }
+    } else if (alreadyLive || lastAnimatedKeyRef.current === key) {
+      lastAnimatedKeyRef.current = key;
+      lastLiveRollRef.current = null;
+      if (!rollingRef.current && game.turnPhase === "deciding") {
+        setHasRolledThisTurn(true);
+      }
+    } else if (lastAnimatedKeyRef.current !== key) {
+      lastAnimatedKeyRef.current = key;
+      playRemoteRoll(game.lastRoll);
+    } else if (game.turnPhase === "deciding") {
+      setHasRolledThisTurn(true);
     }
   }, [game, playRemoteRoll]);
 
