@@ -38,8 +38,26 @@ export function DiceLauncher() {
     maxExitRollAttempts,
   );
   const showExitAttempts = needsExitDoubles && !hasRolledThisTurn;
+  const showRollResult =
+    turnRoll !== null && (hasRolledThisTurn || (!canRoll && !isRolling));
 
-  if (hasRolledThisTurn && turnRoll !== null) {
+  if (isRolling && !canRoll && !hasRolledThisTurn) {
+    return (
+      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
+        <div className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
+          <div className="flex items-center gap-2" aria-hidden>
+            <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
+            <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
+          </div>
+          <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
+            {t("dice.rolling")}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (showRollResult && turnRoll) {
     return (
       <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
         <div
@@ -57,6 +75,30 @@ export function DiceLauncher() {
           <span className="font-mono text-4xl font-black tabular-nums text-[#fcd34d] drop-shadow-[0_0_14px_rgba(252,211,77,0.55)] md:text-5xl">
             {turnRoll[1]}
           </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canRoll && !currentIsBot && !currentIsAutoHuman) {
+    return (
+      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
+        <div className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
+          <div className="flex items-center gap-2" aria-hidden>
+            <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
+            <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
+          </div>
+          <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
+            {t("room.waitingTurn", { label })}
+          </span>
+          {showExitAttempts && (
+            <span className="text-[10px] font-medium text-[#d4c5a0]/80">
+              {t("dice.exitAttempt", {
+                current: attemptNumber,
+                max: maxExitRollAttempts,
+              })}
+            </span>
+          )}
         </div>
       </div>
     );
