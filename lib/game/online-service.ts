@@ -410,7 +410,6 @@ export async function rollOnlineDice(params: {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(resolution.nextPieces),
       ...advanced,
-      last_roll: roll as unknown as Json,
     });
   } else {
     nextRow = await writeGameState(room.id, state.version, {

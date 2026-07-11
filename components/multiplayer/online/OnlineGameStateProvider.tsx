@@ -71,43 +71,75 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     PieceState[] | null
   >(null);
   const movingRef = useRef(false);
-  const liveMovePendingRef = useRef(false);
+  /** True until server version confirms the in-flight (own or live) move. */
+  const unconfirmedMoveRef = useRef(false);
+  const [holdOptimisticBoard, setHoldOptimisticBoard] = useState(false);
   const lastSyncedVersion = useRef(game.version);
   const postChainRef = useRef(Promise.resolve());
   const piecesBeforeMoveRef = useRef<PieceState[]>(game.pieces);
   const diceBeforeMoveRef = useRef<number[] | null>(game.remainingDice);
   const displayPiecesRef = useRef(displayPieces);
   const remainingDiceRef = useRef(optimisticDice ?? game.remainingDice);
+  const pendingServerPiecesRef = useRef<PieceState[] | null>(null);
   displayPiecesRef.current = displayPieces;
   remainingDiceRef.current = optimisticDice ?? game.remainingDice;
+  pendingServerPiecesRef.current = pendingServerPieces;
 
   const remainingDice = optimisticDice ?? game.remainingDice;
   const winner = game.winner;
 
+  const confirmServerPieces = useCallback(
+    (pieces: PieceState[], version: number) => {
+      lastSyncedVersion.current = version;
+      unconfirmedMoveRef.current = false;
+      pendingServerPiecesRef.current = null;
+      setPendingServerPieces(null);
+      setHoldOptimisticBoard(false);
+      setDisplayPieces(pieces);
+      setOptimisticDice(null);
+    },
+    [],
+  );
+
   useEffect(() => {
+    const serverNewer = game.version > lastSyncedVersion.current;
+
     if (animation || movingRef.current) {
-      if (
-        liveMovePendingRef.current &&
-        game.version > lastSyncedVersion.current
-      ) {
+      if (serverNewer && unconfirmedMoveRef.current) {
         lastSyncedVersion.current = game.version;
+        pendingServerPiecesRef.current = game.pieces;
         setPendingServerPieces(game.pieces);
       }
       return;
     }
+
+    /* Animación ya terminó en local: no volver al snapshot viejo. */
+    if (unconfirmedMoveRef.current) {
+      if (serverNewer) {
+        confirmServerPieces(game.pieces, game.version);
+      }
+      return;
+    }
+
     if (game.version < lastSyncedVersion.current) return;
+    if (game.version === lastSyncedVersion.current) return;
 
     lastSyncedVersion.current = game.version;
-    liveMovePendingRef.current = false;
     setDisplayPieces(game.pieces);
     setOptimisticDice(null);
     setSelectedPiece(null);
     setMenuAnchor(null);
-  }, [game.pieces, game.version, game.remainingDice, animation]);
+  }, [
+    animation,
+    confirmServerPieces,
+    game.pieces,
+    game.remainingDice,
+    game.version,
+  ]);
 
   useEffect(() => {
     return subscribeLiveMove((payload) => {
-      if (movingRef.current) return;
+      if (movingRef.current || unconfirmedMoveRef.current) return;
 
       const pieces = displayPiecesRef.current;
       const piece = pieces.find(
@@ -116,15 +148,15 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       );
       if (!piece || piece.location !== "route") return;
 
-      const from =
-        piece.routeIndex ?? payload.fromRouteIndex;
+      const from = piece.routeIndex ?? payload.fromRouteIndex;
       const dice = remainingDiceRef.current;
       if (dice?.length) {
         setOptimisticDice(consumeDice(dice, { value: payload.dieValue }));
       }
 
-      liveMovePendingRef.current = true;
+      unconfirmedMoveRef.current = true;
       movingRef.current = true;
+      setHoldOptimisticBoard(true);
       setSelectedPiece(null);
       setMenuAnchor(null);
       setAnimation({
@@ -156,7 +188,8 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     animation === null &&
     remainingDice !== null &&
     remainingDice.length > 0 &&
-    !movingRef.current;
+    !movingRef.current &&
+    !holdOptimisticBoard;
 
   const canHumanInteractWithPieces =
     canInteractWithPieces && isMyTurn && currentPlayer === selfColor;
@@ -210,39 +243,40 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
     if (piece.routeIndex < animation.target) return;
 
-    setAnimation(null);
+    const serverPieces = pendingServerPiecesRef.current;
+    const landed = serverPieces
+      ? serverPieces
+      : resolveLanding(displayPieces, animation.player, animation.index);
 
-    const applyLanded = (landed: PieceState[]) => {
-      const captured = landed.some((next) => {
-        if (next.location !== "start") return false;
-        const before = displayPieces.find(
-          (p) => p.player === next.player && p.index === next.index,
-        );
-        return before?.location === "route";
-      });
-      if (captured) playCaptureSound();
-
-      const mover = landed.find(
-        (p) => p.player === animation.player && p.index === animation.index,
+    const captured = landed.some((next) => {
+      if (next.location !== "start") return false;
+      const before = displayPieces.find(
+        (p) => p.player === next.player && p.index === next.index,
       );
-      if (mover?.location === "finished") {
-        setCelebration({ player: animation.player, key: Date.now() });
-      }
+      return before?.location === "route";
+    });
+    if (captured) playCaptureSound();
 
-      setDisplayPieces(landed);
-    };
-
-    if (pendingServerPieces) {
-      applyLanded(pendingServerPieces);
-      setPendingServerPieces(null);
-    } else {
-      applyLanded(
-        resolveLanding(displayPieces, animation.player, animation.index),
-      );
+    const mover = landed.find(
+      (p) => p.player === animation.player && p.index === animation.index,
+    );
+    if (mover?.location === "finished") {
+      setCelebration({ player: animation.player, key: Date.now() });
     }
 
+    setDisplayPieces(landed);
+    setAnimation(null);
     movingRef.current = false;
-  }, [animation, displayPieces, pendingServerPieces]);
+
+    if (serverPieces) {
+      pendingServerPiecesRef.current = null;
+      setPendingServerPieces(null);
+      unconfirmedMoveRef.current = false;
+      setHoldOptimisticBoard(false);
+    }
+    /* Si aún no hay confirmación del server, holdOptimisticBoard sigue true
+       para no pisar con game.pieces viejo. */
+  }, [animation, displayPieces]);
 
   const handleRollResult = useCallback(
     (
@@ -262,7 +296,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       if (!canHumanInteractWithPieces || !remainingDice?.length || animation) {
         return false;
       }
-      if (movingRef.current) return false;
+      if (movingRef.current || unconfirmedMoveRef.current) return false;
 
       const piece = displayPieces.find(
         (p) => p.player === target.player && p.index === target.index,
@@ -277,7 +311,9 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       const nextRemaining = consumeDice(remainingDice, choice);
       setOptimisticDice(nextRemaining);
 
+      unconfirmedMoveRef.current = true;
       movingRef.current = true;
+      setHoldOptimisticBoard(true);
       setSelectedPiece(null);
       setMenuAnchor(null);
       extendDecisionTime();
@@ -304,18 +340,24 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
         .then(async () => {
           try {
             const nextGame = await postMove(pieceIndex, dieValue);
-            lastSyncedVersion.current = nextGame.version;
-            setPendingServerPieces(nextGame.pieces);
             applyGame(nextGame);
-            if (!movingRef.current) {
-              setOptimisticDice(null);
+
+            if (movingRef.current) {
+              lastSyncedVersion.current = nextGame.version;
+              pendingServerPiecesRef.current = nextGame.pieces;
+              setPendingServerPieces(nextGame.pieces);
+            } else {
+              confirmServerPieces(nextGame.pieces, nextGame.version);
             }
           } catch {
             setAnimation(null);
+            pendingServerPiecesRef.current = null;
             setPendingServerPieces(null);
+            unconfirmedMoveRef.current = false;
+            movingRef.current = false;
+            setHoldOptimisticBoard(false);
             setDisplayPieces(piecesBeforeMoveRef.current);
             setOptimisticDice(diceBeforeMoveRef.current);
-            movingRef.current = false;
           }
         });
 
@@ -325,6 +367,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       animation,
       applyGame,
       canHumanInteractWithPieces,
+      confirmServerPieces,
       displayPieces,
       extendDecisionTime,
       postMove,

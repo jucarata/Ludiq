@@ -139,6 +139,18 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     if (game.version === lastSeenVersion.current) return;
     lastSeenVersion.current = game.version;
 
+    /* Nuevo turno limpio: no arrastrar el marcador del jugador anterior. */
+    if (game.turnPhase === "playing" && !game.lastRoll) {
+      lastLiveRollRef.current = null;
+      if (!rollingRef.current) {
+        setTurnRoll(null);
+        setHasRolledThisTurn(false);
+        setActiveDice(null);
+        settledDiceRef.current.clear();
+      }
+      return;
+    }
+
     if (game.lastRoll) {
       setTurnRoll(game.lastRoll);
       const key = rollAnimKey(game.version, game.lastRoll);
@@ -151,33 +163,26 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       if (selfRollPendingRef.current) {
         lastAnimatedKeyRef.current = key;
         selfRollPendingRef.current = false;
-        setHasRolledThisTurn(true);
+        if (game.turnPhase === "deciding") {
+          setHasRolledThisTurn(true);
+        }
       } else if (alreadyLive || lastAnimatedKeyRef.current === key) {
         lastAnimatedKeyRef.current = key;
         lastLiveRollRef.current = null;
-        if (!rollingRef.current) {
+        if (!rollingRef.current && game.turnPhase === "deciding") {
           setHasRolledThisTurn(true);
         }
       } else if (lastAnimatedKeyRef.current !== key) {
         lastAnimatedKeyRef.current = key;
         playRemoteRoll(game.lastRoll);
-      } else {
+      } else if (game.turnPhase === "deciding") {
         setHasRolledThisTurn(true);
-      }
-    } else if (game.turnPhase === "playing") {
-      setTurnRoll(null);
-      setHasRolledThisTurn(false);
-      lastLiveRollRef.current = null;
-      if (!rollingRef.current) {
-        setActiveDice(null);
-        settledDiceRef.current.clear();
       }
     }
   }, [game, playRemoteRoll]);
 
   const finishRollSession = useCallback(
     (values: [number, number]) => {
-      setTurnRoll(values);
       setActiveDice(null);
       setIsRolling(false);
       rollingRef.current = false;
@@ -186,27 +191,29 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       const latest = gameRef.current;
 
       if (latest.turnPhase === "deciding" || latest.turnPhase === "ended") {
+        setTurnRoll(values);
         setHasRolledThisTurn(true);
         resumePlaying();
         return;
       }
 
+      /* playing: reintento de salida o el turno ya pasó al siguiente. */
       if (latest.currentTurn === selfColor) {
-        setHasRolledThisTurn(true);
-        window.setTimeout(() => {
-          if (rollingRef.current) return;
-          const now = gameRef.current;
-          if (now.currentTurn !== selfColor || now.turnPhase !== "playing") {
-            return;
-          }
-          setHasRolledThisTurn(false);
+        setHasRolledThisTurn(false);
+        /* Mantener el valor solo si aún hay reintentos de sacar ficha. */
+        if (latest.exitRollAttempts > 0) {
+          setTurnRoll(values);
+        } else {
           setTurnRoll(null);
-          resumePlaying();
-        }, 1200);
+        }
+        resumePlaying();
         return;
       }
 
-      setHasRolledThisTurn(true);
+      /* Turno de otro: limpiar marcador (p. ej. tras 3 intentos sin par). */
+      setTurnRoll(null);
+      setHasRolledThisTurn(false);
+      lastLiveRollRef.current = null;
       resumePlaying();
     },
     [resumePlaying, selfColor],
