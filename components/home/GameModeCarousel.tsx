@@ -247,7 +247,7 @@ export function GameModeCarousel() {
                   />
 
                   <h2
-                    className={`absolute inset-x-0 bottom-0 px-4 pb-4 text-2xl font-black uppercase tracking-wide transition-opacity duration-300 sm:text-3xl ${
+                    className={`absolute inset-x-0 bottom-0 px-4 pb-4 text-center text-2xl font-black uppercase tracking-wide transition-opacity duration-300 sm:text-3xl ${
                       isActive
                         ? "text-[var(--board-path)] opacity-100"
                         : "text-[var(--board-path)] opacity-75"
