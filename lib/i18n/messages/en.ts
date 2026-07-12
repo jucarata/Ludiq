@@ -9,7 +9,7 @@ export const en = {
     profile: "Profile",
   },
   home: {
-    multiplayer: "Multiplayer",
+    multiplayer: "Online",
     playLocal: "Local",
     gameModes: "Game modes",
   },

@@ -11,7 +11,7 @@ export const es: Messages = {
     profile: "Perfil",
   },
   home: {
-    multiplayer: "Multijugador",
+    multiplayer: "Online",
     playLocal: "Local",
     gameModes: "Modos de juego",
   },
