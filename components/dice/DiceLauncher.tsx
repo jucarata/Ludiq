@@ -10,12 +10,12 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { hasAnyPieceOnRoute } from "@/lib/game/pieces";
 
+/** Fixed height so the mobile board (sized from remaining flex space) never jumps. */
 const SHELL =
-  "mb-4 flex h-[12rem] shrink-0 flex-col items-center justify-center gap-2 md:h-[13rem]";
+  "relative mb-4 flex h-[8.5rem] shrink-0 flex-col items-center justify-center gap-1.5 md:h-[9.5rem]";
 const CARD =
-  "flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-3";
+  "flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 rounded-xl bg-[#1a1a2e] px-4 py-2.5";
 const DIE = "h-12 w-12 md:h-14 md:w-14";
-const BANNER_SLOT = "flex h-8 w-full shrink-0 items-center justify-center";
 
 export function DiceLauncher() {
   const { currentPlayer } = useTurn();
@@ -59,9 +59,33 @@ export function DiceLauncher() {
     </span>
   ) : null;
 
+  const noDoublesOverlay =
+    showNoDoublesBanner && turnRoll ? (
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex -translate-y-1/2 items-center justify-center"
+        aria-label={t("dice.rolled", {
+          label,
+          d1: turnRoll[0],
+          d2: turnRoll[1],
+        })}
+      >
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-[#1a1a2e] px-3 py-1 shadow-lg ring-1 ring-[#d4c5a0]/30">
+          <span className="font-mono text-sm font-bold tabular-nums text-[#fcd34d]/80">
+            {turnRoll[0]}
+          </span>
+          <span className="text-xs text-[#d4c5a0]/60">+</span>
+          <span className="font-mono text-sm font-bold tabular-nums text-[#fcd34d]/80">
+            {turnRoll[1]}
+          </span>
+          <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-[#e07a5f]">
+            {t("dice.noDoubles")}
+          </span>
+        </div>
+      </div>
+    ) : null;
+
   const statusCard = (message: string, extra?: React.ReactNode) => (
     <div className={SHELL}>
-      <div className={BANNER_SLOT} aria-hidden />
       <div className={CARD}>
         <div className="flex items-center gap-2" aria-hidden>
           <DieFace value={3} className={`${DIE} opacity-60`} />
@@ -85,7 +109,6 @@ export function DiceLauncher() {
   if (showRollResult && turnRoll) {
     return (
       <div className={SHELL}>
-        <div className={BANNER_SLOT} aria-hidden />
         <div
           className={`${CARD} flex-row gap-3 md:gap-4`}
           aria-label={t("dice.rolled", {
@@ -126,34 +149,12 @@ export function DiceLauncher() {
 
   return (
     <div className={SHELL}>
-      <div className={BANNER_SLOT}>
-        {showNoDoublesBanner && turnRoll ? (
-          <div
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1a1a2e]/80 px-3 py-1"
-            aria-label={t("dice.rolled", {
-              label,
-              d1: turnRoll[0],
-              d2: turnRoll[1],
-            })}
-          >
-            <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
-              {turnRoll[0]}
-            </span>
-            <span className="text-sm text-[#d4c5a0]/60">+</span>
-            <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
-              {turnRoll[1]}
-            </span>
-            <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-[#e07a5f]">
-              {t("dice.noDoubles")}
-            </span>
-          </div>
-        ) : null}
-      </div>
+      {noDoublesOverlay}
       <button
         type="button"
         onClick={isAiming ? cancelAim : armDice}
         disabled={!canRoll || isRolling}
-        className={`flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 rounded-xl px-4 py-3 transition-all ${
+        className={`flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 transition-all ${
           isAiming
             ? "bg-[#353550] ring-2 ring-[#fcd34d] ring-offset-2 ring-offset-[#2a2a3e]"
             : "bg-[#1a1a2e] hover:bg-[#252540] disabled:cursor-not-allowed disabled:opacity-50"
