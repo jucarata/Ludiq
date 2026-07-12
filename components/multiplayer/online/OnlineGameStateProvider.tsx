@@ -17,7 +17,7 @@ import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import type { PlayerColor } from "@/lib/board/types";
 import { createActionId } from "@/lib/game/action-id";
-import { ParquesBot, type BotMoveDecision } from "@/lib/game/bot";
+import type { BotMoveDecision } from "@/lib/game/bot";
 import {
   FINISH_CELEBRATION_MS,
   type CelebrationState,
@@ -51,8 +51,6 @@ interface MoveAnimation {
   target: number;
 }
 
-const AFK_BOT_DELAY_SINGLE_MS = 1000;
-const AFK_BOT_DELAY_MULTI_MS = 2000;
 
 function piecesSignature(pieces: PieceState[]): string {
   return pieces
@@ -64,14 +62,6 @@ function piecesSignature(pieces: PieceState[]): string {
     .join("|");
 }
 
-function afkBotDelayMs(pieces: PieceState[], player: PlayerColor): number {
-  const routePieces = pieces.filter(
-    (p) => p.player === player && p.location === "route",
-  );
-  return routePieces.length <= 1
-    ? AFK_BOT_DELAY_SINGLE_MS
-    : AFK_BOT_DELAY_MULTI_MS;
-}
 
 export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const {
@@ -116,7 +106,6 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const displayPiecesRef = useRef(displayPieces);
   const remainingDiceRef = useRef(optimisticDice ?? game.remainingDice);
   const pendingServerPiecesRef = useRef<PieceState[] | null>(null);
-  const afkBotRef = useRef(new ParquesBot());
   displayPiecesRef.current = displayPieces;
   remainingDiceRef.current = holdOptimisticBoard
     ? (optimisticDice ?? game.remainingDice)
@@ -540,67 +529,6 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       turnAdvanceBlockedRef,
     ],
   );
-
-  /*
-   * Online AFK bot: after a short think delay, play via forceAfk move (animated).
-   * If that fails, advanceTurn asks the server to execute the bot move.
-   */
-  useEffect(() => {
-    if (!game.afkTakeover) return;
-    if (!isMyTurn || game.currentTurn !== selfColor) return;
-    if (game.turnPhase !== "deciding") return;
-    if (animation || movingRef.current || ownMovePendingRef.current) return;
-
-    const dice = game.remainingDice;
-    if (!dice?.length) {
-      advanceTurn();
-      return;
-    }
-
-    const board = game.pieces;
-    if (!hasAnyValidMove(board, selfColor, dice)) {
-      advanceTurn();
-      return;
-    }
-
-    const decision = afkBotRef.current.chooseMove(board, selfColor, dice);
-    if (!decision) {
-      advanceTurn();
-      return;
-    }
-
-    let cancelled = false;
-    const delay = afkBotDelayMs(board, selfColor);
-
-    const timeout = setTimeout(() => {
-      if (cancelled) return;
-      const ok = movePiece(
-        { player: decision.player, index: decision.index },
-        decision.choice,
-        { forceAfk: true },
-      );
-      if (!ok && !cancelled) {
-        advanceTurn();
-      }
-    }, delay);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [
-    advanceTurn,
-    animation,
-    game.afkTakeover,
-    game.currentTurn,
-    game.pieces,
-    game.remainingDice,
-    game.turnPhase,
-    game.version,
-    isMyTurn,
-    movePiece,
-    selfColor,
-  ]);
 
   useEffect(() => {
     if (!canHumanInteractWithPieces || !remainingDice?.length) return;

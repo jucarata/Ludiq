@@ -49,7 +49,9 @@ type OnlineSessionContextValue = {
     dieValue: number,
     actionId: string,
   ) => Promise<OnlineGameStateView>;
-  postAdvanceTurn: () => Promise<OnlineGameStateView>;
+  postAdvanceTurn: (options?: {
+    autoEnabled?: boolean;
+  }) => Promise<OnlineGameStateView>;
   sendLiveRoll: (params: {
     roll: [number, number];
     actionId: string;
@@ -198,23 +200,31 @@ export function OnlineSessionProvider({
     [applyGame, code, getAuthHeaders, guestBody, mode],
   );
 
-  const postAdvanceTurn = useCallback(async () => {
-    const headers = await getAuthHeaders();
-    const res = await fetch("/api/game/advance-turn", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ code, mode, ...guestBody() }),
-    });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      throw new Error(data?.error ?? "Advance failed");
-    }
-    const data = (await res.json()) as { game: OnlineGameStateView };
-    applyGame(data.game);
-    return data.game;
-  }, [applyGame, code, getAuthHeaders, guestBody, mode]);
+  const postAdvanceTurn = useCallback(
+    async (options?: { autoEnabled?: boolean }) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/game/advance-turn", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          code,
+          mode,
+          autoEnabled: options?.autoEnabled === true,
+          ...guestBody(),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Advance failed");
+      }
+      const data = (await res.json()) as { game: OnlineGameStateView };
+      applyGame(data.game);
+      return data.game;
+    },
+    [applyGame, code, getAuthHeaders, guestBody, mode],
+  );
 
   const value = useMemo(
     () => ({

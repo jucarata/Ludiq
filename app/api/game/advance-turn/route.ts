@@ -8,6 +8,7 @@ import { resolveRoomIdentity } from "@/lib/room/service";
 type AdvanceBody = {
   code?: string;
   mode?: string;
+  autoEnabled?: boolean;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -39,7 +40,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await advanceOnlineTurn({ code, identity, mode });
+    const result = await advanceOnlineTurn({
+      code,
+      identity,
+      mode,
+      autoEnabled: body.autoEnabled === true,
+    });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Response) return error;

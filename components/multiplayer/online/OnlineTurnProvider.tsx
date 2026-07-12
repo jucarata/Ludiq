@@ -17,17 +17,16 @@ import {
   type TurnPhase,
 } from "@/lib/game/turns";
 
-/** If the client AFK mover stalls, server bot-move via advance-turn. */
-const AFK_WATCHDOG_MS = 4000;
+/** Delay between AFK bot moves (server-executed). */
+const AFK_BOT_GAP_MS = 1600;
 
 export function OnlineTurnProvider({ children }: { children: ReactNode }) {
   const { game, isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef } =
     useOnlineSession();
-  const { setAfkTakeover } = useAutoMode();
+  const { isAutoEnabled, setAfkTakeover } = useAutoMode();
   const [timeLeft, setTimeLeft] = useState(() => secondsLeftForTurn(game));
   const [announcement, setAnnouncement] = useState<PlayerColor | null>(null);
   const [localPhase, setLocalPhase] = useState<TurnPhase | null>(null);
-  const [advanceTick, setAdvanceTick] = useState(0);
   const prevTurnRef = useRef(game.currentTurn);
   const advancingRef = useRef(false);
 
@@ -64,62 +63,55 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [game]);
 
-  /* Enter AFK / skip turn when the clock hits 0. */
-  useEffect(() => {
-    if (!isMyTurn || game.turnPhase === "ended" || game.winner) return;
-    if (timeLeft > 0) return;
-    if (advancingRef.current) return;
-    if (localPhase === "rolling") return;
-    if (game.afkTakeover) return;
-
-    if (turnAdvanceBlockedRef.current) {
-      const retry = setTimeout(() => setAdvanceTick((n) => n + 1), 200);
-      return () => clearTimeout(retry);
-    }
-
-    advancingRef.current = true;
-    void postAdvanceTurn()
-      .catch(() => undefined)
-      .finally(() => {
-        advancingRef.current = false;
-      });
-  }, [
-    advanceTick,
-    game.afkTakeover,
-    game.turnPhase,
-    game.winner,
-    isMyTurn,
-    localPhase,
-    postAdvanceTurn,
-    timeLeft,
-    turnAdvanceBlockedRef,
-  ]);
-
   /*
-   * AFK watchdog: if no game update lands within the window, ask the server
-   * to execute the bot move (or end the turn).
+   * Timeout / AFK pump: while the clock is expired (or AFK is active) keep
+   * calling advance-turn until the turn actually changes. The server either
+   * plays the bot move (auto) or skips. Never single-shot — retries survive
+   * network blips and stale turnAdvanceBlockedRef locks.
    */
   useEffect(() => {
-    if (!isMyTurn || !game.afkTakeover) return;
-    if (game.turnPhase !== "deciding") return;
+    if (!isMyTurn || game.turnPhase === "ended" || game.winner) return;
+    if (localPhase === "rolling") return;
+    if (game.turnPhase !== "deciding" && game.turnPhase !== "playing") return;
 
-    const timeout = setTimeout(() => {
-      if (advancingRef.current || turnAdvanceBlockedRef.current) return;
+    const expired = timeLeft <= 0 || game.afkTakeover;
+    if (!expired) return;
+
+    const auto = isAutoEnabled(game.currentTurn);
+    let cancelled = false;
+
+    const pump = () => {
+      if (cancelled || advancingRef.current) return;
+      /* Stale optimistic locks must not block timeout forever. */
+      turnAdvanceBlockedRef.current = false;
       advancingRef.current = true;
-      void postAdvanceTurn()
+      void postAdvanceTurn({ autoEnabled: auto })
         .catch(() => undefined)
         .finally(() => {
           advancingRef.current = false;
         });
-    }, AFK_WATCHDOG_MS);
+    };
 
-    return () => clearTimeout(timeout);
+    const firstDelay = game.afkTakeover || auto ? AFK_BOT_GAP_MS : 120;
+    const first = setTimeout(pump, firstDelay);
+    const interval = setInterval(pump, AFK_BOT_GAP_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(interval);
+    };
   }, [
     game.afkTakeover,
+    game.currentTurn,
     game.turnPhase,
     game.version,
+    game.winner,
+    isAutoEnabled,
     isMyTurn,
+    localPhase,
     postAdvanceTurn,
+    timeLeft,
     turnAdvanceBlockedRef,
   ]);
 
@@ -141,14 +133,22 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
 
   const advanceTurn = useCallback(() => {
     if (!isMyTurn || advancingRef.current) return;
-    if (turnAdvanceBlockedRef.current) return;
+    turnAdvanceBlockedRef.current = false;
     advancingRef.current = true;
-    void postAdvanceTurn()
+    void postAdvanceTurn({
+      autoEnabled: isAutoEnabled(game.currentTurn),
+    })
       .catch(() => undefined)
       .finally(() => {
         advancingRef.current = false;
       });
-  }, [isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef]);
+  }, [
+    game.currentTurn,
+    isAutoEnabled,
+    isMyTurn,
+    postAdvanceTurn,
+    turnAdvanceBlockedRef,
+  ]);
 
   const endGame = useCallback(() => {
     /* Winner is set by the server. */

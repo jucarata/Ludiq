@@ -641,6 +641,8 @@ export async function advanceOnlineTurn(params: {
   code: string;
   identity: RoomIdentity;
   mode?: RoomMode;
+  /** Client hint — used if DB auto_enabled has not synced yet. */
+  autoEnabled?: boolean;
 }): Promise<{ room: RoomView; game: OnlineGameStateView }> {
   const { room, row, selfColor } = await requirePlayingMember(params);
   const state = toOnlineGameStateView(row);
@@ -663,41 +665,48 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
-  /*
-   * Already in AFK: execute the bot's next move (server-authoritative).
-   * The client calls advance-turn again after a short "thinking" delay.
-   */
-  if (state.afkTakeover) {
+  const playAfkBotMove = async () => {
     if (
-      state.turnPhase === "deciding" &&
-      state.remainingDice &&
-      state.remainingDice.length > 0 &&
-      hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
+      state.turnPhase !== "deciding" ||
+      !state.remainingDice?.length ||
+      !hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
     ) {
-      const decision = new ParquesBot().chooseMove(
-        state.pieces,
-        selfColor,
-        state.remainingDice,
-      );
-      if (decision) {
-        return commitOnlineMove({
-          room,
-          state,
-          selfColor,
-          pieceIndex: decision.index,
-          dieValue: decision.choice.value,
-          code: params.code,
-          identity: params.identity,
-        });
-      }
+      const cleared = await writeGameState(room.id, state.version, {
+        pieces: piecesToJson(state.pieces),
+        ...advanceToNextTurn(state),
+        ...actionMeta("advance", createActionId()),
+      });
+      return { room, game: toOnlineGameStateView(cleared) };
     }
 
-    const cleared = await writeGameState(room.id, state.version, {
-      pieces: piecesToJson(state.pieces),
-      ...advanceToNextTurn(state),
-      ...actionMeta("advance", createActionId()),
+    const decision = new ParquesBot().chooseMove(
+      state.pieces,
+      selfColor,
+      state.remainingDice,
+    );
+    if (!decision) {
+      const cleared = await writeGameState(room.id, state.version, {
+        pieces: piecesToJson(state.pieces),
+        ...advanceToNextTurn(state),
+        ...actionMeta("advance", createActionId()),
+      });
+      return { room, game: toOnlineGameStateView(cleared) };
+    }
+
+    return commitOnlineMove({
+      room,
+      state: { ...state, afkTakeover: true },
+      selfColor,
+      pieceIndex: decision.index,
+      dieValue: decision.choice.value,
+      code: params.code,
+      identity: params.identity,
     });
-    return { room, game: toOnlineGameStateView(cleared) };
+  };
+
+  /* Already in AFK — keep playing bot moves until the turn ends. */
+  if (state.afkTakeover) {
+    return playAfkBotMove();
   }
 
   const startedAt = new Date(state.turnStartedAt).getTime();
@@ -714,20 +723,22 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
+  const autoEnabled =
+    params.autoEnabled === true ||
+    (await loadPlayerAutoEnabled(room.id, selfColor));
+
+  /*
+   * Auto expired: execute the bot move immediately (do not only set a flag
+   * and wait — that left clients frozen when the follow-up never ran).
+   */
   if (
+    autoEnabled &&
     state.turnPhase === "deciding" &&
     state.remainingDice &&
     state.remainingDice.length > 0 &&
     hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
   ) {
-    const autoEnabled = await loadPlayerAutoEnabled(room.id, selfColor);
-    if (autoEnabled) {
-      const afkRow = await writeGameState(room.id, state.version, {
-        afk_takeover: true,
-        ...actionMeta("afk", createActionId()),
-      });
-      return { room, game: toOnlineGameStateView(afkRow) };
-    }
+    return playAfkBotMove();
   }
 
   const nextRow = await writeGameState(room.id, state.version, {
