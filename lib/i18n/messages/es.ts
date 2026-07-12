@@ -36,6 +36,7 @@ export const es: Messages = {
     createTitle: "Crear sala",
     createSubtitle: "Comparte el código. Los jugadores aparecen al unirse — toca tu ficha para cambiar de color.",
     codeLabel: "Código de sala",
+    roomHeading: "SALA",
     codeAria: "Código de sala {code}",
     codeHint: "Comparte este código para que otros se unan.",
     pickColor: "Color de tu ficha",
@@ -87,7 +88,6 @@ export const es: Messages = {
     gameError: "No se pudo cargar la partida.",
     waitingTurn: "Esperando a {label}…",
     potLabel: "Bote",
-    potHint: "Aquí entrarán las apuestas antes de la partida.",
     potAmountPending: "— USDT",
   },
   setup: {

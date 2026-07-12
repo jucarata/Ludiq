@@ -1,5 +1,6 @@
 import { PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
 import { createActionId, isValidActionId } from "@/lib/game/action-id";
+import { ParquesBot } from "@/lib/game/bot";
 import {
   canMovePiece,
   consumeDice,
@@ -538,6 +539,39 @@ export async function moveOnlinePiece(params: {
     });
   }
 
+  return commitOnlineMove({
+    room,
+    state,
+    selfColor,
+    pieceIndex: params.pieceIndex,
+    dieValue: params.dieValue,
+    actionId: params.actionId,
+    code: params.code,
+    identity: params.identity,
+  });
+}
+
+async function commitOnlineMove(params: {
+  room: RoomView;
+  state: OnlineGameStateView;
+  selfColor: PlayerColor;
+  pieceIndex: PieceIndex;
+  dieValue: number;
+  actionId?: string;
+  code: string;
+  identity: RoomIdentity;
+}): Promise<{ room: RoomView; game: OnlineGameStateView }> {
+  const { room, state, selfColor } = params;
+  const piece = state.pieces.find(
+    (p) => p.player === selfColor && p.index === params.pieceIndex,
+  );
+  if (!piece || piece.location !== "route" || piece.routeIndex === undefined) {
+    throw new Response(JSON.stringify({ error: "Invalid piece" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const actionId = resolveActionId(params.actionId);
   const meta = actionMeta("move", actionId);
   const destination = piece.routeIndex + params.dieValue;
@@ -563,7 +597,7 @@ export async function moveOnlinePiece(params: {
     };
   }
 
-  const nextRemaining = consumeDice(state.remainingDice, {
+  const nextRemaining = consumeDice(state.remainingDice ?? [], {
     value: params.dieValue,
   });
 
@@ -582,7 +616,6 @@ export async function moveOnlinePiece(params: {
       ...meta,
     });
   } else if (state.afkTakeover) {
-    /* AFK bot mid-turn: keep clock expired, no extra decision time. */
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(nextPieces),
       remaining_dice: nextRemaining as unknown as Json,
@@ -630,7 +663,10 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
-  /* Already in AFK takeover. */
+  /*
+   * Already in AFK: execute the bot's next move (server-authoritative).
+   * The client calls advance-turn again after a short "thinking" delay.
+   */
   if (state.afkTakeover) {
     if (
       state.turnPhase === "deciding" &&
@@ -638,10 +674,24 @@ export async function advanceOnlineTurn(params: {
       state.remainingDice.length > 0 &&
       hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
     ) {
-      /* Bot still has moves — stay put. */
-      return { room, game: state };
+      const decision = new ParquesBot().chooseMove(
+        state.pieces,
+        selfColor,
+        state.remainingDice,
+      );
+      if (decision) {
+        return commitOnlineMove({
+          room,
+          state,
+          selfColor,
+          pieceIndex: decision.index,
+          dieValue: decision.choice.value,
+          code: params.code,
+          identity: params.identity,
+        });
+      }
     }
-    /* Nothing left to play — end the AFK turn. */
+
     const cleared = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(state.pieces),
       ...advanceToNextTurn(state),
@@ -657,7 +707,6 @@ export async function advanceOnlineTurn(params: {
       : TURN_DURATION_SECONDS) * 1000;
   const elapsed = Date.now() - startedAt;
 
-  // Allow a small grace window; reject early skips.
   if (elapsed < limitMs - 1500) {
     throw new Response(JSON.stringify({ error: "Turn timer still running" }), {
       status: 409,
@@ -665,10 +714,6 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
-  /*
-   * Auto AFK: timer done with moves left → hand control to the bot without
-   * advancing the turn or granting extra time.
-   */
   if (
     state.turnPhase === "deciding" &&
     state.remainingDice &&

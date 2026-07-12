@@ -14,7 +14,6 @@ import type { PieceState } from "@/lib/game/pieces";
 const BOT_ROLL_DELAY_MS = 1600;
 const BOT_MOVE_DELAY_SINGLE_MS = 1000;
 const BOT_MOVE_DELAY_MULTI_MS = 2000;
-const AFK_FAIL_RETRY_MS = 500;
 
 function getBotMoveDelayMs(
   pieces: PieceState[],
@@ -53,25 +52,17 @@ export function BotController() {
   const botRef = useRef(new ParquesBot());
   const executeMoveRef = useRef(executeMove);
   const advanceTurnRef = useRef(advanceTurn);
-  const piecesRef = useRef(pieces);
-  const remainingDiceRef = useRef(remainingDice);
 
   executeMoveRef.current = executeMove;
   advanceTurnRef.current = advanceTurn;
-  piecesRef.current = pieces;
-  remainingDiceRef.current = remainingDice;
 
   const currentIsBot = isBot(currentPlayer);
   const currentIsAutoHuman =
     !currentIsBot && isAutoEnabled(currentPlayer);
-
-  /* Online AFK is authoritative on the shared game row. */
-  const afkTakeover = online ? online.game.afkTakeover : isAfkTakeover;
-  const isTurnOwnerOnline =
-    !online ||
-    (online.isMyTurn && online.selfColor === online.game.currentTurn);
-
   const shouldAutoRoll = currentIsBot || currentIsAutoHuman;
+
+  /* Online AFK is handled by OnlineGameStateProvider + server advance-turn. */
+  const localAfk = !online && isAfkTakeover;
 
   useEffect(() => {
     if (online) return;
@@ -88,10 +79,6 @@ export function BotController() {
     return () => clearTimeout(timeout);
   }, [shouldAutoRoll, turnPhase, canRoll, currentPlayer, autoRollDice]);
 
-  /*
-   * Local Auto AFK: when the decision timer hits 0, take over without adding
-   * time. Online AFK is set by the server (game.afkTakeover) instead.
-   */
   useEffect(() => {
     if (online) return;
     if (currentIsBot || !currentIsAutoHuman) return;
@@ -112,26 +99,29 @@ export function BotController() {
     setAfkTakeover,
   ]);
 
-  /* CPU bots (local) — not AFK humans. */
+  /* CPU bots + local AFK humans. */
   useEffect(() => {
-    if (afkTakeover) return;
-    if (!currentIsBot || !canInteractWithPieces || !remainingDice?.length) {
-      return;
-    }
+    if (online && !currentIsBot) return;
+    if (!currentIsBot && !localAfk) return;
+    if (!canInteractWithPieces || !remainingDice?.length) return;
 
     const decision = botRef.current.chooseMove(
       pieces,
       currentPlayer,
       remainingDice,
     );
-    if (!decision) return;
+    if (!decision) {
+      if (localAfk) advanceTurnRef.current();
+      return;
+    }
 
-    const moveDelay = getBotMoveDelayMs(pieces, currentPlayer);
     let cancelled = false;
+    const moveDelay = getBotMoveDelayMs(pieces, currentPlayer);
 
     const timeout = setTimeout(() => {
       if (cancelled) return;
-      executeMoveRef.current(decision);
+      const ok = executeMoveRef.current(decision);
+      if (!ok && localAfk) advanceTurnRef.current();
     }, moveDelay);
 
     return () => {
@@ -139,65 +129,15 @@ export function BotController() {
       clearTimeout(timeout);
     };
   }, [
-    afkTakeover,
+    online,
     currentIsBot,
+    localAfk,
     canInteractWithPieces,
     diceKey(remainingDice),
     piecesKey(pieces),
     currentPlayer,
     remainingDice,
     pieces,
-  ]);
-
-  /*
-   * AFK takeover loop (local + online turn owner).
-   * Uses refs for executeMove so re-renders don't cancel the thinking delay.
-   * Retries if executeMove fails instead of freezing the turn at 0.
-   */
-  useEffect(() => {
-    if (!afkTakeover || !isTurnOwnerOnline) return;
-    if (turnPhase !== "deciding") return;
-    if (!canInteractWithPieces) return;
-
-    const dice = remainingDiceRef.current;
-    if (!dice?.length) {
-      advanceTurnRef.current();
-      return;
-    }
-
-    const board = piecesRef.current;
-    const decision = botRef.current.chooseMove(board, currentPlayer, dice);
-    if (!decision) {
-      advanceTurnRef.current();
-      return;
-    }
-
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const moveDelay = getBotMoveDelayMs(board, currentPlayer);
-
-    const attempt = () => {
-      if (cancelled) return;
-      const ok = executeMoveRef.current(decision);
-      if (!ok && !cancelled) {
-        timeoutId = setTimeout(attempt, AFK_FAIL_RETRY_MS);
-      }
-    };
-
-    timeoutId = setTimeout(attempt, moveDelay);
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [
-    afkTakeover,
-    isTurnOwnerOnline,
-    turnPhase,
-    canInteractWithPieces,
-    diceKey(remainingDice),
-    piecesKey(pieces),
-    currentPlayer,
   ]);
 
   return null;

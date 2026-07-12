@@ -34,6 +34,7 @@ export const en = {
     createTitle: "Create room",
     createSubtitle: "Share the code. Players appear as they join — tap your piece to change color.",
     codeLabel: "Room code",
+    roomHeading: "ROOM",
     codeAria: "Room code {code}",
     codeHint: "Share this code so others can join.",
     pickColor: "Your piece color",
@@ -85,7 +86,6 @@ export const en = {
     gameError: "Could not load the game.",
     waitingTurn: "Waiting for {label}…",
     potLabel: "Pot",
-    potHint: "Stakes will land here before the match.",
     potAmountPending: "— USDT",
   },
   setup: {

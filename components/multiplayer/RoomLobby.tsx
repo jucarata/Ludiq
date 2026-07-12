@@ -20,8 +20,6 @@ import { availableColors } from "@/lib/room/colors";
 import type { RoomView } from "@/lib/room/types";
 
 type RoomLobbyProps = {
-  title: string;
-  subtitle: string;
   room: RoomView;
   changingColor?: boolean;
   closing?: boolean;
@@ -39,8 +37,6 @@ type RoomLobbyProps = {
 type BubbleAnchor = { x: number; y: number };
 
 export function RoomLobby({
-  title,
-  subtitle,
   room,
   changingColor = false,
   closing = false,
@@ -197,10 +193,7 @@ export function RoomLobby({
           className="flex w-full max-w-sm flex-col items-center"
         >
           <div className="relative flex flex-col items-center">
-            <PiggyBank
-              className="piggy-bob h-28 w-auto sm:h-32"
-              coinCount={Math.min(6, Math.max(2, room.players.length + 1))}
-            />
+            <PiggyBank className="piggy-bob h-28 w-auto sm:h-32" />
             <p
               className={`${retroActionFont.className} -mt-1 text-[0.7rem] tracking-wide text-[#f5c518] sm:text-xs`}
             >
@@ -210,25 +203,16 @@ export function RoomLobby({
         </section>
       ) : null}
 
-      <div className="flex flex-col items-center gap-1 text-center">
-        <h1 className="text-3xl font-black tracking-tight text-[var(--board-path)] sm:text-4xl">
-          {title}
-        </h1>
-        <p className="max-w-md text-xs text-[var(--board-path-border)] sm:text-sm">
-          {subtitle}
-        </p>
-      </div>
-
       <section
         aria-labelledby="room-code-heading"
         className="flex w-full max-w-sm flex-col items-center gap-1.5"
       >
-        <h2
+        <h1
           id="room-code-heading"
-          className="text-xs font-semibold uppercase tracking-wide text-[var(--board-path-border)]"
+          className="text-3xl font-black tracking-tight text-[var(--board-path)] sm:text-4xl"
         >
-          {t("room.codeLabel")}
-        </h2>
+          {t("room.roomHeading")}
+        </h1>
         <p
           className={`${retroActionFont.className} select-all rounded-xl border-[3px] border-[var(--board-path-border)] bg-[#2a2a3e] px-6 py-3 text-2xl tracking-[0.35em] text-[var(--board-path)] sm:text-3xl`}
           aria-label={t("room.codeAria", { code: room.code })}

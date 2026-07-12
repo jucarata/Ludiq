@@ -487,8 +487,6 @@ export function CreateRoomView() {
 
   return (
     <RoomLobby
-      title={t("room.createTitle")}
-      subtitle={t("room.createSubtitle")}
       room={room}
       changingColor={changingColor}
       closing={closing}

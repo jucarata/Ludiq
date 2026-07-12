@@ -17,6 +17,9 @@ import {
   type TurnPhase,
 } from "@/lib/game/turns";
 
+/** If the client AFK mover stalls, server bot-move via advance-turn. */
+const AFK_WATCHDOG_MS = 4000;
+
 export function OnlineTurnProvider({ children }: { children: ReactNode }) {
   const { game, isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef } =
     useOnlineSession();
@@ -33,7 +36,6 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
       ? "rolling"
       : game.turnPhase;
 
-  /* Server is the source of truth for online AFK takeover. */
   useEffect(() => {
     setAfkTakeover(game.afkTakeover);
   }, [game.afkTakeover, setAfkTakeover]);
@@ -62,12 +64,12 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [game]);
 
+  /* Enter AFK / skip turn when the clock hits 0. */
   useEffect(() => {
     if (!isMyTurn || game.turnPhase === "ended" || game.winner) return;
     if (timeLeft > 0) return;
     if (advancingRef.current) return;
     if (localPhase === "rolling") return;
-    /* Already in AFK — bot is finishing; server rejects further skips. */
     if (game.afkTakeover) return;
 
     if (turnAdvanceBlockedRef.current) {
@@ -90,6 +92,34 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     localPhase,
     postAdvanceTurn,
     timeLeft,
+    turnAdvanceBlockedRef,
+  ]);
+
+  /*
+   * AFK watchdog: if no game update lands within the window, ask the server
+   * to execute the bot move (or end the turn).
+   */
+  useEffect(() => {
+    if (!isMyTurn || !game.afkTakeover) return;
+    if (game.turnPhase !== "deciding") return;
+
+    const timeout = setTimeout(() => {
+      if (advancingRef.current || turnAdvanceBlockedRef.current) return;
+      advancingRef.current = true;
+      void postAdvanceTurn()
+        .catch(() => undefined)
+        .finally(() => {
+          advancingRef.current = false;
+        });
+    }, AFK_WATCHDOG_MS);
+
+    return () => clearTimeout(timeout);
+  }, [
+    game.afkTakeover,
+    game.turnPhase,
+    game.version,
+    isMyTurn,
+    postAdvanceTurn,
     turnAdvanceBlockedRef,
   ]);
 

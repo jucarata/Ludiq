@@ -455,8 +455,6 @@ export function JoinRoomView() {
   if (room) {
     return (
       <RoomLobby
-        title={t("room.lobbyTitle")}
-        subtitle={t("room.lobbySubtitle")}
         room={room}
         changingColor={changingColor}
         closing={closing}

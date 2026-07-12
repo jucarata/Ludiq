@@ -2,16 +2,16 @@
 
 type PiggyBankProps = {
   className?: string;
-  /** How many coins to show inside (1–6). */
+  /** How many coins to show inside (0–6). Empty by default until stakes land. */
   coinCount?: number;
 };
 
 /**
- * Clear fat piggy bank with coins visible through the plastic —
- * used as the competitive pot visual in the room lobby.
+ * Clear fat piggy bank — used as the competitive pot visual in the room lobby.
+ * Starts empty; coins can be shown later when stakes are deposited.
  */
-export function PiggyBank({ className, coinCount = 4 }: PiggyBankProps) {
-  const coins = Math.min(6, Math.max(1, coinCount));
+export function PiggyBank({ className, coinCount = 0 }: PiggyBankProps) {
+  const coins = Math.min(6, Math.max(0, coinCount));
 
   return (
     <svg
@@ -82,33 +82,34 @@ export function PiggyBank({ className, coinCount = 4 }: PiggyBankProps) {
           strokeWidth="2.5"
         />
 
-        {/* Coins clipped inside body */}
-        <g clipPath="url(#piggy-clip)">
-          {Array.from({ length: coins }, (_, i) => {
-            const x = 58 + (i % 3) * 18 + (i > 2 ? 8 : 0);
-            const y = 88 - Math.floor(i / 3) * 14 - (i % 2) * 3;
-            return (
-              <g key={i} transform={`translate(${x} ${y})`}>
-                <ellipse cx="0" cy="2" rx="11" ry="4.5" fill="#b8860b" opacity="0.45" />
-                <ellipse cx="0" cy="0" rx="11" ry="4.5" fill="url(#coin-face)" stroke="#a67c00" strokeWidth="1" />
-                <ellipse cx="0" cy="-1" rx="7" ry="2.8" fill="#fff3a0" opacity="0.35" />
-                <text
-                  x="0"
-                  y="1.5"
-                  textAnchor="middle"
-                  fontSize="6"
-                  fontWeight="700"
-                  fill="#8a6a00"
-                  opacity="0.7"
-                >
-                  $
-                </text>
-              </g>
-            );
-          })}
-        </g>
+        {coins > 0 ? (
+          <g clipPath="url(#piggy-clip)">
+            {Array.from({ length: coins }, (_, i) => {
+              const x = 58 + (i % 3) * 18 + (i > 2 ? 8 : 0);
+              const y = 88 - Math.floor(i / 3) * 14 - (i % 2) * 3;
+              return (
+                <g key={i} transform={`translate(${x} ${y})`}>
+                  <ellipse cx="0" cy="2" rx="11" ry="4.5" fill="#b8860b" opacity="0.45" />
+                  <ellipse cx="0" cy="0" rx="11" ry="4.5" fill="url(#coin-face)" stroke="#a67c00" strokeWidth="1" />
+                  <ellipse cx="0" cy="-1" rx="7" ry="2.8" fill="#fff3a0" opacity="0.35" />
+                  <text
+                    x="0"
+                    y="1.5"
+                    textAnchor="middle"
+                    fontSize="6"
+                    fontWeight="700"
+                    fill="#8a6a00"
+                    opacity="0.7"
+                  >
+                    $
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        ) : null}
 
-        {/* Glass shine on top of coins */}
+        {/* Glass shine */}
         <ellipse cx="82" cy="78" rx="54" ry="42" fill="url(#piggy-shine)" />
         <path
           d="M48 58c8-16 28-22 44-16"

@@ -17,7 +17,7 @@ import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import type { PlayerColor } from "@/lib/board/types";
 import { createActionId } from "@/lib/game/action-id";
-import type { BotMoveDecision } from "@/lib/game/bot";
+import { ParquesBot, type BotMoveDecision } from "@/lib/game/bot";
 import {
   FINISH_CELEBRATION_MS,
   type CelebrationState,
@@ -51,6 +51,9 @@ interface MoveAnimation {
   target: number;
 }
 
+const AFK_BOT_DELAY_SINGLE_MS = 1000;
+const AFK_BOT_DELAY_MULTI_MS = 2000;
+
 function piecesSignature(pieces: PieceState[]): string {
   return pieces
     .map(
@@ -59,6 +62,15 @@ function piecesSignature(pieces: PieceState[]): string {
     )
     .sort()
     .join("|");
+}
+
+function afkBotDelayMs(pieces: PieceState[], player: PlayerColor): number {
+  const routePieces = pieces.filter(
+    (p) => p.player === player && p.location === "route",
+  );
+  return routePieces.length <= 1
+    ? AFK_BOT_DELAY_SINGLE_MS
+    : AFK_BOT_DELAY_MULTI_MS;
 }
 
 export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
@@ -104,8 +116,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const displayPiecesRef = useRef(displayPieces);
   const remainingDiceRef = useRef(optimisticDice ?? game.remainingDice);
   const pendingServerPiecesRef = useRef<PieceState[] | null>(null);
+  const afkBotRef = useRef(new ParquesBot());
   displayPiecesRef.current = displayPieces;
-  remainingDiceRef.current = optimisticDice ?? game.remainingDice;
+  remainingDiceRef.current = holdOptimisticBoard
+    ? (optimisticDice ?? game.remainingDice)
+    : (game.remainingDice ?? optimisticDice);
   pendingServerPiecesRef.current = pendingServerPieces;
 
   const markMoveActionSeen = useCallback((actionId: string) => {
@@ -116,7 +131,9 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const remainingDice = optimisticDice ?? game.remainingDice;
+  const remainingDice = holdOptimisticBoard
+    ? (optimisticDice ?? game.remainingDice)
+    : (game.remainingDice ?? optimisticDice);
   const winner = game.winner;
 
   const confirmServerPieces = useCallback(
@@ -395,23 +412,51 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const movePiece = useCallback(
-    (target: SelectedPiece, choice: DieMoveChoice): boolean => {
-      if (!canMoveOwnPieces || !remainingDice?.length || animation) {
-        return false;
-      }
-      if (movingRef.current || unconfirmedMoveRef.current) return false;
+    (
+      target: SelectedPiece,
+      choice: DieMoveChoice,
+      options?: { forceAfk?: boolean },
+    ): boolean => {
+      const forceAfk = options?.forceAfk === true;
+      const latest = gameRef.current;
 
-      const piece = displayPieces.find(
+      if (forceAfk) {
+        if (!latest.afkTakeover) return false;
+        if (!isMyTurn || latest.currentTurn !== selfColor) return false;
+        if (animation || movingRef.current) return false;
+        /* Drop any stale optimistic locks so AFK can always act. */
+        unconfirmedMoveRef.current = false;
+        ownMovePendingRef.current = false;
+        turnAdvanceBlockedRef.current = false;
+        pendingServerPiecesRef.current = null;
+        setPendingServerPieces(null);
+        setHoldOptimisticBoard(false);
+      } else {
+        if (!canMoveOwnPieces || !remainingDice?.length || animation) {
+          return false;
+        }
+        if (movingRef.current || unconfirmedMoveRef.current) return false;
+      }
+
+      const board = forceAfk ? latest.pieces : displayPieces;
+      const dice =
+        forceAfk
+          ? latest.remainingDice
+          : remainingDice;
+
+      if (!dice?.length) return false;
+
+      const piece = board.find(
         (p) => p.player === target.player && p.index === target.index,
       );
       if (!piece || piece.routeIndex === undefined) return false;
       if (piece.player !== selfColor) return false;
-      if (!canMovePiece(displayPieces, piece, choice.value)) return false;
+      if (!canMovePiece(board, piece, choice.value)) return false;
 
-      piecesBeforeMoveRef.current = displayPieces;
-      diceBeforeMoveRef.current = remainingDice;
+      piecesBeforeMoveRef.current = board;
+      diceBeforeMoveRef.current = dice;
 
-      const nextRemaining = consumeDice(remainingDice, choice);
+      const nextRemaining = consumeDice(dice, choice);
       setOptimisticDice(nextRemaining);
 
       unconfirmedMoveRef.current = true;
@@ -421,6 +466,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       setHoldOptimisticBoard(true);
       setSelectedPiece(null);
       setMenuAnchor(null);
+      setDisplayPieces(board);
       extendDecisionTime();
 
       const from = piece.routeIndex;
@@ -435,7 +481,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       const pieceIndex = piece.index;
       const dieValue = choice.value;
       const actionId = createActionId();
-      const basedOnVersion = gameRef.current.version;
+      const basedOnVersion = latest.version;
       markMoveActionSeen(actionId);
       sendLiveMove({
         pieceIndex,
@@ -460,18 +506,16 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
               confirmServerPieces(nextGame.pieces, nextGame.version);
             }
           } catch {
-            const latest = gameRef.current;
+            const after = gameRef.current;
             setAnimation(null);
             pendingServerPiecesRef.current = null;
             setPendingServerPieces(null);
             unconfirmedMoveRef.current = false;
             movingRef.current = false;
             setHoldOptimisticBoard(false);
-            lastSyncedVersion.current = latest.version;
-            setDisplayPieces(latest.pieces);
-            setOptimisticDice(
-              latest.remainingDice ?? diceBeforeMoveRef.current,
-            );
+            lastSyncedVersion.current = after.version;
+            setDisplayPieces(after.pieces);
+            setOptimisticDice(after.remainingDice);
           } finally {
             ownMovePendingRef.current = false;
             turnAdvanceBlockedRef.current = false;
@@ -487,6 +531,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       confirmServerPieces,
       displayPieces,
       extendDecisionTime,
+      isMyTurn,
       markMoveActionSeen,
       postMove,
       remainingDice,
@@ -495,6 +540,67 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       turnAdvanceBlockedRef,
     ],
   );
+
+  /*
+   * Online AFK bot: after a short think delay, play via forceAfk move (animated).
+   * If that fails, advanceTurn asks the server to execute the bot move.
+   */
+  useEffect(() => {
+    if (!game.afkTakeover) return;
+    if (!isMyTurn || game.currentTurn !== selfColor) return;
+    if (game.turnPhase !== "deciding") return;
+    if (animation || movingRef.current || ownMovePendingRef.current) return;
+
+    const dice = game.remainingDice;
+    if (!dice?.length) {
+      advanceTurn();
+      return;
+    }
+
+    const board = game.pieces;
+    if (!hasAnyValidMove(board, selfColor, dice)) {
+      advanceTurn();
+      return;
+    }
+
+    const decision = afkBotRef.current.chooseMove(board, selfColor, dice);
+    if (!decision) {
+      advanceTurn();
+      return;
+    }
+
+    let cancelled = false;
+    const delay = afkBotDelayMs(board, selfColor);
+
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
+      const ok = movePiece(
+        { player: decision.player, index: decision.index },
+        decision.choice,
+        { forceAfk: true },
+      );
+      if (!ok && !cancelled) {
+        advanceTurn();
+      }
+    }, delay);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [
+    advanceTurn,
+    animation,
+    game.afkTakeover,
+    game.currentTurn,
+    game.pieces,
+    game.remainingDice,
+    game.turnPhase,
+    game.version,
+    isMyTurn,
+    movePiece,
+    selfColor,
+  ]);
 
   useEffect(() => {
     if (!canHumanInteractWithPieces || !remainingDice?.length) return;
