@@ -1,6 +1,5 @@
 import { PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
 import { createActionId, isValidActionId } from "@/lib/game/action-id";
-import { rollDicePair } from "@/lib/game/dice";
 import {
   canMovePiece,
   consumeDice,
@@ -408,7 +407,13 @@ export async function rollOnlineDice(params: {
   }
 
   const actionId = resolveActionId(params.actionId);
-  const roll = isValidDiceRoll(params.roll) ? params.roll : rollDicePair();
+  if (!isValidDiceRoll(params.roll)) {
+    throw new Response(JSON.stringify({ error: "Dice roll is required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const roll = params.roll;
   const resolution = resolveRoll(
     state.pieces,
     selfColor,

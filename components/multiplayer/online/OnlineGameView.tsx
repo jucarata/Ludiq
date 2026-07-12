@@ -19,7 +19,6 @@ import { TurnPanel } from "@/components/turn/TurnPanel";
 import { WinnerAnnouncement } from "@/components/turn/WinnerAnnouncement";
 import type { OnlineGameStateView } from "@/lib/game/online-types";
 import { useGameRealtime } from "@/lib/game/use-game-realtime";
-import { retroBackButtonClassName } from "@/lib/fonts";
 import { getGuestIdentity } from "@/lib/room/guest";
 import type { RoomView } from "@/lib/room/types";
 
@@ -29,7 +28,6 @@ export function OnlineGameView({ code }: { code: string }) {
   const { ready, authenticated, getAccessToken } = usePrivy();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [game, setGame] = useState<OnlineGameStateView | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const authHeaders = useCallback(async () => {
@@ -56,7 +54,6 @@ export function OnlineGameView({ code }: { code: string }) {
 
     void (async () => {
       setLoading(true);
-      setError(null);
       try {
         const headers = await authHeaders();
         const guest = getGuestIdentity();
@@ -66,10 +63,8 @@ export function OnlineGameView({ code }: { code: string }) {
 
         const res = await fetch(`/api/game?${params.toString()}`, { headers });
         if (!res.ok) {
-          const data = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(data?.error ?? t("room.gameError"));
+          if (!cancelled) router.replace("/");
+          return;
         }
 
         const data = (await res.json()) as {
@@ -77,11 +72,17 @@ export function OnlineGameView({ code }: { code: string }) {
           game: OnlineGameStateView;
         };
         if (cancelled) return;
+
+        const selfPlayer = data.room.players.find((player) => player.isSelf);
+        if (!selfPlayer) {
+          router.replace("/");
+          return;
+        }
+
         setRoom(data.room);
         setGame(data.game);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : t("room.gameError"));
+      } catch {
+        if (!cancelled) router.replace("/");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -90,14 +91,16 @@ export function OnlineGameView({ code }: { code: string }) {
     return () => {
       cancelled = true;
     };
-  }, [authHeaders, code, ready, t]);
+  }, [authHeaders, code, ready, router]);
 
   useGameRealtime({
     roomId: room?.id ?? null,
     onGame: applyGame,
   });
 
-  if (!ready || loading) {
+  const self = room?.players.find((player) => player.isSelf);
+
+  if (!ready || loading || !room || !game || !self) {
     return (
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 py-8">
         <p className="text-sm text-[var(--board-path-border)]">
@@ -107,40 +110,33 @@ export function OnlineGameView({ code }: { code: string }) {
     );
   }
 
-  if (error || !room || !game) {
-    return (
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6 py-8">
-        <p className="max-w-md text-center text-sm text-[var(--board-red)]">
-          {error ?? t("room.gameError")}
-        </p>
-        <button
-          type="button"
-          className={retroBackButtonClassName}
-          onClick={() => router.replace("/multiplayer")}
-        >
-          {t("room.back")}
-        </button>
-      </main>
-    );
-  }
+  const backToMenu = () => {
+    void (async () => {
+      try {
+        const headers = await authHeaders();
+        const body: {
+          code: string;
+          guestSessionId?: string;
+          guestName?: string;
+        } = { code: room.code };
 
-  const self = room.players.find((player) => player.isSelf);
-  if (!self) {
-    return (
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6 py-8">
-        <p className="max-w-md text-center text-sm text-[var(--board-red)]">
-          {t("room.gameError")}
-        </p>
-        <button
-          type="button"
-          className={retroBackButtonClassName}
-          onClick={() => router.replace("/multiplayer")}
-        >
-          {t("room.back")}
-        </button>
-      </main>
-    );
-  }
+        if (self.isGuest) {
+          const guest = getGuestIdentity();
+          body.guestSessionId = guest.guestSessionId;
+          body.guestName = self.username || guest.guestName;
+        }
+
+        await fetch("/api/rooms/leave", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        });
+      } catch {
+        /* Still leave the play screen even if leave fails. */
+      }
+      router.replace("/");
+    })();
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -164,7 +160,7 @@ export function OnlineGameView({ code }: { code: string }) {
                         <BoardDiceZone>
                           <ParquesBoard className="[--board-dim:min(calc(100dvw-1rem-env(safe-area-inset-left)-env(safe-area-inset-right)),calc(100dvh-var(--mobile-panel-reserve)-1rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] md:[--board-dim:var(--board-size)]" />
                           <TurnAnnouncement />
-                          <WinnerAnnouncement />
+                          <WinnerAnnouncement onBackToMenu={backToMenu} />
                         </BoardDiceZone>
                       </div>
                       <TurnPanel />

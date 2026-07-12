@@ -6,6 +6,7 @@ import { Die3D, getFaceRotation } from "@/components/dice/Die3D";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
   createDicePhysics,
+  createSeededRandom,
   DICE_RESULT_HOLD_MS,
   normalizeThrowVelocity,
   stepDicePhysics,
@@ -13,7 +14,6 @@ import {
 } from "@/lib/game/dice";
 
 const DIE_SIZE_PX = 56;
-const SETTLE_TRANSITION_MS = 260;
 const FLIP_MIN_MS = 150;
 const FLIP_MAX_MS = 420;
 /** Bajo esta velocidad el dado ya "cayó": se muestra el resultado sin más giros. */
@@ -41,13 +41,16 @@ interface Flip {
  * del movimiento para que el dado "ruede" hacia donde se desliza
  * (movimiento horizontal → voltereta sobre el eje Y y viceversa).
  */
-function pickFlip(physics: DicePhysicsState): Flip {
+function pickFlip(
+  physics: DicePhysicsState,
+  random: () => number,
+): Flip {
   const speed = Math.hypot(physics.vx, physics.vy);
   const absVx = Math.abs(physics.vx);
   const absVy = Math.abs(physics.vy);
   const horizontalBias = absVx / Math.max(absVx + absVy, 1);
 
-  const axis: FlipAxis = Math.random() < horizontalBias ? "Y" : "X";
+  const axis: FlipAxis = random() < horizontalBias ? "Y" : "X";
   const direction: 1 | -1 =
     axis === "Y" ? (physics.vx >= 0 ? 1 : -1) : (physics.vy >= 0 ? -1 : 1);
 
@@ -64,24 +67,31 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function randomBakedFlips(): string[] {
+function randomBakedFlips(random: () => number): string[] {
   const flips: string[] = [];
-  const count = Math.floor(Math.random() * 4);
+  const count = Math.floor(random() * 4);
   for (let i = 0; i < count; i += 1) {
-    const axis = Math.random() > 0.5 ? "X" : "Y";
-    const direction = Math.random() > 0.5 ? 90 : -90;
+    const axis = random() > 0.5 ? "X" : "Y";
+    const direction = random() > 0.5 ? 90 : -90;
     flips.unshift(`rotate${axis}(${direction}deg)`);
   }
   return flips;
+}
+
+function faceOrientation(value: number): string {
+  const face = getFaceRotation(value);
+  return `rotateX(${face.x}deg) rotateY(${face.y}deg)`;
 }
 
 export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
   const { t } = useTranslations();
   const [phase, setPhase] = useState<"rolling" | "result">("rolling");
   const [orientation, setOrientation] = useState("rotateX(0deg)");
+  const seed = roll.seed ?? `${roll.sessionId}-${roll.key}`;
   const [renderState, setRenderState] = useState<DicePhysicsState>(() => {
-    const velocity = normalizeThrowVelocity(roll.vx, roll.vy);
-    return createDicePhysics(roll.x, roll.y, velocity.vx, velocity.vy);
+    const random = createSeededRandom(seed);
+    const velocity = normalizeThrowVelocity(roll.vx, roll.vy, random);
+    return createDicePhysics(roll.x, roll.y, velocity.vx, velocity.vy, random);
   });
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
@@ -89,14 +99,21 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
   useEffect(() => {
     setPhase("rolling");
 
-    const velocity = normalizeThrowVelocity(roll.vx, roll.vy);
-    const physics = createDicePhysics(roll.x, roll.y, velocity.vx, velocity.vy);
+    const random = createSeededRandom(seed);
+    const velocity = normalizeThrowVelocity(roll.vx, roll.vy, random);
+    const physics = createDicePhysics(
+      roll.x,
+      roll.y,
+      velocity.vx,
+      velocity.vy,
+      random,
+    );
     setRenderState(physics);
 
     // Volteretas completadas, exactas a 90°; la más reciente va primero
     // (la primera del transform se aplica en el marco de la pantalla).
-    const bakedFlips = randomBakedFlips();
-    let flip = pickFlip(physics);
+    const bakedFlips = randomBakedFlips(random);
+    let flip = pickFlip(physics, random);
     setOrientation(bakedFlips.join(" ") || "rotateX(0deg)");
 
     let frame = 0;
@@ -118,9 +135,8 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
       if (!settled && speed < RESULT_TRIGGER_SPEED) {
         settled = true;
         setPhase("result");
-
-        const face = getFaceRotation(roll.value);
-        setOrientation(`rotateX(${face.x}deg) rotateY(${face.y}deg)`);
+        /* Snap sin transición CSS: evita caras intermedias engañosas. */
+        setOrientation(faceOrientation(roll.value));
 
         resultTimeout = window.setTimeout(() => {
           onSettledRef.current(roll.value);
@@ -150,7 +166,7 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
 
       if (progress >= 1) {
         bakedFlips.unshift(`rotate${flip.axis}(${90 * flip.direction}deg)`);
-        flip = pickFlip(physics);
+        flip = pickFlip(physics, random);
       }
 
       frame = requestAnimationFrame(tick);
@@ -162,7 +178,17 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
       cancelAnimationFrame(frame);
       window.clearTimeout(resultTimeout);
     };
-  }, [roll.sessionId, roll.key, roll.value, roll.x, roll.y, roll.vx, roll.vy, roll.bounds]);
+  }, [
+    seed,
+    roll.sessionId,
+    roll.key,
+    roll.value,
+    roll.x,
+    roll.y,
+    roll.vx,
+    roll.vy,
+    roll.bounds,
+  ]);
 
   return (
     <div
@@ -180,7 +206,7 @@ export function DiceRollOverlay({ roll, onSettled }: DiceRollOverlayProps) {
         <Die3D
           sizePx={DIE_SIZE_PX}
           orientation={orientation}
-          transitionMs={phase === "result" ? SETTLE_TRANSITION_MS : 0}
+          transitionMs={0}
           className="drop-shadow-2xl"
         />
       </div>

@@ -123,6 +123,7 @@ export const en = {
     autoMode: "Auto mode",
     autoFor: "Auto — {label}",
     gameOverWinner: "Game over! Winner",
+    backToMenu: "Back to menu",
   },
   profile: {
     title: "Profile",

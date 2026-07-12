@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useGameState } from "@/components/game/GameStateContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS } from "@/lib/board/types";
 import { playVictorySound } from "@/lib/game/sounds";
+import { retroBackButtonClassName } from "@/lib/fonts";
 
 /** Overlay persistente al terminar el juego: anuncia al ganador */
-export function WinnerAnnouncement() {
+export function WinnerAnnouncement({
+  menuHref = "/",
+  onBackToMenu,
+}: {
+  menuHref?: string;
+  onBackToMenu?: () => void;
+} = {}) {
   const { winner } = useGameState();
   const { t, locale } = useTranslations();
 
@@ -27,19 +35,34 @@ export function WinnerAnnouncement() {
       aria-live="assertive"
       role="status"
     >
-      <div
-        className="rounded-2xl border-4 px-8 py-5 text-center shadow-2xl"
-        style={{ borderColor: fill, backgroundColor: dark }}
-      >
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
-          {t("turn.gameOverWinner")}
-        </p>
-        <p
-          className="mt-1 text-3xl font-black uppercase tracking-wide md:text-4xl"
-          style={{ color: fill }}
+      <div className="flex max-w-full flex-col items-center gap-4">
+        <div
+          className="rounded-2xl border-4 px-8 py-5 text-center shadow-2xl"
+          style={{ borderColor: fill, backgroundColor: dark }}
         >
-          {label}
-        </p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
+            {t("turn.gameOverWinner")}
+          </p>
+          <p
+            className="mt-1 text-3xl font-black uppercase tracking-wide md:text-4xl"
+            style={{ color: fill }}
+          >
+            {label}
+          </p>
+        </div>
+        {onBackToMenu ? (
+          <button
+            type="button"
+            className={retroBackButtonClassName}
+            onClick={onBackToMenu}
+          >
+            {t("turn.backToMenu")}
+          </button>
+        ) : (
+          <Link href={menuHref} className={retroBackButtonClassName}>
+            {t("turn.backToMenu")}
+          </Link>
+        )}
       </div>
     </div>
   );

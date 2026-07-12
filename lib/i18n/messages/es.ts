@@ -125,6 +125,7 @@ export const es: Messages = {
     autoMode: "Modo auto",
     autoFor: "Auto — {label}",
     gameOverWinner: "¡Fin del juego! Ganador",
+    backToMenu: "Volver al menú",
   },
   profile: {
     title: "Perfil",

@@ -11,25 +11,42 @@ export const DICE_SAMPLE_WINDOW_MS = 140;
 export const DICE_COUNT = 2;
 export const DICE_PAIR_SPAWN_OFFSET = 22;
 
-export function rollDie(): number {
-  return Math.floor(Math.random() * 6) + 1;
+/** Mulberry32 — RNG determinista a partir de un seed (p. ej. actionId). */
+export function createSeededRandom(seed: string): () => number {
+  let state = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    state = (Math.imul(31, state) + seed.charCodeAt(i)) | 0;
+  }
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-export function rollDicePair(): [number, number] {
-  return [rollDie(), rollDie()];
+export function rollDie(random: () => number = Math.random): number {
+  return Math.floor(random() * 6) + 1;
+}
+
+export function rollDicePair(
+  random: () => number = Math.random,
+): [number, number] {
+  return [rollDie(random), rollDie(random)];
 }
 
 export function createPairedThrowVelocities(
   baseVx: number,
   baseVy: number,
+  random: () => number = Math.random,
 ): [{ vx: number; vy: number }, { vx: number; vy: number }] {
-  const base = normalizeThrowVelocity(baseVx, baseVy);
+  const base = normalizeThrowVelocity(baseVx, baseVy, random);
   const baseAngle = Math.atan2(base.vy, base.vx);
   const baseSpeed = Math.hypot(base.vx, base.vy);
 
-  const spread = 0.45 + Math.random() * 0.35;
-  const speedScaleA = 0.8 + Math.random() * 0.35;
-  const speedScaleB = 0.8 + Math.random() * 0.35;
+  const spread = 0.45 + random() * 0.35;
+  const speedScaleA = 0.8 + random() * 0.35;
+  const speedScaleB = 0.8 + random() * 0.35;
 
   const angleA = baseAngle + spread;
   const angleB = baseAngle - spread;
@@ -91,14 +108,18 @@ export function computeThrowVelocity(samples: VelocitySample[]): {
   };
 }
 
-export function normalizeThrowVelocity(vx: number, vy: number): {
+export function normalizeThrowVelocity(
+  vx: number,
+  vy: number,
+  random: () => number = Math.random,
+): {
   vx: number;
   vy: number;
 } {
   let speed = Math.hypot(vx, vy);
 
   if (speed < 1) {
-    const angle = Math.random() * Math.PI * 2;
+    const angle = random() * Math.PI * 2;
     return {
       vx: Math.cos(angle) * DICE_MIN_LAUNCH_SPEED,
       vy: Math.sin(angle) * DICE_MIN_LAUNCH_SPEED,
@@ -121,6 +142,7 @@ export function createDicePhysics(
   y: number,
   vx: number,
   vy: number,
+  random: () => number = Math.random,
 ): DicePhysicsState {
   const speed = Math.hypot(vx, vy);
   return {
@@ -129,7 +151,7 @@ export function createDicePhysics(
     vx,
     vy,
     rotation: 0,
-    angularVelocity: (speed / 40) * (Math.random() > 0.5 ? 1 : -1),
+    angularVelocity: (speed / 40) * (random() > 0.5 ? 1 : -1),
   };
 }
 

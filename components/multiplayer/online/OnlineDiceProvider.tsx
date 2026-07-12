@@ -18,6 +18,7 @@ import { createActionId } from "@/lib/game/action-id";
 import {
   createPairedSpawnPoints,
   createPairedThrowVelocities,
+  createSeededRandom,
   DICE_COUNT,
   rollDicePair,
 } from "@/lib/game/dice";
@@ -81,8 +82,14 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
         vy: number;
         bounds: { width: number; height: number };
       },
+      seed: string,
     ) => {
-      const velocities = createPairedThrowVelocities(params.vx, params.vy);
+      const random = createSeededRandom(seed);
+      const velocities = createPairedThrowVelocities(
+        params.vx,
+        params.vy,
+        random,
+      );
       const spawnPoints = createPairedSpawnPoints(params.x, params.y);
       const sessionId = Date.now();
 
@@ -102,6 +109,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
           vy: velocity.vy,
           value: roll[index],
           bounds: params.bounds,
+          seed: `${seed}:${index}`,
         })),
       );
     },
@@ -109,7 +117,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
   );
 
   const playRemoteRoll = useCallback(
-    (roll: [number, number]) => {
+    (roll: [number, number], seed: string) => {
       if (rollingRef.current) return;
 
       const zone = diceZoneRef.current;
@@ -121,13 +129,18 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       rollingRef.current = true;
       setHasRolledThisTurn(false);
       setTurnRoll(roll);
-      spawnDiceAnimation(roll, {
-        x: center.x,
-        y: center.y,
-        vx: 420,
-        vy: -380,
-        bounds,
-      });
+      /* Misma trayectoria base en todos los clientes para el mismo actionId. */
+      spawnDiceAnimation(
+        roll,
+        {
+          x: center.x,
+          y: center.y,
+          vx: 420,
+          vy: -380,
+          bounds,
+        },
+        seed,
+      );
     },
     [spawnDiceAnimation],
   );
@@ -140,7 +153,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       if (seenActionIdsRef.current.has(payload.actionId)) return;
 
       markActionSeen(payload.actionId);
-      playRemoteRoll(payload.roll);
+      playRemoteRoll(payload.roll, payload.actionId);
     });
   }, [markActionSeen, playRemoteRoll, subscribeLiveRoll]);
 
@@ -183,7 +196,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     }
 
     markActionSeen(game.actionId);
-    playRemoteRoll(game.lastRoll);
+    playRemoteRoll(game.lastRoll, game.actionId);
   }, [game, markActionSeen, playRemoteRoll]);
 
   const finishRollSession = useCallback(
@@ -194,9 +207,12 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       settledDiceRef.current.clear();
 
       const latest = gameRef.current;
+      /* Canonical: DB lastRoll gana sobre lo reportado por la animación. */
+      const canonical =
+        latest.lastRoll != null ? latest.lastRoll : values;
 
       if (latest.turnPhase === "deciding" || latest.turnPhase === "ended") {
-        setTurnRoll(values);
+        setTurnRoll(canonical);
         setHasRolledThisTurn(true);
         resumePlaying();
         return;
@@ -207,7 +223,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
         setHasRolledThisTurn(false);
         /* Mantener el valor solo si aún hay reintentos de sacar ficha. */
         if (latest.exitRollAttempts > 0) {
-          setTurnRoll(values);
+          setTurnRoll(canonical);
         } else {
           setTurnRoll(null);
         }
@@ -215,8 +231,12 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      /* Turno de otro: limpiar marcador (p. ej. tras 3 intentos sin par). */
-      setTurnRoll(null);
+      /* Turno de otro: si ya llegó lastRoll del server, conservarlo. */
+      if (latest.lastRoll) {
+        setTurnRoll(latest.lastRoll);
+      } else {
+        setTurnRoll(null);
+      }
       setHasRolledThisTurn(false);
       resumePlaying();
     },
@@ -263,8 +283,28 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
       const actionId = createActionId();
       const basedOnVersion = gameRef.current.version;
       markActionSeen(actionId);
+      setTurnRoll(roll);
       sendLiveRoll({ roll, actionId, basedOnVersion });
-      spawnDiceAnimation(roll, params);
+      /*
+       * Misma trayectoria base que el rival (seed = actionId) para que
+       * ambos vean exactamente las mismas caras al caer.
+       */
+      const zone = diceZoneRef.current;
+      const bounds = zone
+        ? { width: zone.clientWidth, height: zone.clientHeight }
+        : params.bounds;
+      const center = getVictoryCellCenter(bounds);
+      spawnDiceAnimation(
+        roll,
+        {
+          x: center.x,
+          y: center.y,
+          vx: 420,
+          vy: -380,
+          bounds,
+        },
+        actionId,
+      );
 
       void postRoll(roll, actionId).catch(() => {
         selfRollPendingRef.current = false;
@@ -272,6 +312,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
         setIsRolling(false);
         rollingRef.current = false;
         settledDiceRef.current.clear();
+        setTurnRoll(null);
         resumePlaying();
       });
     },

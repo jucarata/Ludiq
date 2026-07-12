@@ -30,6 +30,8 @@ export interface ActiveDieRoll {
   vy: number;
   value: number;
   bounds: { width: number; height: number };
+  /** Shared seed so peers render the same tumble/result. */
+  seed?: string;
 }
 
 interface DiceContextValue {
