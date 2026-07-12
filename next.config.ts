@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
+  webpack: (config) => {
+    // Privy optionally imports these; we don't use Stripe crypto or Farcaster Solana.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@stripe/crypto": false,
+      "@farcaster/mini-app-solana": false,
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

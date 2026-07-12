@@ -7,9 +7,17 @@ export type Eip6963ProviderInfo = {
   rdns: string;
 };
 
+/** Loose enough for eth_requestAccounts / personal_sign across injected wallets. */
+export type InjectedEthereumProvider = {
+  request: (args: {
+    method: string;
+    params?: readonly unknown[];
+  }) => Promise<unknown>;
+};
+
 export type DiscoveredWallet = {
   info: Eip6963ProviderInfo;
-  provider: EIP1193Provider;
+  provider: InjectedEthereumProvider;
 };
 
 type Eip6963AnnounceEvent = CustomEvent<{
@@ -26,7 +34,9 @@ declare global {
 function legacyInjectedWallet(): DiscoveredWallet | null {
   if (typeof window === "undefined") return null;
   const ethereum = (
-    window as Window & { ethereum?: EIP1193Provider & { isMetaMask?: boolean } }
+    window as Window & {
+      ethereum?: InjectedEthereumProvider & { isMetaMask?: boolean };
+    }
   ).ethereum;
   if (!ethereum) return null;
   return {
@@ -70,7 +80,10 @@ export function subscribeInjectedWallets(
   const onAnnounce = (event: Eip6963AnnounceEvent) => {
     const { info, provider } = event.detail;
     if (!info?.rdns || !provider) return;
-    byRdns.set(info.rdns, { info, provider });
+    byRdns.set(info.rdns, {
+      info,
+      provider: provider as InjectedEthereumProvider,
+    });
     publish();
   };
 
