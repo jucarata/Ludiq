@@ -10,6 +10,7 @@ type UseRoomRealtimeOptions = {
   getAuthHeaders: () => Promise<Record<string, string>>;
   onRoom: (room: RoomView) => void;
   onClosed?: () => void;
+  onKicked?: () => void;
   onGameStarted?: (room: RoomView) => void;
 };
 
@@ -22,23 +23,27 @@ export function useRoomRealtime({
   getAuthHeaders,
   onRoom,
   onClosed,
+  onKicked,
   onGameStarted,
 }: UseRoomRealtimeOptions) {
   const getAuthHeadersRef = useRef(getAuthHeaders);
   const onRoomRef = useRef(onRoom);
   const onClosedRef = useRef(onClosed);
+  const onKickedRef = useRef(onKicked);
   const onGameStartedRef = useRef(onGameStarted);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closedRef = useRef(false);
+  const kickedRef = useRef(false);
   const startedRef = useRef(false);
 
   getAuthHeadersRef.current = getAuthHeaders;
   onRoomRef.current = onRoom;
   onClosedRef.current = onClosed;
+  onKickedRef.current = onKicked;
   onGameStartedRef.current = onGameStarted;
 
   const emitClosed = useCallback(() => {
-    if (closedRef.current || startedRef.current) return;
+    if (closedRef.current || kickedRef.current || startedRef.current) return;
     closedRef.current = true;
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
@@ -47,8 +52,18 @@ export function useRoomRealtime({
     onClosedRef.current?.();
   }, []);
 
+  const emitKicked = useCallback(() => {
+    if (closedRef.current || kickedRef.current || startedRef.current) return;
+    kickedRef.current = true;
+    if (refreshTimer.current) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+    onKickedRef.current?.();
+  }, []);
+
   const emitStarted = useCallback((next: RoomView) => {
-    if (closedRef.current || startedRef.current) return;
+    if (closedRef.current || kickedRef.current || startedRef.current) return;
     startedRef.current = true;
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
@@ -73,13 +88,17 @@ export function useRoomRealtime({
 
   const scheduleRefresh = useCallback(
     (code: string) => {
-      if (closedRef.current || startedRef.current) return;
+      if (closedRef.current || kickedRef.current || startedRef.current) return;
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         void (async () => {
-          if (closedRef.current || startedRef.current) return;
+          if (closedRef.current || kickedRef.current || startedRef.current) {
+            return;
+          }
           const next = await refreshRoom(code);
-          if (closedRef.current || startedRef.current) return;
+          if (closedRef.current || kickedRef.current || startedRef.current) {
+            return;
+          }
 
           if (!next || next.status === "finished") {
             emitClosed();
@@ -91,15 +110,21 @@ export function useRoomRealtime({
             return;
           }
 
+          if (!next.players.some((player) => player.isSelf)) {
+            emitKicked();
+            return;
+          }
+
           onRoomRef.current(next);
         })();
       }, 80);
     },
-    [emitClosed, emitStarted, refreshRoom],
+    [emitClosed, emitKicked, emitStarted, refreshRoom],
   );
 
   useEffect(() => {
     closedRef.current = false;
+    kickedRef.current = false;
     startedRef.current = false;
     if (!room?.id || room.status !== "waiting") return;
 

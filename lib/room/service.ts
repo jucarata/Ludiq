@@ -103,7 +103,7 @@ export function toRoomView(
     isHost:
       room.host_id != null
         ? player.user_id === room.host_id
-        : isSelfPlayer(player, identity) && ordered[0]?.id === player.id,
+        : ordered[0]?.id === player.id,
     isSelf: isSelfPlayer(player, identity),
     isGuest: player.user_id == null,
   }));
@@ -259,6 +259,16 @@ export async function joinRoom(params: {
     });
   }
 
+  if (await isIdentityBannedFromRoom(roomRow.id, params.identity)) {
+    throw new Response(
+      JSON.stringify({ error: "You were removed from this room" }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   const players = await fetchRoomPlayers(roomRow.id);
   const alreadyIn = players.find((player) =>
     isSelfPlayer(player, params.identity),
@@ -342,6 +352,136 @@ function isRoomHost(
   );
   const first = ordered[0];
   return first != null && isSelfPlayer(first, identity);
+}
+
+function isPlayerHost(
+  room: RoomRow,
+  players: PlayerRow[],
+  player: PlayerRow,
+): boolean {
+  if (room.host_id != null) {
+    return player.user_id === room.host_id;
+  }
+
+  const ordered = [...players].sort(
+    (a, b) =>
+      new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime(),
+  );
+  return ordered[0]?.id === player.id;
+}
+
+async function isIdentityBannedFromRoom(
+  roomId: string,
+  identity: RoomIdentity,
+): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  let query = supabase
+    .from("game_room_bans")
+    .select("id")
+    .eq("room_id", roomId);
+
+  query =
+    identity.kind === "profile"
+      ? query.eq("user_id", identity.profileId)
+      : query.eq("guest_session_id", identity.guestSessionId);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
+/** Host removes a player from the waiting lobby; they cannot rejoin this room instance. */
+export async function kickPlayer(params: {
+  code: string;
+  targetPlayerId: string;
+  identity: RoomIdentity;
+}): Promise<RoomView> {
+  const supabase = getSupabaseAdminClient();
+  const roomRow = await findActiveRoomByCode(params.code);
+
+  if (!roomRow || roomRow.status !== "waiting") {
+    throw new Response(
+      JSON.stringify({
+        error: roomRow ? "Room is not waiting" : "Room not found",
+      }),
+      {
+        status: roomRow ? 409 : 404,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const players = await fetchRoomPlayers(roomRow.id);
+  if (!isRoomHost(roomRow, players, params.identity)) {
+    throw new Response(
+      JSON.stringify({ error: "Only the host can remove players" }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const target = players.find((player) => player.id === params.targetPlayerId);
+  if (!target) {
+    throw new Response(JSON.stringify({ error: "Player not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (isSelfPlayer(target, params.identity) || isPlayerHost(roomRow, players, target)) {
+    throw new Response(JSON.stringify({ error: "Cannot remove the host" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (target.user_id == null && !target.guest_session_id) {
+    throw new Response(JSON.stringify({ error: "Player not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const banInsert =
+    target.user_id != null
+      ? {
+          room_id: roomRow.id,
+          user_id: target.user_id,
+          guest_session_id: null as string | null,
+          banned_by:
+            params.identity.kind === "profile"
+              ? params.identity.profileId
+              : null,
+        }
+      : {
+          room_id: roomRow.id,
+          user_id: null as string | null,
+          guest_session_id: target.guest_session_id,
+          banned_by:
+            params.identity.kind === "profile"
+              ? params.identity.profileId
+              : null,
+        };
+
+  const { error: banError } = await supabase
+    .from("game_room_bans")
+    .insert(banInsert);
+
+  if (banError && banError.code !== "23505") {
+    throw new Error(banError.message);
+  }
+
+  const { error: deleteError } = await supabase
+    .from("game_room_players")
+    .delete()
+    .eq("id", target.id);
+
+  if (deleteError) throw new Error(deleteError.message);
+
+  const updatedPlayers = await fetchRoomPlayers(roomRow.id);
+  return toRoomView(roomRow, updatedPlayers, params.identity);
 }
 
 export async function closeRoom(params: {

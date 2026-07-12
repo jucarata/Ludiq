@@ -26,6 +26,7 @@ export const es: Messages = {
     joinRoom: "Unirse a sala",
     back: "Atrás",
     roomClosed: "El anfitrión cerró la sala.",
+    roomKicked: "El anfitrión te expulsó de la sala.",
     checkingAuth: "Comprobando autenticación…",
     authRequired:
       "Debes estar autenticado con una wallet para jugar el modo Competitivo.",
@@ -69,6 +70,14 @@ export const es: Messages = {
     hostLeaveMessage: "Si sales, la sala se cerrará para todos.",
     hostLeaveConfirm: "Salir y cerrar",
     hostLeaveCancel: "Quedarme",
+    kickAria: "Expulsar a @{user} de la sala",
+    kickTitle: "¿Expulsar jugador?",
+    kickMessage:
+      "@{user} será expulsado y no podrá volver a unirse a esta sala.",
+    kickConfirm: "Expulsar",
+    kickCancel: "Cancelar",
+    kickError: "No se pudo expulsar al jugador.",
+    bannedFromRoom: "Te expulsaron de esta sala y no puedes volver a unirte.",
     retry: "Reintentar",
     play: "Jugar",
     starting: "Empezando…",

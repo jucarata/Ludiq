@@ -126,6 +126,33 @@ export interface Database {
         };
         Relationships: [];
       };
+      game_room_bans: {
+        Row: {
+          id: string;
+          room_id: string;
+          user_id: string | null;
+          guest_session_id: string | null;
+          banned_at: string;
+          banned_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          room_id: string;
+          user_id?: string | null;
+          guest_session_id?: string | null;
+          banned_at?: string;
+          banned_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          room_id?: string;
+          user_id?: string | null;
+          guest_session_id?: string | null;
+          banned_at?: string;
+          banned_by?: string | null;
+        };
+        Relationships: [];
+      };
       game_states: {
         Row: {
           room_id: string;

@@ -30,6 +30,8 @@ function mapJoinError(error: string | undefined): MessageKey {
       return "room.notWaiting";
     case "Invalid room code":
       return "room.invalidCode";
+    case "You were removed from this room":
+      return "room.bannedFromRoom";
     default:
       return "room.joinError";
   }
@@ -46,9 +48,11 @@ export function JoinRoomView() {
   const [changingColor, setChangingColor] = useState(false);
   const [closing, setClosing] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [kicking, setKicking] = useState(false);
   const [starting, setStarting] = useState(false);
   const closingRef = useRef(false);
   const leavingRef = useRef(false);
+  const kickingRef = useRef(false);
   const startingRef = useRef(false);
   const pendingColorRef = useRef<PlayerColor | null>(null);
 
@@ -78,12 +82,25 @@ export function JoinRoomView() {
     getAuthHeaders: authHeaders,
     onRoom: applyRoomUpdate,
     onClosed: () => {
-      if (closingRef.current || leavingRef.current || startingRef.current) {
+      if (
+        closingRef.current ||
+        leavingRef.current ||
+        kickingRef.current ||
+        startingRef.current
+      ) {
         return;
       }
       clearStoredHostRoomCode();
       setRoom(null);
       router.replace("/multiplayer?closed=1");
+    },
+    onKicked: () => {
+      if (closingRef.current || leavingRef.current || startingRef.current) {
+        return;
+      }
+      clearStoredHostRoomCode();
+      setRoom(null);
+      router.replace("/multiplayer?kicked=1");
     },
     onGameStarted: (next) => {
       clearStoredHostRoomCode();
@@ -304,6 +321,55 @@ export function JoinRoomView() {
     }
   };
 
+  const handleKickPlayer = async (targetPlayerId: string) => {
+    if (!room || kicking || closing || leaving) return;
+
+    kickingRef.current = true;
+    setKicking(true);
+    setError(null);
+
+    try {
+      const headers = await authHeaders();
+      const selfPlayer = room.players.find((player) => player.isSelf);
+      const body: {
+        code: string;
+        targetPlayerId: string;
+        guestSessionId?: string;
+        guestName?: string;
+      } = {
+        code: room.code,
+        targetPlayerId,
+      };
+
+      if (selfPlayer?.isGuest) {
+        const guest = getGuestIdentity();
+        body.guestSessionId = guest.guestSessionId;
+        body.guestName = selfPlayer.username || guest.guestName;
+      }
+
+      const res = await fetch("/api/rooms/kick", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? t("room.kickError"));
+      }
+
+      const data = (await res.json()) as { room: RoomView };
+      setRoom(data.room);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("room.kickError"));
+    } finally {
+      kickingRef.current = false;
+      setKicking(false);
+    }
+  };
+
   const handleStartGame = async () => {
     if (!room || starting || closing || leaving) return;
     if (room.players.length < 2) return;
@@ -370,11 +436,13 @@ export function JoinRoomView() {
         changingColor={changingColor}
         closing={closing}
         leaving={leaving}
+        kicking={kicking}
         starting={starting}
         error={error}
         onSelectColor={(color) => void handleSelectColor(color)}
         onLeave={() => void handleLeaveRoom()}
         onCloseRoom={() => void handleCloseRoom()}
+        onKickPlayer={(playerId) => void handleKickPlayer(playerId)}
         onStartGame={() => void handleStartGame()}
       />
     );

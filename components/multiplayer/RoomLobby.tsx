@@ -25,11 +25,13 @@ type RoomLobbyProps = {
   changingColor?: boolean;
   closing?: boolean;
   leaving?: boolean;
+  kicking?: boolean;
   starting?: boolean;
   error?: string | null;
   onSelectColor: (color: PlayerColor) => void;
   onLeave: () => void;
   onCloseRoom?: () => void;
+  onKickPlayer?: (playerId: string) => void;
   onStartGame?: () => void;
 };
 
@@ -42,11 +44,13 @@ export function RoomLobby({
   changingColor = false,
   closing = false,
   leaving = false,
+  kicking = false,
   starting = false,
   error = null,
   onSelectColor,
   onLeave,
   onCloseRoom,
+  onKickPlayer,
   onStartGame,
 }: RoomLobbyProps) {
   const { t, locale } = useTranslations();
@@ -54,6 +58,7 @@ export function RoomLobby({
   const [anchor, setAnchor] = useState<BubbleAnchor | null>(null);
   const [mounted, setMounted] = useState(false);
   const [confirmHostLeave, setConfirmHostLeave] = useState(false);
+  const [confirmKickId, setConfirmKickId] = useState<string | null>(null);
   const pieceButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const self = room.players.find((player) => player.isSelf) ?? null;
@@ -64,12 +69,20 @@ export function RoomLobby({
     room.status === "waiting" &&
     room.players.length >= 2 &&
     room.players.length <= 4;
-  const busy = changingColor || closing || leaving || starting;
+  const busy = changingColor || closing || leaving || kicking || starting;
   const takenColors = room.players.map((player) => player.color);
   const freeColors = availableColors(
     takenColors.filter((color) => color !== self?.color),
   );
   const canChangeColor = Boolean(self) && freeColors.length > 0 && !busy;
+  const kickTarget =
+    confirmKickId != null
+      ? (room.players.find((player) => player.id === confirmKickId) ?? null)
+      : null;
+  const canKickPlayers =
+    isHost &&
+    Boolean(onKickPlayer) &&
+    room.status === "waiting";
 
   useEffect(() => {
     setMounted(true);
@@ -79,6 +92,15 @@ export function RoomLobby({
     setPicking(false);
     setAnchor(null);
   }, [self?.color, room.players.length]);
+
+  useEffect(() => {
+    if (
+      confirmKickId != null &&
+      !room.players.some((player) => player.id === confirmKickId)
+    ) {
+      setConfirmKickId(null);
+    }
+  }, [confirmKickId, room.players]);
 
   useEffect(() => {
     if (!picking) return;
@@ -158,6 +180,13 @@ export function RoomLobby({
     onLeave();
   };
 
+  const handleConfirmKick = () => {
+    if (!confirmKickId || !onKickPlayer) return;
+    const playerId = confirmKickId;
+    setConfirmKickId(null);
+    onKickPlayer(playerId);
+  };
+
   return (
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-5 sm:gap-5 sm:py-6">
       <div className="flex flex-col items-center gap-1 text-center">
@@ -202,58 +231,75 @@ export function RoomLobby({
         </h2>
 
         <ul
-          className="flex flex-wrap items-end justify-center gap-4 sm:gap-5"
+          className="flex flex-wrap items-start justify-center gap-4 sm:gap-5"
           aria-label={t("room.players")}
         >
           {room.players.map((player) => {
             const { fill } = PLAYER_COLORS[player.color];
             const label = getPlayerColorLabel(locale, player.color);
             const isSelf = player.isSelf;
+            const showKick =
+              canKickPlayers && !isSelf && !player.isHost;
+            const pieceFrameClassName =
+              "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-[3px] sm:h-16 sm:w-16";
 
             return (
               <li
                 key={player.id}
                 className="flex w-[4.5rem] flex-col items-center gap-1.5 sm:w-20"
               >
-                {isSelf ? (
-                  <button
-                    ref={pieceButtonRef}
-                    type="button"
-                    data-self-piece-button
-                    disabled={!canChangeColor}
-                    aria-pressed={picking}
-                    aria-label={
-                      canChangeColor
-                        ? t("room.changeColorAria", { color: label })
-                        : t("room.yourPieceAria", { color: label })
-                    }
-                    onClick={handlePieceClick}
-                    className={`flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] transition-all sm:h-16 sm:w-16 ${
-                      canChangeColor
-                        ? "cursor-pointer border-[var(--board-path-border)] bg-[#2a2a3e] hover:brightness-110 active:scale-95"
-                        : "cursor-default border-[var(--board-path-border)]/60 bg-[#2a2a3e]"
-                    }`}
-                    style={{ boxShadow: `0 0 14px ${fill}55` }}
-                  >
-                    <GamePiece
-                      color={player.color}
-                      className="h-10 w-10 sm:h-11 sm:w-11"
-                    />
-                  </button>
-                ) : (
-                  <div
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-transparent bg-[#1a1a2e] sm:h-16 sm:w-16"
-                    aria-label={t("room.playerPieceAria", {
-                      user: player.username,
-                      color: label,
-                    })}
-                  >
-                    <GamePiece
-                      color={player.color}
-                      className="h-10 w-10 sm:h-11 sm:w-11"
-                    />
-                  </div>
-                )}
+                <div className="relative">
+                  {showKick ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setConfirmKickId(player.id)}
+                      className="absolute right-0 top-0 z-10 flex h-4 w-4 translate-x-[5px] -translate-y-[5px] items-center justify-center rounded-sm border border-[#173532] bg-[var(--board-red)] text-[0.55rem] font-black leading-none text-[var(--board-path)] shadow-[1px_1px_0_#173532] transition hover:brightness-110 active:brightness-95 disabled:opacity-50"
+                      aria-label={t("room.kickAria", { user: player.username })}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                  {isSelf ? (
+                    <button
+                      ref={pieceButtonRef}
+                      type="button"
+                      data-self-piece-button
+                      disabled={!canChangeColor}
+                      aria-pressed={picking}
+                      aria-label={
+                        canChangeColor
+                          ? t("room.changeColorAria", { color: label })
+                          : t("room.yourPieceAria", { color: label })
+                      }
+                      onClick={handlePieceClick}
+                      className={`${pieceFrameClassName} transition-all ${
+                        canChangeColor
+                          ? "cursor-pointer border-[var(--board-path-border)] bg-[#2a2a3e] hover:brightness-110 active:scale-95"
+                          : "cursor-default border-[var(--board-path-border)]/60 bg-[#2a2a3e]"
+                      }`}
+                      style={{ boxShadow: `0 0 14px ${fill}55` }}
+                    >
+                      <GamePiece
+                        color={player.color}
+                        className="h-10 w-10 sm:h-11 sm:w-11"
+                      />
+                    </button>
+                  ) : (
+                    <div
+                      className={`${pieceFrameClassName} border-[var(--board-path-border)]/40 bg-[#2a2a3e]`}
+                      aria-label={t("room.playerPieceAria", {
+                        user: player.username,
+                        color: label,
+                      })}
+                    >
+                      <GamePiece
+                        color={player.color}
+                        className="h-10 w-10 sm:h-11 sm:w-11"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <span
                   className={`max-w-full truncate text-center text-[0.65rem] font-semibold sm:text-xs ${
@@ -353,6 +399,50 @@ export function RoomLobby({
                     onClick={handleConfirmHostLeave}
                   >
                     {t("room.hostLeaveConfirm")}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {kickTarget
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 px-5"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="kick-player-title"
+              onClick={() => setConfirmKickId(null)}
+            >
+              <div
+                className="w-full max-w-sm rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] p-5 text-[#173532] shadow-[6px_6px_0_#173532]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h2
+                  id="kick-player-title"
+                  className={`${retroActionFont.className} mb-3 text-[0.65rem]`}
+                >
+                  {t("room.kickTitle")}
+                </h2>
+                <p className="mb-5 text-sm leading-relaxed">
+                  {t("room.kickMessage", { user: kickTarget.username })}
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className={retroBackButtonClassName}
+                    onClick={() => setConfirmKickId(null)}
+                  >
+                    {t("room.kickCancel")}
+                  </button>
+                  <button
+                    type="button"
+                    className={retroDangerButtonClassName}
+                    onClick={handleConfirmKick}
+                  >
+                    {t("room.kickConfirm")}
                   </button>
                 </div>
               </div>

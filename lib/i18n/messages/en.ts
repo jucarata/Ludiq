@@ -24,6 +24,7 @@ export const en = {
     joinRoom: "Join room",
     back: "Back",
     roomClosed: "The room was closed by the host.",
+    roomKicked: "You were removed from the room by the host.",
     checkingAuth: "Checking authentication…",
     authRequired:
       "You must be signed in with a wallet to play Competitive mode.",
@@ -67,6 +68,14 @@ export const en = {
     hostLeaveMessage: "If you leave, the room will be closed for everyone.",
     hostLeaveConfirm: "Leave & close",
     hostLeaveCancel: "Stay",
+    kickAria: "Remove @{user} from the room",
+    kickTitle: "Remove player?",
+    kickMessage:
+      "@{user} will be removed and will not be able to rejoin this room.",
+    kickConfirm: "Remove",
+    kickCancel: "Cancel",
+    kickError: "Could not remove the player.",
+    bannedFromRoom: "You were removed from this room and cannot rejoin.",
     retry: "Retry",
     play: "Play",
     starting: "Starting…",

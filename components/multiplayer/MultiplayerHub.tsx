@@ -22,14 +22,26 @@ export function MultiplayerHub() {
   const searchParams = useSearchParams();
   const { ready, authenticated } = usePrivy();
   const [closedNotice, setClosedNotice] = useState(false);
+  const [kickedNotice, setKickedNotice] = useState(false);
   const mode = searchParams.get("mode");
-  const isFreePlay = mode === "free" || searchParams.get("closed") === "1";
+  const isFreePlay =
+    mode === "free" ||
+    searchParams.get("closed") === "1" ||
+    searchParams.get("kicked") === "1";
   const isCompetitive = mode === "competitive";
 
   useEffect(() => {
-    if (searchParams.get("closed") !== "1") return;
-    setClosedNotice(true);
-    router.replace("/multiplayer?mode=free", { scroll: false });
+    if (searchParams.get("closed") === "1") {
+      setClosedNotice(true);
+      setKickedNotice(false);
+      router.replace("/multiplayer?mode=free", { scroll: false });
+      return;
+    }
+    if (searchParams.get("kicked") === "1") {
+      setKickedNotice(true);
+      setClosedNotice(false);
+      router.replace("/multiplayer?mode=free", { scroll: false });
+    }
   }, [searchParams, router]);
 
   if (isFreePlay) {
@@ -45,6 +57,11 @@ export function MultiplayerHub() {
           {closedNotice ? (
             <p className="max-w-md text-sm text-[var(--board-red)]">
               {t("multiplayer.roomClosed")}
+            </p>
+          ) : null}
+          {kickedNotice ? (
+            <p className="max-w-md text-sm text-[var(--board-red)]">
+              {t("multiplayer.roomKicked")}
             </p>
           ) : null}
         </div>
