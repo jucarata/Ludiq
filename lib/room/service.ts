@@ -1,6 +1,8 @@
 import type { PlayerColor } from "@/lib/board/types";
 import { generateRoomCode } from "@/lib/room/code";
 import { firstAvailableColor } from "@/lib/room/colors";
+import type { RoomMode } from "@/lib/room/mode";
+import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
 import type { RoomPlayerView, RoomView } from "@/lib/room/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
@@ -17,7 +19,7 @@ export type RoomIdentity =
   | { kind: "profile"; profileId: string; username: string }
   | { kind: "guest"; guestSessionId: string; guestName: string };
 
-async function allocateUniqueRoomCode(): Promise<string> {
+async function allocateUniqueRoomCode(mode: RoomMode): Promise<string> {
   const supabase = getSupabaseAdminClient();
 
   for (let attempt = 0; attempt < 12; attempt++) {
@@ -26,6 +28,7 @@ async function allocateUniqueRoomCode(): Promise<string> {
       .from("game_rooms")
       .select("id")
       .eq("code", code)
+      .eq("mode", mode)
       .in("status", ["waiting", "playing"])
       .maybeSingle();
 
@@ -35,8 +38,11 @@ async function allocateUniqueRoomCode(): Promise<string> {
   throw new Error("Could not allocate a unique room code");
 }
 
-/** Active room with this code, if any (only one allowed at a time). */
-async function findActiveRoomByCode(code: string): Promise<RoomRow | null> {
+/** Active room with this code+mode, if any (only one allowed at a time). */
+async function findActiveRoomByCode(
+  code: string,
+  mode: RoomMode,
+): Promise<RoomRow | null> {
   const supabase = getSupabaseAdminClient();
   const normalized = code.trim().toUpperCase();
 
@@ -44,6 +50,7 @@ async function findActiveRoomByCode(code: string): Promise<RoomRow | null> {
     .from("game_rooms")
     .select("*")
     .eq("code", normalized)
+    .eq("mode", mode)
     .in("status", ["waiting", "playing"])
     .maybeSingle();
 
@@ -52,11 +59,14 @@ async function findActiveRoomByCode(code: string): Promise<RoomRow | null> {
 }
 
 /**
- * Prefer the active room for a code; otherwise the most recently finished one
+ * Prefer the active room for a code+mode; otherwise the most recently finished one
  * (so lobby realtime can detect close when status becomes finished).
  */
-async function findRoomRowByCode(code: string): Promise<RoomRow | null> {
-  const active = await findActiveRoomByCode(code);
+async function findRoomRowByCode(
+  code: string,
+  mode: RoomMode,
+): Promise<RoomRow | null> {
+  const active = await findActiveRoomByCode(code, mode);
   if (active) return active;
 
   const supabase = getSupabaseAdminClient();
@@ -66,6 +76,7 @@ async function findRoomRowByCode(code: string): Promise<RoomRow | null> {
     .from("game_rooms")
     .select("*")
     .eq("code", normalized)
+    .eq("mode", mode)
     .eq("status", "finished")
     .order("finished_at", { ascending: false })
     .limit(1)
@@ -106,11 +117,13 @@ export function toRoomView(
         : ordered[0]?.id === player.id,
     isSelf: isSelfPlayer(player, identity),
     isGuest: player.user_id == null,
+    autoEnabled: player.auto_enabled === true,
   }));
 
   return {
     id: room.id,
     code: room.code,
+    mode: room.mode,
     status: room.status,
     hostId: room.host_id,
     players: playerViews,
@@ -167,8 +180,9 @@ async function fetchRoomPlayers(
 export async function getRoomByCode(
   code: string,
   identity: RoomIdentity | null,
+  mode: RoomMode = DEFAULT_ROOM_MODE,
 ): Promise<RoomView | null> {
-  const room = await findRoomRowByCode(code);
+  const room = await findRoomRowByCode(code, mode);
   if (!room) return null;
 
   const players = await fetchRoomPlayers(room.id);
@@ -177,9 +191,20 @@ export async function getRoomByCode(
 
 export async function createRoomWithHost(
   identity: RoomIdentity,
+  mode: RoomMode = DEFAULT_ROOM_MODE,
 ): Promise<RoomView> {
+  if (mode === "competitive" && identity.kind !== "profile") {
+    throw new Response(
+      JSON.stringify({ error: "Competitive mode requires authentication" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   const supabase = getSupabaseAdminClient();
-  const code = await allocateUniqueRoomCode();
+  const code = await allocateUniqueRoomCode(mode);
   const color = firstAvailableColor([]) ?? "red";
 
   const hostId = identity.kind === "profile" ? identity.profileId : null;
@@ -188,6 +213,7 @@ export async function createRoomWithHost(
     .from("game_rooms")
     .insert({
       code,
+      mode,
       host_id: hostId,
       status: "waiting",
     })
@@ -233,7 +259,20 @@ export async function createRoomWithHost(
 export async function joinRoom(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<RoomView> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
+
+  if (mode === "competitive" && params.identity.kind !== "profile") {
+    throw new Response(
+      JSON.stringify({ error: "Competitive mode requires authentication" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   const supabase = getSupabaseAdminClient();
   const normalized = params.code.trim().toUpperCase();
 
@@ -241,12 +280,13 @@ export async function joinRoom(params: {
     .from("game_rooms")
     .select("*")
     .eq("code", normalized)
+    .eq("mode", mode)
     .eq("status", "waiting")
     .maybeSingle();
 
   if (roomError) throw new Error(roomError.message);
   if (!roomRow) {
-    const active = await findActiveRoomByCode(normalized);
+    const active = await findActiveRoomByCode(normalized, mode);
     if (active) {
       throw new Response(JSON.stringify({ error: "Room is not waiting" }), {
         status: 409,
@@ -395,9 +435,11 @@ export async function kickPlayer(params: {
   code: string;
   targetPlayerId: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<RoomView> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
-  const roomRow = await findActiveRoomByCode(params.code);
+  const roomRow = await findActiveRoomByCode(params.code, mode);
 
   if (!roomRow || roomRow.status !== "waiting") {
     throw new Response(
@@ -487,12 +529,14 @@ export async function kickPlayer(params: {
 export async function closeRoom(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<void> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
-  const roomRow = await findActiveRoomByCode(params.code);
+  const roomRow = await findActiveRoomByCode(params.code, mode);
 
   if (!roomRow) {
-    const finished = await findRoomRowByCode(params.code);
+    const finished = await findRoomRowByCode(params.code, mode);
     if (finished?.status === "finished") return;
     throw new Response(JSON.stringify({ error: "Room not found" }), {
       status: 404,
@@ -523,12 +567,14 @@ export async function closeRoom(params: {
 export async function leaveRoom(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<{ closed: boolean }> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
-  const roomRow = await findActiveRoomByCode(params.code);
+  const roomRow = await findActiveRoomByCode(params.code, mode);
 
   if (!roomRow) {
-    const finished = await findRoomRowByCode(params.code);
+    const finished = await findRoomRowByCode(params.code, mode);
     if (finished?.status === "finished") return { closed: true };
     throw new Response(JSON.stringify({ error: "Room not found" }), {
       status: 404,
@@ -546,7 +592,7 @@ export async function leaveRoom(params: {
   }
 
   if (isRoomHost(roomRow, players, params.identity)) {
-    await closeRoom(params);
+    await closeRoom({ ...params, mode });
     return { closed: true };
   }
 
@@ -563,9 +609,11 @@ export async function changePlayerColor(params: {
   code: string;
   color: PlayerColor;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<RoomView> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
-  const roomRow = await findActiveRoomByCode(params.code);
+  const roomRow = await findActiveRoomByCode(params.code, mode);
   if (!roomRow || roomRow.status !== "waiting") {
     throw new Response(
       JSON.stringify({
@@ -658,4 +706,48 @@ export async function resolveRoomIdentity(params: {
     guestSessionId,
     guestName,
   };
+}
+
+export async function setPlayerAutoEnabled(params: {
+  code: string;
+  identity: RoomIdentity;
+  mode?: RoomMode;
+  enabled: boolean;
+}): Promise<RoomView> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
+  const supabase = getSupabaseAdminClient();
+  const room = await getRoomByCode(params.code, params.identity, mode);
+
+  if (!room) {
+    throw new Response(JSON.stringify({ error: "Room not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const self = room.players.find((player) => player.isSelf);
+  if (!self) {
+    throw new Response(JSON.stringify({ error: "You are not in this room" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { error } = await supabase
+    .from("game_room_players")
+    .update({ auto_enabled: params.enabled })
+    .eq("id", self.id);
+
+  if (error) throw new Error(error.message);
+
+  const roomRow = await findActiveRoomByCode(params.code, mode);
+  if (!roomRow) {
+    throw new Response(JSON.stringify({ error: "Room not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const players = await fetchRoomPlayers(roomRow.id);
+  return toRoomView(roomRow, players, params.identity);
 }

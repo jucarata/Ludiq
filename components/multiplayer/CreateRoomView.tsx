@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -15,6 +15,7 @@ import {
   getStoredHostRoomCode,
   setStoredHostRoomCode,
 } from "@/lib/room/guest";
+import { parseRoomMode } from "@/lib/room/mode";
 import { withOptimisticColor } from "@/lib/room/optimistic";
 import type { RoomView } from "@/lib/room/types";
 import { useRoomRealtime } from "@/lib/room/use-room-realtime";
@@ -22,6 +23,9 @@ import { useRoomRealtime } from "@/lib/room/use-room-realtime";
 export function CreateRoomView() {
   const { t } = useTranslations();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = parseRoomMode(searchParams.get("mode"));
+  const hubHref = `/multiplayer?mode=${mode}`;
   const { ready, authenticated, getAccessToken } = usePrivy();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +63,11 @@ export function CreateRoomView() {
     setRoom(next);
   }, []);
 
+  const playHref = useCallback(
+    (code: string) => `/multiplayer/play/${code}?mode=${mode}`,
+    [mode],
+  );
+
   useRoomRealtime({
     room,
     getAuthHeaders: authHeaders,
@@ -72,21 +81,21 @@ export function CreateRoomView() {
       ) {
         return;
       }
-      clearStoredHostRoomCode();
+      clearStoredHostRoomCode(mode);
       setRoom(null);
-      router.replace("/multiplayer?closed=1");
+      router.replace(`${hubHref}&closed=1`);
     },
     onKicked: () => {
       if (closingRef.current || leavingRef.current || startingRef.current) {
         return;
       }
-      clearStoredHostRoomCode();
+      clearStoredHostRoomCode(mode);
       setRoom(null);
-      router.replace("/multiplayer?kicked=1");
+      router.replace(`${hubHref}&kicked=1`);
     },
     onGameStarted: (next) => {
-      clearStoredHostRoomCode();
-      router.replace(`/multiplayer/play/${next.code}`);
+      clearStoredHostRoomCode(mode);
+      router.replace(playHref(next.code));
     },
   });
 
@@ -97,10 +106,10 @@ export function CreateRoomView() {
     try {
       const headers = await authHeaders();
       const guest = getGuestIdentity();
-      const storedCode = getStoredHostRoomCode();
+      const storedCode = getStoredHostRoomCode(mode);
 
       if (storedCode) {
-        const params = new URLSearchParams({ code: storedCode });
+        const params = new URLSearchParams({ code: storedCode, mode });
         params.set("guestSessionId", guest.guestSessionId);
         params.set("guestName", guest.guestName);
 
@@ -121,13 +130,13 @@ export function CreateRoomView() {
             data.room.status === "playing" &&
             data.room.players.some((player) => player.isSelf)
           ) {
-            clearStoredHostRoomCode();
-            router.replace(`/multiplayer/play/${data.room.code}`);
+            clearStoredHostRoomCode(mode);
+            router.replace(playHref(data.room.code));
             return;
           }
-          clearStoredHostRoomCode();
+          clearStoredHostRoomCode(mode);
         } else {
-          clearStoredHostRoomCode();
+          clearStoredHostRoomCode(mode);
         }
       }
 
@@ -142,17 +151,21 @@ export function CreateRoomView() {
         }
       }
 
+      const createBody: {
+        mode: typeof mode;
+        guestSessionId?: string;
+        guestName?: string;
+      } = { mode };
+
+      if (!hasProfileUsername) {
+        createBody.guestSessionId = guest.guestSessionId;
+        createBody.guestName = guest.guestName;
+      }
+
       const createRes = await fetch("/api/rooms", {
         method: "POST",
         headers,
-        body: JSON.stringify(
-          hasProfileUsername
-            ? {}
-            : {
-                guestSessionId: guest.guestSessionId,
-                guestName: guest.guestName,
-              },
-        ),
+        body: JSON.stringify(createBody),
       });
 
       if (!createRes.ok) {
@@ -163,14 +176,14 @@ export function CreateRoomView() {
       }
 
       const data = (await createRes.json()) as { room: RoomView };
-      setStoredHostRoomCode(data.room.code);
+      setStoredHostRoomCode(data.room.code, mode);
       setRoom(data.room);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("room.createError"));
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, authenticated, router, t]);
+  }, [authHeaders, authenticated, mode, playHref, router, t]);
 
   useEffect(() => {
     if (!ready || bootstrapped.current) return;
@@ -199,11 +212,13 @@ export function CreateRoomView() {
       const selfPlayer = previousRoom.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         color: PlayerColor;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: previousRoom.code,
+        mode,
         color,
       };
 
@@ -250,10 +265,12 @@ export function CreateRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -275,9 +292,9 @@ export function CreateRoomView() {
         throw new Error(data?.error ?? t("room.leaveError"));
       }
 
-      clearStoredHostRoomCode();
+      clearStoredHostRoomCode(mode);
       setRoom(null);
-      router.replace("/multiplayer?mode=free");
+      router.replace(hubHref);
     } catch (err) {
       leavingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.leaveError"));
@@ -297,10 +314,12 @@ export function CreateRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -322,8 +341,8 @@ export function CreateRoomView() {
         throw new Error(data?.error ?? t("room.closeError"));
       }
 
-      clearStoredHostRoomCode();
-      router.push("/multiplayer?mode=free");
+      clearStoredHostRoomCode(mode);
+      router.push(hubHref);
     } catch (err) {
       closingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.closeError"));
@@ -343,11 +362,13 @@ export function CreateRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         targetPlayerId: string;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
         targetPlayerId,
       };
 
@@ -393,10 +414,12 @@ export function CreateRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -418,8 +441,8 @@ export function CreateRoomView() {
         throw new Error(data?.error ?? t("room.startError"));
       }
 
-      clearStoredHostRoomCode();
-      router.replace(`/multiplayer/play/${room.code}`);
+      clearStoredHostRoomCode(mode);
+      router.replace(playHref(room.code));
     } catch (err) {
       startingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.startError"));
@@ -453,7 +476,7 @@ export function CreateRoomView() {
         >
           {t("room.retry")}
         </button>
-        <Link href="/multiplayer?mode=free" className={retroBackButtonClassName}>
+        <Link href={hubHref} className={retroBackButtonClassName}>
           {t("room.back")}
         </Link>
       </main>

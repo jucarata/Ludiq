@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTurn } from "@/components/game/TurnContext";
+import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
 import type { PlayerColor } from "@/lib/board/types";
 import {
@@ -92,7 +93,8 @@ export { GameStateContext };
 export function GameStateProvider({ children }: { children: ReactNode }) {
   const activePlayers = useActivePlayers();
   const isBot = useIsBot();
-  const { currentPlayer, turnPhase, advanceTurn, endGame } = useTurn();
+  const { isAfkTakeover, isAutoEnabled } = useAutoMode();
+  const { currentPlayer, turnPhase, timeLeft, advanceTurn, endGame } = useTurn();
   const [pieces, setPieces] = useState<PieceState[]>(() =>
     createInitialPieces(activePlayers),
   );
@@ -118,12 +120,21 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     remainingDice.length > 0;
 
   const canHumanInteractWithPieces =
-    canInteractWithPieces && !isBot(currentPlayer);
+    canInteractWithPieces &&
+    !isBot(currentPlayer) &&
+    !isAfkTakeover &&
+    !(isAutoEnabled(currentPlayer) && timeLeft <= 0);
 
   interactionRef.current = {
     canInteract: canHumanInteractWithPieces,
     currentPlayer,
   };
+
+  useEffect(() => {
+    if (!isAfkTakeover) return;
+    setSelectedPiece(null);
+    setMenuAnchor(null);
+  }, [isAfkTakeover]);
 
   useEffect(() => {
     setRemainingDice(null);
@@ -306,8 +317,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
    * jugable por separado, la elección queda en manos del usuario.
    */
   useEffect(() => {
-    if (!canInteractWithPieces || !remainingDice?.length) return;
-    if (isBot(currentPlayer)) return;
+    if (!canHumanInteractWithPieces || !remainingDice?.length) return;
 
     const routePieces = pieces.filter(
       (p) => p.player === currentPlayer && p.location === "route",
@@ -320,12 +330,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
     movePiece({ player: piece.player, index: piece.index }, { value });
   }, [
-    canInteractWithPieces,
+    canHumanInteractWithPieces,
     remainingDice,
     pieces,
     currentPlayer,
     movePiece,
-    isBot,
   ]);
 
   const selectPiece = useCallback(

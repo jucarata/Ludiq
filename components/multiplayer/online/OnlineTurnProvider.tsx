@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAutoMode } from "@/components/game/AutoModeContext";
 import { TurnContext } from "@/components/game/TurnContext";
 import { useOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import type { PlayerColor } from "@/lib/board/types";
@@ -17,10 +18,13 @@ import {
 } from "@/lib/game/turns";
 
 export function OnlineTurnProvider({ children }: { children: ReactNode }) {
-  const { game, isMyTurn, postAdvanceTurn } = useOnlineSession();
+  const { game, isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef } =
+    useOnlineSession();
+  const { setAfkTakeover } = useAutoMode();
   const [timeLeft, setTimeLeft] = useState(() => secondsLeftForTurn(game));
   const [announcement, setAnnouncement] = useState<PlayerColor | null>(null);
   const [localPhase, setLocalPhase] = useState<TurnPhase | null>(null);
+  const [advanceTick, setAdvanceTick] = useState(0);
   const prevTurnRef = useRef(game.currentTurn);
   const advancingRef = useRef(false);
 
@@ -28,6 +32,11 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     localPhase === "rolling" && game.turnPhase === "playing"
       ? "rolling"
       : game.turnPhase;
+
+  /* Server is the source of truth for online AFK takeover. */
+  useEffect(() => {
+    setAfkTakeover(game.afkTakeover);
+  }, [game.afkTakeover, setAfkTakeover]);
 
   useEffect(() => {
     if (prevTurnRef.current !== game.currentTurn) {
@@ -58,6 +67,13 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     if (timeLeft > 0) return;
     if (advancingRef.current) return;
     if (localPhase === "rolling") return;
+    /* Already in AFK — bot is finishing; server rejects further skips. */
+    if (game.afkTakeover) return;
+
+    if (turnAdvanceBlockedRef.current) {
+      const retry = setTimeout(() => setAdvanceTick((n) => n + 1), 200);
+      return () => clearTimeout(retry);
+    }
 
     advancingRef.current = true;
     void postAdvanceTurn()
@@ -66,12 +82,15 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
         advancingRef.current = false;
       });
   }, [
+    advanceTick,
+    game.afkTakeover,
     game.turnPhase,
     game.winner,
     isMyTurn,
     localPhase,
     postAdvanceTurn,
     timeLeft,
+    turnAdvanceBlockedRef,
   ]);
 
   const pauseForDiceRoll = useCallback(() => {
@@ -87,18 +106,19 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const extendDecisionTime = useCallback(() => {
-    /* Server resets turn_started_at on moves. */
+    /* Server resets turn_started_at on non-AFK moves. */
   }, []);
 
   const advanceTurn = useCallback(() => {
     if (!isMyTurn || advancingRef.current) return;
+    if (turnAdvanceBlockedRef.current) return;
     advancingRef.current = true;
     void postAdvanceTurn()
       .catch(() => undefined)
       .finally(() => {
         advancingRef.current = false;
       });
-  }, [isMyTurn, postAdvanceTurn]);
+  }, [isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef]);
 
   const endGame = useCallback(() => {
     /* Winner is set by the server. */

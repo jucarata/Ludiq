@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -16,6 +16,7 @@ import {
   ROOM_CODE_LENGTH,
 } from "@/lib/room/code";
 import { clearStoredHostRoomCode, getGuestIdentity } from "@/lib/room/guest";
+import { parseRoomMode } from "@/lib/room/mode";
 import { withOptimisticColor } from "@/lib/room/optimistic";
 import type { RoomView } from "@/lib/room/types";
 import { useRoomRealtime } from "@/lib/room/use-room-realtime";
@@ -32,6 +33,8 @@ function mapJoinError(error: string | undefined): MessageKey {
       return "room.invalidCode";
     case "You were removed from this room":
       return "room.bannedFromRoom";
+    case "Competitive mode requires authentication":
+      return "multiplayer.authRequired";
     default:
       return "room.joinError";
   }
@@ -40,6 +43,9 @@ function mapJoinError(error: string | undefined): MessageKey {
 export function JoinRoomView() {
   const { t } = useTranslations();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = parseRoomMode(searchParams.get("mode"));
+  const hubHref = `/multiplayer?mode=${mode}`;
   const { ready, authenticated, getAccessToken } = usePrivy();
   const [codeInput, setCodeInput] = useState("");
   const [room, setRoom] = useState<RoomView | null>(null);
@@ -77,6 +83,11 @@ export function JoinRoomView() {
     setRoom(next);
   }, []);
 
+  const playHref = useCallback(
+    (code: string) => `/multiplayer/play/${code}?mode=${mode}`,
+    [mode],
+  );
+
   useRoomRealtime({
     room,
     getAuthHeaders: authHeaders,
@@ -90,21 +101,21 @@ export function JoinRoomView() {
       ) {
         return;
       }
-      clearStoredHostRoomCode();
+      clearStoredHostRoomCode(mode);
       setRoom(null);
-      router.replace("/multiplayer?closed=1");
+      router.replace(`${hubHref}&closed=1`);
     },
     onKicked: () => {
       if (closingRef.current || leavingRef.current || startingRef.current) {
         return;
       }
-      clearStoredHostRoomCode();
+      clearStoredHostRoomCode(mode);
       setRoom(null);
-      router.replace("/multiplayer?kicked=1");
+      router.replace(`${hubHref}&kicked=1`);
     },
     onGameStarted: (next) => {
-      clearStoredHostRoomCode();
-      router.replace(`/multiplayer/play/${next.code}`);
+      clearStoredHostRoomCode(mode);
+      router.replace(playHref(next.code));
     },
   });
 
@@ -138,18 +149,22 @@ export function JoinRoomView() {
         }
       }
 
+      const joinBody: {
+        code: string;
+        mode: typeof mode;
+        guestSessionId?: string;
+        guestName?: string;
+      } = { code, mode };
+
+      if (!hasProfileUsername) {
+        joinBody.guestSessionId = guest.guestSessionId;
+        joinBody.guestName = guest.guestName;
+      }
+
       const res = await fetch("/api/rooms/join", {
         method: "POST",
         headers,
-        body: JSON.stringify(
-          hasProfileUsername
-            ? { code }
-            : {
-                code,
-                guestSessionId: guest.guestSessionId,
-                guestName: guest.guestName,
-              },
-        ),
+        body: JSON.stringify(joinBody),
       });
 
       if (!res.ok) {
@@ -189,11 +204,13 @@ export function JoinRoomView() {
       const selfPlayer = previousRoom.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         color: PlayerColor;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: previousRoom.code,
+        mode,
         color,
       };
 
@@ -240,10 +257,12 @@ export function JoinRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -265,9 +284,9 @@ export function JoinRoomView() {
         throw new Error(data?.error ?? t("room.leaveError"));
       }
 
-      clearStoredHostRoomCode();
+      clearStoredHostRoomCode(mode);
       setRoom(null);
-      router.replace("/multiplayer?mode=free");
+      router.replace(hubHref);
     } catch (err) {
       leavingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.leaveError"));
@@ -287,10 +306,12 @@ export function JoinRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -312,8 +333,8 @@ export function JoinRoomView() {
         throw new Error(data?.error ?? t("room.closeError"));
       }
 
-      clearStoredHostRoomCode();
-      router.push("/multiplayer?mode=free");
+      clearStoredHostRoomCode(mode);
+      router.push(hubHref);
     } catch (err) {
       closingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.closeError"));
@@ -333,11 +354,13 @@ export function JoinRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         targetPlayerId: string;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
         targetPlayerId,
       };
 
@@ -383,10 +406,12 @@ export function JoinRoomView() {
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
+        mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
+        mode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -408,8 +433,8 @@ export function JoinRoomView() {
         throw new Error(data?.error ?? t("room.startError"));
       }
 
-      clearStoredHostRoomCode();
-      router.replace(`/multiplayer/play/${room.code}`);
+      clearStoredHostRoomCode(mode);
+      router.replace(playHref(room.code));
     } catch (err) {
       startingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.startError"));

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
+import { parseRoomMode } from "@/lib/room/mode";
 import {
   createRoomWithHost,
   getRoomByCode,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/room/service";
 
 type CreateRoomBody = {
+  mode?: string;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
   try {
     const privyUserId = await getOptionalPrivyUserId(request);
     const body = (await request.json().catch(() => ({}))) as CreateRoomBody;
+    const mode = parseRoomMode(body.mode);
 
     const identity = await resolveRoomIdentity({
       privyUserId,
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const room = await createRoomWithHost(identity);
+    const room = await createRoomWithHost(identity, mode);
     return NextResponse.json({ room }, { status: 201 });
   } catch (error) {
     if (error instanceof Response) return error;
@@ -50,6 +53,7 @@ export async function GET(request: Request) {
       );
     }
 
+    const mode = parseRoomMode(searchParams.get("mode"));
     const privyUserId = await getOptionalPrivyUserId(request);
     const guestSessionId = searchParams.get("guestSessionId");
 
@@ -59,7 +63,7 @@ export async function GET(request: Request) {
       guestName: searchParams.get("guestName") ?? "GUEST",
     });
 
-    const room = await getRoomByCode(code, identity);
+    const room = await getRoomByCode(code, identity, mode);
     if (!room) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { OnlineGameView } from "@/components/multiplayer/online/OnlineGameView";
 
 type PlayPageProps = {
@@ -7,5 +8,9 @@ type PlayPageProps = {
 export default async function MultiplayerPlayPage({ params }: PlayPageProps) {
   const { code } = await params;
 
-  return <OnlineGameView code={code.toUpperCase()} />;
+  return (
+    <Suspense fallback={null}>
+      <OnlineGameView code={code.toUpperCase()} />
+    </Suspense>
+  );
 }

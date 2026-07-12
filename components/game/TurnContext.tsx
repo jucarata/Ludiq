@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -18,6 +19,7 @@ import {
   TURN_DURATION_SECONDS,
   type TurnPhase,
 } from "@/lib/game/turns";
+import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useActivePlayers } from "@/components/game/PlayersContext";
 
 interface TurnState {
@@ -27,7 +29,7 @@ interface TurnState {
 }
 
 type TurnAction =
-  | { type: "tick" }
+  | { type: "tick"; holdOnExpiry?: boolean }
   | { type: "pause_for_roll" }
   | { type: "resume_playing" }
   | { type: "start_decision" }
@@ -100,6 +102,14 @@ function turnReducer(
         return { ...state, timeLeft: state.timeLeft - 1 };
       }
 
+      /*
+       * Auto AFK hold: freeze at 0 during deciding so the bot can finish
+       * moves without granting extra time or skipping the turn yet.
+       */
+      if (action.holdOnExpiry && state.phase === "deciding") {
+        return { ...state, timeLeft: 0 };
+      }
+
       return {
         playerIndex: nextPlayerIndex(state.playerIndex, activePlayers),
         timeLeft: TURN_DURATION_SECONDS,
@@ -113,6 +123,7 @@ function turnReducer(
 
 export function TurnProvider({ children }: { children: ReactNode }) {
   const activePlayers = useActivePlayers();
+  const { isAutoEnabled } = useAutoMode();
   const [{ playerIndex, timeLeft, phase }, dispatch] = useReducer(
     (state: TurnState, action: TurnAction) =>
       turnReducer(state, action, activePlayers),
@@ -127,6 +138,11 @@ export function TurnProvider({ children }: { children: ReactNode }) {
   );
 
   const currentPlayer = getPlayerAt(playerIndex, activePlayers);
+  const holdOnExpiryRef = useRef(
+    phase === "deciding" && isAutoEnabled(currentPlayer),
+  );
+  holdOnExpiryRef.current =
+    phase === "deciding" && isAutoEnabled(currentPlayer);
 
   const pauseForDiceRoll = useCallback(() => {
     dispatch({ type: "pause_for_roll" });
@@ -160,7 +176,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      dispatch({ type: "tick" });
+      dispatch({ type: "tick", holdOnExpiry: holdOnExpiryRef.current });
     }, 1000);
 
     return () => clearInterval(interval);

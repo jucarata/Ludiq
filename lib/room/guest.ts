@@ -1,6 +1,13 @@
+import type { RoomMode } from "@/lib/room/mode";
+import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
+
 const GUEST_SESSION_KEY = "ludiq_guest_session_id";
 const GUEST_NAME_KEY = "ludiq_guest_name";
 const HOST_ROOM_KEY = "ludiq_host_room_code";
+
+function hostRoomStorageKey(mode: RoomMode = DEFAULT_ROOM_MODE): string {
+  return `${HOST_ROOM_KEY}:${mode}`;
+}
 
 /** Guest display name like USER72873 (5 digits). */
 export function generateGuestUsername(): string {
@@ -41,17 +48,24 @@ export function getGuestIdentity() {
   };
 }
 
-export function getStoredHostRoomCode(): string | null {
+export function getStoredHostRoomCode(
+  mode: RoomMode = DEFAULT_ROOM_MODE,
+): string | null {
   if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem(HOST_ROOM_KEY);
+  return window.sessionStorage.getItem(hostRoomStorageKey(mode));
 }
 
-export function setStoredHostRoomCode(code: string): void {
+export function setStoredHostRoomCode(
+  code: string,
+  mode: RoomMode = DEFAULT_ROOM_MODE,
+): void {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(HOST_ROOM_KEY, code);
+  window.sessionStorage.setItem(hostRoomStorageKey(mode), code);
 }
 
-export function clearStoredHostRoomCode(): void {
+export function clearStoredHostRoomCode(
+  mode: RoomMode = DEFAULT_ROOM_MODE,
+): void {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(HOST_ROOM_KEY);
+  window.sessionStorage.removeItem(hostRoomStorageKey(mode));
 }

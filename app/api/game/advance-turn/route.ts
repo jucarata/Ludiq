@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { advanceOnlineTurn } from "@/lib/game/online-service";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
+import { parseRoomMode } from "@/lib/room/mode";
 import { resolveRoomIdentity } from "@/lib/room/service";
 
 type AdvanceBody = {
   code?: string;
+  mode?: string;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
     const privyUserId = await getOptionalPrivyUserId(request);
     const body = (await request.json()) as AdvanceBody;
     const code = normalizeRoomCode(body.code ?? "");
+    const mode = parseRoomMode(body.mode);
 
     if (!isValidRoomCode(code)) {
       return NextResponse.json(
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await advanceOnlineTurn({ code, identity });
+    const result = await advanceOnlineTurn({ code, identity, mode });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Response) return error;

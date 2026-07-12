@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
+import { parseRoomMode } from "@/lib/room/mode";
 import { closeRoom, resolveRoomIdentity } from "@/lib/room/service";
 
 type CloseBody = {
   code?: string;
+  mode?: string;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -14,6 +16,7 @@ export async function POST(request: Request) {
     const privyUserId = await getOptionalPrivyUserId(request);
     const body = (await request.json()) as CloseBody;
     const code = normalizeRoomCode(body.code ?? "");
+    const mode = parseRoomMode(body.mode);
 
     if (!isValidRoomCode(code)) {
       return NextResponse.json(
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await closeRoom({ code, identity });
+    await closeRoom({ code, identity, mode });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Response) return error;

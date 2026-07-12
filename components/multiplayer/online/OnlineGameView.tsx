@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { ParquesBoard } from "@/components/board/ParquesBoard";
 import { BoardDiceZone } from "@/components/board/BoardDiceZone";
@@ -20,11 +20,14 @@ import { WinnerAnnouncement } from "@/components/turn/WinnerAnnouncement";
 import type { OnlineGameStateView } from "@/lib/game/online-types";
 import { useGameRealtime } from "@/lib/game/use-game-realtime";
 import { getGuestIdentity } from "@/lib/room/guest";
+import { parseRoomMode } from "@/lib/room/mode";
 import type { RoomView } from "@/lib/room/types";
 
 export function OnlineGameView({ code }: { code: string }) {
   const { t } = useTranslations();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = parseRoomMode(searchParams.get("mode"));
   const { ready, authenticated, getAccessToken } = usePrivy();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [game, setGame] = useState<OnlineGameStateView | null>(null);
@@ -57,7 +60,7 @@ export function OnlineGameView({ code }: { code: string }) {
       try {
         const headers = await authHeaders();
         const guest = getGuestIdentity();
-        const params = new URLSearchParams({ code });
+        const params = new URLSearchParams({ code, mode });
         params.set("guestSessionId", guest.guestSessionId);
         params.set("guestName", guest.guestName);
 
@@ -91,7 +94,7 @@ export function OnlineGameView({ code }: { code: string }) {
     return () => {
       cancelled = true;
     };
-  }, [authHeaders, code, ready, router]);
+  }, [authHeaders, code, mode, ready, router]);
 
   useGameRealtime({
     roomId: room?.id ?? null,
@@ -99,6 +102,42 @@ export function OnlineGameView({ code }: { code: string }) {
   });
 
   const self = room?.players.find((player) => player.isSelf);
+
+  const syncAutoEnabled = useCallback(
+    (color: NonNullable<typeof self>["color"], enabled: boolean) => {
+      if (!room || !self || color !== self.color) return;
+      void (async () => {
+        try {
+          const headers = await authHeaders();
+          const body: {
+            code: string;
+            mode: typeof mode;
+            enabled: boolean;
+            guestSessionId?: string;
+            guestName?: string;
+          } = { code: room.code, mode, enabled };
+
+          if (self.isGuest) {
+            const guest = getGuestIdentity();
+            body.guestSessionId = guest.guestSessionId;
+            body.guestName = self.username || guest.guestName;
+          }
+
+          const res = await fetch("/api/rooms/auto", {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) return;
+          const data = (await res.json()) as { room: RoomView };
+          setRoom(data.room);
+        } catch {
+          /* Keep local toggle; next timeout uses last synced server value. */
+        }
+      })();
+    },
+    [authHeaders, mode, room, self],
+  );
 
   if (!ready || loading || !room || !game || !self) {
     return (
@@ -116,9 +155,10 @@ export function OnlineGameView({ code }: { code: string }) {
         const headers = await authHeaders();
         const body: {
           code: string;
+          mode: typeof mode;
           guestSessionId?: string;
           guestName?: string;
-        } = { code: room.code };
+        } = { code: room.code, mode };
 
         if (self.isGuest) {
           const guest = getGuestIdentity();
@@ -142,6 +182,7 @@ export function OnlineGameView({ code }: { code: string }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <OnlineSessionProvider
         code={code}
+        mode={mode}
         room={room}
         game={game}
         selfColor={self.color}
@@ -149,7 +190,11 @@ export function OnlineGameView({ code }: { code: string }) {
         getAuthHeaders={authHeaders}
       >
         <PlayersProvider activePlayers={game.activePlayers} botPlayers={[]}>
-          <AutoModeProvider canControlAuto={(color) => color === self.color}>
+          <AutoModeProvider
+            canControlAuto={(color) => color === self.color}
+            initialAutoByPlayer={{ [self.color]: self.autoEnabled }}
+            onAutoEnabledChange={syncAutoEnabled}
+          >
             <OnlineTurnProvider>
               <OnlineGameStateProvider>
                 <OnlineDiceProvider>

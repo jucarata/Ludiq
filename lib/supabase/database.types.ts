@@ -7,6 +7,7 @@ export type Json =
   | Json[];
 
 export type RoomStatus = "waiting" | "playing" | "finished";
+export type RoomMode = "free" | "competitive";
 export type PlayerColor = "red" | "green" | "yellow" | "blue";
 
 export interface Database {
@@ -58,6 +59,7 @@ export interface Database {
         Row: {
           id: string;
           code: string;
+          mode: RoomMode;
           host_id: string | null;
           status: RoomStatus;
           max_players: number;
@@ -69,6 +71,7 @@ export interface Database {
         Insert: {
           id?: string;
           code: string;
+          mode?: RoomMode;
           host_id?: string | null;
           status?: RoomStatus;
           max_players?: number;
@@ -80,6 +83,7 @@ export interface Database {
         Update: {
           id?: string;
           code?: string;
+          mode?: RoomMode;
           host_id?: string | null;
           status?: RoomStatus;
           max_players?: number;
@@ -100,6 +104,7 @@ export interface Database {
           color: PlayerColor;
           is_ready: boolean;
           is_bot: boolean;
+          auto_enabled: boolean;
           joined_at: string;
         };
         Insert: {
@@ -111,6 +116,7 @@ export interface Database {
           color: PlayerColor;
           is_ready?: boolean;
           is_bot?: boolean;
+          auto_enabled?: boolean;
           joined_at?: string;
         };
         Update: {
@@ -122,6 +128,7 @@ export interface Database {
           color?: PlayerColor;
           is_ready?: boolean;
           is_bot?: boolean;
+          auto_enabled?: boolean;
           joined_at?: string;
         };
         Relationships: [];
@@ -167,6 +174,7 @@ export interface Database {
           action_id: string | null;
           winner: PlayerColor | null;
           turn_started_at: string;
+          afk_takeover: boolean;
           version: number;
           updated_at: string;
         };
@@ -183,6 +191,7 @@ export interface Database {
           action_id?: string | null;
           winner?: PlayerColor | null;
           turn_started_at?: string;
+          afk_takeover?: boolean;
           version?: number;
           updated_at?: string;
         };
@@ -199,6 +208,7 @@ export interface Database {
           action_id?: string | null;
           winner?: PlayerColor | null;
           turn_started_at?: string;
+          afk_takeover?: boolean;
           version?: number;
           updated_at?: string;
         };

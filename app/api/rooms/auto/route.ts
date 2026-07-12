@@ -1,37 +1,32 @@
 import { NextResponse } from "next/server";
-import { isValidDiceRoll } from "@/lib/game/online-parse";
-import { rollOnlineDice } from "@/lib/game/online-service";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
-import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
 import { parseRoomMode } from "@/lib/room/mode";
-import { resolveRoomIdentity } from "@/lib/room/service";
+import { resolveRoomIdentity, setPlayerAutoEnabled } from "@/lib/room/service";
 
-type RollBody = {
+type AutoBody = {
   code?: string;
   mode?: string;
-  roll?: [number, number];
-  actionId?: string;
+  enabled?: boolean;
   guestSessionId?: string;
   guestName?: string;
 };
 
-export async function POST(request: Request) {
+export async function PATCH(request: Request) {
   try {
     const privyUserId = await getOptionalPrivyUserId(request);
-    const body = (await request.json()) as RollBody;
-    const code = normalizeRoomCode(body.code ?? "");
+    const body = (await request.json()) as AutoBody;
     const mode = parseRoomMode(body.mode);
 
-    if (!isValidRoomCode(code)) {
+    if (!body.code?.trim()) {
       return NextResponse.json(
-        { error: "Invalid room code" },
+        { error: "Room code is required" },
         { status: 400 },
       );
     }
 
-    if (body.roll != null && !isValidDiceRoll(body.roll)) {
+    if (typeof body.enabled !== "boolean") {
       return NextResponse.json(
-        { error: "Invalid dice roll" },
+        { error: "enabled must be a boolean" },
         { status: 400 },
       );
     }
@@ -49,14 +44,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await rollOnlineDice({
-      code,
+    const room = await setPlayerAutoEnabled({
+      code: body.code,
       identity,
       mode,
-      roll: body.roll,
-      actionId: body.actionId,
+      enabled: body.enabled,
     });
-    return NextResponse.json(result);
+
+    return NextResponse.json({ room });
   } catch (error) {
     if (error instanceof Response) return error;
     const message =

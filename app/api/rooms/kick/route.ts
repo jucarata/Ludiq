@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
+import { parseRoomMode } from "@/lib/room/mode";
 import { kickPlayer, resolveRoomIdentity } from "@/lib/room/service";
 
 type KickBody = {
   code?: string;
+  mode?: string;
   targetPlayerId?: string;
   guestSessionId?: string;
   guestName?: string;
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
     const privyUserId = await getOptionalPrivyUserId(request);
     const body = (await request.json()) as KickBody;
     const code = normalizeRoomCode(body.code ?? "");
+    const mode = parseRoomMode(body.mode);
     const targetPlayerId = body.targetPlayerId?.trim() ?? "";
 
     if (!isValidRoomCode(code)) {
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const room = await kickPlayer({ code, targetPlayerId, identity });
+    const room = await kickPlayer({ code, targetPlayerId, identity, mode });
     return NextResponse.json({ room });
   } catch (error) {
     if (error instanceof Response) return error;

@@ -3,10 +3,12 @@ import { moveOnlinePiece } from "@/lib/game/online-service";
 import type { PieceIndex } from "@/lib/game/pieces";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
+import { parseRoomMode } from "@/lib/room/mode";
 import { resolveRoomIdentity } from "@/lib/room/service";
 
 type MoveBody = {
   code?: string;
+  mode?: string;
   pieceIndex?: number;
   dieValue?: number;
   actionId?: string;
@@ -19,6 +21,7 @@ export async function POST(request: Request) {
     const privyUserId = await getOptionalPrivyUserId(request);
     const body = (await request.json()) as MoveBody;
     const code = normalizeRoomCode(body.code ?? "");
+    const mode = parseRoomMode(body.mode);
 
     if (!isValidRoomCode(code)) {
       return NextResponse.json(
@@ -65,6 +68,7 @@ export async function POST(request: Request) {
     const result = await moveOnlinePiece({
       code,
       identity,
+      mode,
       pieceIndex: body.pieceIndex as PieceIndex,
       dieValue: body.dieValue,
       actionId: body.actionId,

@@ -12,6 +12,7 @@ import {
   retroBackButtonClassName,
   retroPlayButtonClassName,
 } from "@/lib/fonts";
+import { parseRoomMode } from "@/lib/room/mode";
 
 const modeCardClassName =
   "flex aspect-[3/4] w-full flex-col items-center justify-center gap-4 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-green)] px-3 py-6 text-center text-[var(--board-path)] shadow-[4px_4px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532]";
@@ -23,25 +24,24 @@ export function MultiplayerHub() {
   const { ready, authenticated } = usePrivy();
   const [closedNotice, setClosedNotice] = useState(false);
   const [kickedNotice, setKickedNotice] = useState(false);
-  const mode = searchParams.get("mode");
-  const isFreePlay =
-    mode === "free" ||
-    searchParams.get("closed") === "1" ||
-    searchParams.get("kicked") === "1";
-  const isCompetitive = mode === "competitive";
+  const modeParam = searchParams.get("mode");
+  const isFreePlay = modeParam === "free";
+  const isCompetitive = modeParam === "competitive";
 
   useEffect(() => {
-    if (searchParams.get("closed") === "1") {
+    const closed = searchParams.get("closed") === "1";
+    const kicked = searchParams.get("kicked") === "1";
+    if (!closed && !kicked) return;
+
+    const currentMode = parseRoomMode(searchParams.get("mode"));
+    if (closed) {
       setClosedNotice(true);
       setKickedNotice(false);
-      router.replace("/multiplayer?mode=free", { scroll: false });
-      return;
-    }
-    if (searchParams.get("kicked") === "1") {
+    } else {
       setKickedNotice(true);
       setClosedNotice(false);
-      router.replace("/multiplayer?mode=free", { scroll: false });
     }
+    router.replace(`/multiplayer?mode=${currentMode}`, { scroll: false });
   }, [searchParams, router]);
 
   if (isFreePlay) {
@@ -68,14 +68,14 @@ export function MultiplayerHub() {
 
         <div className="flex w-full max-w-sm flex-col items-center gap-4">
           <Link
-            href="/multiplayer/create"
+            href="/multiplayer/create?mode=free"
             className={`${retroPlayButtonClassName} w-full min-w-0`}
             aria-label={t("multiplayer.createRoom")}
           >
             {t("multiplayer.createRoom")}
           </Link>
           <Link
-            href="/multiplayer/join"
+            href="/multiplayer/join?mode=free"
             className={`${retroPlayButtonClassName} w-full min-w-0`}
             aria-label={t("multiplayer.joinRoom")}
           >
@@ -145,23 +145,33 @@ export function MultiplayerHub() {
           <p className="max-w-md text-sm text-[var(--board-path-border)]">
             {t("multiplayer.competitiveSubtitle")}
           </p>
+          {closedNotice ? (
+            <p className="max-w-md text-sm text-[var(--board-red)]">
+              {t("multiplayer.roomClosed")}
+            </p>
+          ) : null}
+          {kickedNotice ? (
+            <p className="max-w-md text-sm text-[var(--board-red)]">
+              {t("multiplayer.roomKicked")}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex w-full max-w-sm flex-col items-center gap-4">
-          <button
-            type="button"
+          <Link
+            href="/multiplayer/create?mode=competitive"
             className={`${retroPlayButtonClassName} w-full min-w-0`}
             aria-label={t("multiplayer.createRoom")}
           >
             {t("multiplayer.createRoom")}
-          </button>
-          <button
-            type="button"
+          </Link>
+          <Link
+            href="/multiplayer/join?mode=competitive"
             className={`${retroPlayButtonClassName} w-full min-w-0`}
             aria-label={t("multiplayer.joinRoom")}
           >
             {t("multiplayer.joinRoom")}
-          </button>
+          </Link>
           <Link
             href="/multiplayer"
             className={`${retroBackButtonClassName} w-full min-w-0`}

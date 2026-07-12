@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOnlineGame } from "@/lib/game/online-service";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
+import { parseRoomMode } from "@/lib/room/mode";
 import { resolveRoomIdentity } from "@/lib/room/service";
 
 export async function GET(request: Request) {
@@ -9,6 +10,7 @@ export async function GET(request: Request) {
     const privyUserId = await getOptionalPrivyUserId(request);
     const { searchParams } = new URL(request.url);
     const code = normalizeRoomCode(searchParams.get("code") ?? "");
+    const mode = parseRoomMode(searchParams.get("mode"));
 
     if (!isValidRoomCode(code)) {
       return NextResponse.json(
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const result = await getOnlineGame({ code, identity });
+    const result = await getOnlineGame({ code, identity, mode });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Response) return error;

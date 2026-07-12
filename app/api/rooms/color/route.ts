@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import type { PlayerColor } from "@/lib/board/types";
 import { PLAYER_ORDER } from "@/lib/board/types";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
+import { parseRoomMode } from "@/lib/room/mode";
 import { changePlayerColor, resolveRoomIdentity } from "@/lib/room/service";
 
 type ColorBody = {
   code?: string;
+  mode?: string;
   color?: PlayerColor;
   guestSessionId?: string;
   guestName?: string;
@@ -22,6 +24,7 @@ export async function PATCH(request: Request) {
   try {
     const privyUserId = await getOptionalPrivyUserId(request);
     const body = (await request.json()) as ColorBody;
+    const mode = parseRoomMode(body.mode);
 
     if (!body.code?.trim()) {
       return NextResponse.json(
@@ -54,6 +57,7 @@ export async function PATCH(request: Request) {
       code: body.code,
       color: body.color,
       identity,
+      mode,
     });
 
     return NextResponse.json({ room });

@@ -28,6 +28,8 @@ import {
 } from "@/lib/game/turns";
 import type { RoomIdentity } from "@/lib/room/service";
 import { getRoomByCode } from "@/lib/room/service";
+import type { RoomMode } from "@/lib/room/mode";
+import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
 import type { RoomView } from "@/lib/room/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -85,13 +87,17 @@ function isRoomHost(
   return first != null && isSelfPlayer(first, identity);
 }
 
-async function findActiveRoomByCode(code: string): Promise<RoomRow | null> {
+async function findActiveRoomByCode(
+  code: string,
+  mode: RoomMode,
+): Promise<RoomRow | null> {
   const supabase = getSupabaseAdminClient();
   const normalized = code.trim().toUpperCase();
   const { data, error } = await supabase
     .from("game_rooms")
     .select("*")
     .eq("code", normalized)
+    .eq("mode", mode)
     .in("status", ["waiting", "playing"])
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -164,6 +170,7 @@ function advanceToNextTurn(
   | "exit_roll_attempts"
   | "last_roll"
   | "turn_started_at"
+  | "afk_takeover"
 > {
   const index = state.activePlayers.indexOf(state.currentTurn);
   const nextIndex = nextPlayerIndex(
@@ -177,6 +184,7 @@ function advanceToNextTurn(
     exit_roll_attempts: 0,
     last_roll: null,
     turn_started_at: new Date().toISOString(),
+    afk_takeover: false,
   };
 }
 
@@ -208,6 +216,7 @@ async function finishGame(
     winner,
     current_turn: winner,
     exit_roll_attempts: 0,
+    afk_takeover: false,
     ...actionMeta("move", actionId),
   });
 }
@@ -215,9 +224,11 @@ async function finishGame(
 export async function startRoomGame(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<{ room: RoomView; game: OnlineGameStateView }> {
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
-  const roomRow = await findActiveRoomByCode(params.code);
+  const roomRow = await findActiveRoomByCode(params.code, mode);
 
   if (!roomRow) {
     throw new Response(JSON.stringify({ error: "Room not found" }), {
@@ -286,6 +297,7 @@ export async function startRoomGame(params: {
         last_roll: null,
         winner: null,
         turn_started_at: now,
+        afk_takeover: false,
         version: 1,
         updated_at: now,
         last_action: null,
@@ -300,7 +312,7 @@ export async function startRoomGame(params: {
     throw new Error(gameError?.message ?? "Failed to create game state");
   }
 
-  const room = await getRoomByCode(params.code, params.identity);
+  const room = await getRoomByCode(params.code, params.identity, mode);
   if (!room) {
     throw new Error("Room disappeared after start");
   }
@@ -311,8 +323,10 @@ export async function startRoomGame(params: {
 export async function getOnlineGame(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<{ room: RoomView; game: OnlineGameStateView }> {
-  const room = await getRoomByCode(params.code, params.identity);
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
+  const room = await getRoomByCode(params.code, params.identity, mode);
   if (!room) {
     throw new Response(JSON.stringify({ error: "Room not found" }), {
       status: 404,
@@ -342,8 +356,10 @@ export async function getOnlineGame(params: {
 async function requirePlayingMember(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<{ room: RoomView; row: GameStateRow; selfColor: PlayerColor }> {
-  const room = await getRoomByCode(params.code, params.identity);
+  const mode = params.mode ?? DEFAULT_ROOM_MODE;
+  const room = await getRoomByCode(params.code, params.identity, mode);
   if (!room) {
     throw new Response(JSON.stringify({ error: "Room not found" }), {
       status: 404,
@@ -373,6 +389,7 @@ async function requirePlayingMember(params: {
 export async function rollOnlineDice(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
   /** Client-generated roll for optimistic UI; server validates range only. */
   roll?: [number, number];
   /** Shared with live broadcast so peers can dedupe. */
@@ -432,6 +449,7 @@ export async function rollOnlineDice(params: {
       exit_roll_attempts: state.exitRollAttempts + 1,
       last_roll: roll as unknown as Json,
       turn_started_at: new Date().toISOString(),
+      afk_takeover: false,
       ...meta,
     });
   } else if (resolution.action === "skip_turn") {
@@ -452,6 +470,7 @@ export async function rollOnlineDice(params: {
       exit_roll_attempts: state.exitRollAttempts,
       last_roll: roll as unknown as Json,
       turn_started_at: new Date().toISOString(),
+      afk_takeover: false,
       ...meta,
     });
   }
@@ -466,6 +485,7 @@ export async function rollOnlineDice(params: {
 export async function moveOnlinePiece(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
   pieceIndex: PieceIndex;
   dieValue: number;
   actionId?: string;
@@ -561,12 +581,22 @@ export async function moveOnlinePiece(params: {
       ...advanceToNextTurn(state),
       ...meta,
     });
+  } else if (state.afkTakeover) {
+    /* AFK bot mid-turn: keep clock expired, no extra decision time. */
+    nextRow = await writeGameState(room.id, state.version, {
+      pieces: piecesToJson(nextPieces),
+      remaining_dice: nextRemaining as unknown as Json,
+      turn_phase: "deciding",
+      afk_takeover: true,
+      ...meta,
+    });
   } else {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(nextPieces),
       remaining_dice: nextRemaining as unknown as Json,
       turn_phase: "deciding",
       turn_started_at: new Date().toISOString(),
+      afk_takeover: false,
       ...meta,
     });
   }
@@ -577,6 +607,7 @@ export async function moveOnlinePiece(params: {
 export async function advanceOnlineTurn(params: {
   code: string;
   identity: RoomIdentity;
+  mode?: RoomMode;
 }): Promise<{ room: RoomView; game: OnlineGameStateView }> {
   const { room, row, selfColor } = await requirePlayingMember(params);
   const state = toOnlineGameStateView(row);
@@ -599,6 +630,26 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
+  /* Already in AFK takeover. */
+  if (state.afkTakeover) {
+    if (
+      state.turnPhase === "deciding" &&
+      state.remainingDice &&
+      state.remainingDice.length > 0 &&
+      hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
+    ) {
+      /* Bot still has moves — stay put. */
+      return { room, game: state };
+    }
+    /* Nothing left to play — end the AFK turn. */
+    const cleared = await writeGameState(room.id, state.version, {
+      pieces: piecesToJson(state.pieces),
+      ...advanceToNextTurn(state),
+      ...actionMeta("advance", createActionId()),
+    });
+    return { room, game: toOnlineGameStateView(cleared) };
+  }
+
   const startedAt = new Date(state.turnStartedAt).getTime();
   const limitMs =
     (state.turnPhase === "deciding"
@@ -614,6 +665,26 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
+  /*
+   * Auto AFK: timer done with moves left → hand control to the bot without
+   * advancing the turn or granting extra time.
+   */
+  if (
+    state.turnPhase === "deciding" &&
+    state.remainingDice &&
+    state.remainingDice.length > 0 &&
+    hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
+  ) {
+    const autoEnabled = await loadPlayerAutoEnabled(room.id, selfColor);
+    if (autoEnabled) {
+      const afkRow = await writeGameState(room.id, state.version, {
+        afk_takeover: true,
+        ...actionMeta("afk", createActionId()),
+      });
+      return { room, game: toOnlineGameStateView(afkRow) };
+    }
+  }
+
   const nextRow = await writeGameState(room.id, state.version, {
     pieces: piecesToJson(state.pieces),
     ...advanceToNextTurn(state),
@@ -621,4 +692,20 @@ export async function advanceOnlineTurn(params: {
   });
 
   return { room, game: toOnlineGameStateView(nextRow) };
+}
+
+async function loadPlayerAutoEnabled(
+  roomId: string,
+  color: PlayerColor,
+): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("game_room_players")
+    .select("auto_enabled")
+    .eq("room_id", roomId)
+    .eq("color", color)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data?.auto_enabled === true;
 }

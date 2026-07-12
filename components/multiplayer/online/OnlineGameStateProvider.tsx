@@ -13,6 +13,7 @@ import type {
   SelectedPiece,
 } from "@/components/game/GameStateContext";
 import { useTurn } from "@/components/game/TurnContext";
+import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import type { PlayerColor } from "@/lib/board/types";
 import { createActionId } from "@/lib/game/action-id";
@@ -26,6 +27,7 @@ import {
   consumeDice,
   getAutoMoveValue,
   getMoveOptions,
+  hasAnyValidMove,
   MOVE_STEP_MS,
   resolveLanding,
   type DieMoveChoice,
@@ -68,8 +70,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     applyGame,
     sendLiveMove,
     subscribeLiveMove,
+    turnAdvanceBlockedRef,
   } = useOnlineSession();
-  const { currentPlayer, turnPhase, extendDecisionTime } = useTurn();
+  const { currentPlayer, turnPhase, timeLeft, extendDecisionTime, advanceTurn } =
+    useTurn();
+  const { isAfkTakeover, isAutoEnabled } = useAutoMode();
   const [displayPieces, setDisplayPieces] = useState<PieceState[]>(game.pieces);
   const [optimisticDice, setOptimisticDice] = useState<number[] | null>(null);
   const [selectedPiece, setSelectedPiece] = useState<SelectedPiece | null>(
@@ -84,6 +89,8 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const movingRef = useRef(false);
   /** True until server version confirms the in-flight (own or live) move. */
   const unconfirmedMoveRef = useRef(false);
+  /** True while our own postMove request has not settled. */
+  const ownMovePendingRef = useRef(false);
   const [holdOptimisticBoard, setHoldOptimisticBoard] = useState(false);
   const lastSyncedVersion = useRef(game.version);
   const seenMoveActionIdsRef = useRef<Set<string>>(
@@ -133,6 +140,13 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
     if (animation || movingRef.current) {
       if (serverNewer && unconfirmedMoveRef.current) {
+        /*
+         * While our own POST is in flight, ignore timeout/skip snapshots —
+         * they would snap the piece back. postMove success/failure settles it.
+         */
+        if (ownMovePendingRef.current && game.lastAction !== "move") {
+          return;
+        }
         lastSyncedVersion.current = game.version;
         pendingServerPiecesRef.current = game.pieces;
         setPendingServerPieces(game.pieces);
@@ -143,6 +157,9 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     /* Animación ya terminó en local: no volver al snapshot viejo. */
     if (unconfirmedMoveRef.current) {
       if (serverNewer) {
+        if (ownMovePendingRef.current && game.lastAction !== "move") {
+          return;
+        }
         confirmServerPieces(game.pieces, game.version);
       }
       return;
@@ -159,6 +176,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   }, [
     animation,
     confirmServerPieces,
+    game.lastAction,
     game.pieces,
     game.remainingDice,
     game.version,
@@ -222,6 +240,12 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     }
   }, [winner]);
 
+  useEffect(() => {
+    if (!isAfkTakeover) return;
+    setSelectedPiece(null);
+    setMenuAnchor(null);
+  }, [isAfkTakeover]);
+
   const canInteractWithPieces =
     turnPhase === "deciding" &&
     animation === null &&
@@ -230,8 +254,26 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     !movingRef.current &&
     !holdOptimisticBoard;
 
-  const canHumanInteractWithPieces =
+  const canMoveOwnPieces =
     canInteractWithPieces && isMyTurn && currentPlayer === selfColor;
+
+  /* Humans lose control once the timer expires and AFK bot takes over. */
+  const canHumanInteractWithPieces =
+    canMoveOwnPieces &&
+    !isAfkTakeover &&
+    !(isAutoEnabled(selfColor) && timeLeft <= 0);
+
+  useEffect(() => {
+    if (!canMoveOwnPieces || !remainingDice?.length) return;
+    if (hasAnyValidMove(displayPieces, selfColor, remainingDice)) return;
+    advanceTurn();
+  }, [
+    advanceTurn,
+    canMoveOwnPieces,
+    displayPieces,
+    remainingDice,
+    selfColor,
+  ]);
 
   useEffect(() => {
     if (!animation) return;
@@ -332,7 +374,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
   const movePiece = useCallback(
     (target: SelectedPiece, choice: DieMoveChoice): boolean => {
-      if (!canHumanInteractWithPieces || !remainingDice?.length || animation) {
+      if (!canMoveOwnPieces || !remainingDice?.length || animation) {
         return false;
       }
       if (movingRef.current || unconfirmedMoveRef.current) return false;
@@ -351,6 +393,8 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       setOptimisticDice(nextRemaining);
 
       unconfirmedMoveRef.current = true;
+      ownMovePendingRef.current = true;
+      turnAdvanceBlockedRef.current = true;
       movingRef.current = true;
       setHoldOptimisticBoard(true);
       setSelectedPiece(null);
@@ -394,14 +438,21 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
               confirmServerPieces(nextGame.pieces, nextGame.version);
             }
           } catch {
+            const latest = gameRef.current;
             setAnimation(null);
             pendingServerPiecesRef.current = null;
             setPendingServerPieces(null);
             unconfirmedMoveRef.current = false;
             movingRef.current = false;
             setHoldOptimisticBoard(false);
-            setDisplayPieces(piecesBeforeMoveRef.current);
-            setOptimisticDice(diceBeforeMoveRef.current);
+            lastSyncedVersion.current = latest.version;
+            setDisplayPieces(latest.pieces);
+            setOptimisticDice(
+              latest.remainingDice ?? diceBeforeMoveRef.current,
+            );
+          } finally {
+            ownMovePendingRef.current = false;
+            turnAdvanceBlockedRef.current = false;
           }
         });
 
@@ -410,7 +461,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     [
       animation,
       applyGame,
-      canHumanInteractWithPieces,
+      canMoveOwnPieces,
       confirmServerPieces,
       displayPieces,
       extendDecisionTime,
@@ -419,6 +470,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       remainingDice,
       selfColor,
       sendLiveMove,
+      turnAdvanceBlockedRef,
     ],
   );
 

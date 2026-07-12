@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { getGuestIdentity } from "@/lib/room/guest";
+import type { RoomMode } from "@/lib/room/mode";
+import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
 import type { RoomView } from "@/lib/room/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -47,8 +49,8 @@ export function useRoomRealtime({
     closedRef.current = true;
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
-      refreshTimer.current = null;
     }
+    refreshTimer.current = null;
     onClosedRef.current?.();
   }, []);
 
@@ -57,8 +59,8 @@ export function useRoomRealtime({
     kickedRef.current = true;
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
-      refreshTimer.current = null;
     }
+    refreshTimer.current = null;
     onKickedRef.current?.();
   }, []);
 
@@ -67,27 +69,30 @@ export function useRoomRealtime({
     startedRef.current = true;
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
-      refreshTimer.current = null;
     }
+    refreshTimer.current = null;
     onGameStartedRef.current?.(next);
   }, []);
 
-  const refreshRoom = useCallback(async (code: string) => {
-    const headers = await getAuthHeadersRef.current();
-    const guest = getGuestIdentity();
-    const params = new URLSearchParams({ code });
-    params.set("guestSessionId", guest.guestSessionId);
-    params.set("guestName", guest.guestName);
+  const refreshRoom = useCallback(
+    async (code: string, mode: RoomMode = DEFAULT_ROOM_MODE) => {
+      const headers = await getAuthHeadersRef.current();
+      const guest = getGuestIdentity();
+      const params = new URLSearchParams({ code, mode });
+      params.set("guestSessionId", guest.guestSessionId);
+      params.set("guestName", guest.guestName);
 
-    const res = await fetch(`/api/rooms?${params.toString()}`, { headers });
-    if (!res.ok) return null;
+      const res = await fetch(`/api/rooms?${params.toString()}`, { headers });
+      if (!res.ok) return null;
 
-    const data = (await res.json()) as { room: RoomView };
-    return data.room;
-  }, []);
+      const data = (await res.json()) as { room: RoomView };
+      return data.room;
+    },
+    [],
+  );
 
   const scheduleRefresh = useCallback(
-    (code: string) => {
+    (code: string, mode: RoomMode) => {
       if (closedRef.current || kickedRef.current || startedRef.current) return;
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
@@ -95,7 +100,7 @@ export function useRoomRealtime({
           if (closedRef.current || kickedRef.current || startedRef.current) {
             return;
           }
-          const next = await refreshRoom(code);
+          const next = await refreshRoom(code, mode);
           if (closedRef.current || kickedRef.current || startedRef.current) {
             return;
           }
@@ -128,6 +133,7 @@ export function useRoomRealtime({
     startedRef.current = false;
     if (!room?.id || room.status !== "waiting") return;
 
+    const mode = room.mode ?? DEFAULT_ROOM_MODE;
     const supabase = getSupabaseBrowserClient();
     const channel = supabase
       .channel(`room-lobby:${room.id}`)
@@ -139,7 +145,7 @@ export function useRoomRealtime({
           table: "game_room_players",
           filter: `room_id=eq.${room.id}`,
         },
-        () => scheduleRefresh(room.code),
+        () => scheduleRefresh(room.code, mode),
       )
       .on(
         "postgres_changes",
@@ -156,10 +162,10 @@ export function useRoomRealtime({
             return;
           }
           if (nextStatus === "playing") {
-            scheduleRefresh(room.code);
+            scheduleRefresh(room.code, mode);
             return;
           }
-          scheduleRefresh(room.code);
+          scheduleRefresh(room.code, mode);
         },
       )
       .subscribe();
@@ -168,5 +174,5 @@ export function useRoomRealtime({
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       void supabase.removeChannel(channel);
     };
-  }, [room?.id, room?.code, room?.status, scheduleRefresh, emitClosed]);
+  }, [room?.id, room?.code, room?.mode, room?.status, scheduleRefresh, emitClosed]);
 }

@@ -17,6 +17,7 @@ import {
   type LiveRollPayload,
 } from "@/lib/game/use-game-live-channel";
 import { getGuestIdentity } from "@/lib/room/guest";
+import type { RoomMode } from "@/lib/room/mode";
 import type { RoomView } from "@/lib/room/types";
 
 type GuestBody = {
@@ -26,10 +27,13 @@ type GuestBody = {
 
 type OnlineSessionContextValue = {
   code: string;
+  mode: RoomMode;
   room: RoomView;
   game: OnlineGameStateView;
   selfColor: PlayerColor;
   isMyTurn: boolean;
+  /** True while an own move POST is in flight — blocks timeout advance. */
+  turnAdvanceBlockedRef: { current: boolean };
   applyGame: (game: OnlineGameStateView) => void;
   getAuthHeaders: () => Promise<Record<string, string>>;
   guestBody: () => GuestBody;
@@ -68,6 +72,7 @@ const OnlineSessionContext = createContext<OnlineSessionContextValue | null>(
 
 export function OnlineSessionProvider({
   code,
+  mode,
   room,
   game,
   selfColor,
@@ -76,6 +81,7 @@ export function OnlineSessionProvider({
   children,
 }: {
   code: string;
+  mode: RoomMode;
   room: RoomView;
   game: OnlineGameStateView;
   selfColor: PlayerColor;
@@ -83,6 +89,7 @@ export function OnlineSessionProvider({
   getAuthHeaders: () => Promise<Record<string, string>>;
   children: ReactNode;
 }) {
+  const turnAdvanceBlockedRef = useRef(false);
   const rollHandlersRef = useRef(
     new Set<(payload: LiveRollPayload) => void>(),
   );
@@ -145,7 +152,7 @@ export function OnlineSessionProvider({
       const res = await fetch("/api/game/roll", {
         method: "POST",
         headers,
-        body: JSON.stringify({ code, roll, actionId, ...guestBody() }),
+        body: JSON.stringify({ code, mode, roll, actionId, ...guestBody() }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -160,7 +167,7 @@ export function OnlineSessionProvider({
       applyGame(data.game);
       return data;
     },
-    [applyGame, code, getAuthHeaders, guestBody],
+    [applyGame, code, getAuthHeaders, guestBody, mode],
   );
 
   const postMove = useCallback(
@@ -171,6 +178,7 @@ export function OnlineSessionProvider({
         headers,
         body: JSON.stringify({
           code,
+          mode,
           pieceIndex,
           dieValue,
           actionId,
@@ -187,7 +195,7 @@ export function OnlineSessionProvider({
       applyGame(data.game);
       return data.game;
     },
-    [applyGame, code, getAuthHeaders, guestBody],
+    [applyGame, code, getAuthHeaders, guestBody, mode],
   );
 
   const postAdvanceTurn = useCallback(async () => {
@@ -195,7 +203,7 @@ export function OnlineSessionProvider({
     const res = await fetch("/api/game/advance-turn", {
       method: "POST",
       headers,
-      body: JSON.stringify({ code, ...guestBody() }),
+      body: JSON.stringify({ code, mode, ...guestBody() }),
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as {
@@ -206,15 +214,17 @@ export function OnlineSessionProvider({
     const data = (await res.json()) as { game: OnlineGameStateView };
     applyGame(data.game);
     return data.game;
-  }, [applyGame, code, getAuthHeaders, guestBody]);
+  }, [applyGame, code, getAuthHeaders, guestBody, mode]);
 
   const value = useMemo(
     () => ({
       code,
+      mode,
       room,
       game,
       selfColor,
       isMyTurn: game.currentTurn === selfColor && game.turnPhase !== "ended",
+      turnAdvanceBlockedRef,
       applyGame,
       getAuthHeaders,
       guestBody,
@@ -232,6 +242,7 @@ export function OnlineSessionProvider({
       game,
       getAuthHeaders,
       guestBody,
+      mode,
       postAdvanceTurn,
       postMove,
       postRoll,
@@ -257,4 +268,8 @@ export function useOnlineSession() {
     throw new Error("useOnlineSession must be used within OnlineSessionProvider");
   }
   return value;
+}
+
+export function useOptionalOnlineSession() {
+  return useContext(OnlineSessionContext);
 }

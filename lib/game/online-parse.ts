@@ -18,6 +18,7 @@ const GAME_ACTIONS = new Set<OnlineGameAction>([
   "move",
   "advance",
   "timeout",
+  "afk",
 ]);
 
 export type GameStateRowLike = {
@@ -33,6 +34,7 @@ export type GameStateRowLike = {
   action_id?: string | null;
   winner: string | null;
   turn_started_at: string;
+  afk_takeover?: boolean | null;
   version: number;
   updated_at: string;
 };
@@ -152,6 +154,7 @@ export function toOnlineGameStateView(
     winner: row.winner && isPlayerColor(row.winner) ? row.winner : null,
     version: row.version,
     turnStartedAt: row.turn_started_at,
+    afkTakeover: row.afk_takeover === true,
     updatedAt: row.updated_at,
   };
 }

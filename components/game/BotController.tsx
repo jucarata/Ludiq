@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useDice } from "@/components/dice/DiceContext";
 import { useGameState } from "@/components/game/GameStateContext";
 import { useIsBot } from "@/components/game/PlayersContext";
 import { useTurn } from "@/components/game/TurnContext";
+import { useOptionalOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import { ParquesBot } from "@/lib/game/bot";
 import type { PlayerColor } from "@/lib/board/types";
 import type { PieceState } from "@/lib/game/pieces";
@@ -13,7 +14,6 @@ import type { PieceState } from "@/lib/game/pieces";
 const BOT_ROLL_DELAY_MS = 1600;
 const BOT_MOVE_DELAY_SINGLE_MS = 1000;
 const BOT_MOVE_DELAY_MULTI_MS = 2000;
-const AFK_TAKEOVER_THRESHOLD_SECONDS = 2;
 
 function getBotMoveDelayMs(
   pieces: PieceState[],
@@ -29,26 +29,27 @@ function getBotMoveDelayMs(
 
 /** Orquesta lanzamientos y movimientos automáticos para bots y humanos en modo auto */
 export function BotController() {
-  const { currentPlayer, turnPhase, timeLeft, extendDecisionTime } = useTurn();
+  const { currentPlayer, turnPhase, timeLeft } = useTurn();
   const isBot = useIsBot();
-  const { isAutoEnabled } = useAutoMode();
+  const { isAutoEnabled, isAfkTakeover, setAfkTakeover } = useAutoMode();
+  const online = useOptionalOnlineSession();
   const { canRoll, autoRollDice } = useDice();
   const { pieces, remainingDice, canInteractWithPieces, executeMove } =
     useGameState();
   const botRef = useRef(new ParquesBot());
   const actingRef = useRef(false);
-  const [afkTakeover, setAfkTakeover] = useState(false);
 
   const currentIsBot = isBot(currentPlayer);
   const currentIsAutoHuman =
     !currentIsBot && isAutoEnabled(currentPlayer);
   const shouldAutoRoll = currentIsBot || currentIsAutoHuman;
-  const shouldBotMove = currentIsBot || afkTakeover;
+  const shouldBotMove = currentIsBot || isAfkTakeover;
 
   useEffect(() => {
+    if (online) return;
     setAfkTakeover(false);
     actingRef.current = false;
-  }, [currentPlayer]);
+  }, [currentPlayer, online, setAfkTakeover]);
 
   useEffect(() => {
     if (!shouldAutoRoll || turnPhase !== "playing" || !canRoll) return;
@@ -60,24 +61,28 @@ export function BotController() {
     return () => clearTimeout(timeout);
   }, [shouldAutoRoll, turnPhase, canRoll, currentPlayer, autoRollDice]);
 
+  /*
+   * Local Auto AFK: when the decision timer hits 0, take over without adding
+   * time. Online AFK is set by the server (game.afkTakeover) instead.
+   */
   useEffect(() => {
+    if (online) return;
     if (currentIsBot || !currentIsAutoHuman) return;
-    if (turnPhase !== "deciding" || !canInteractWithPieces) return;
+    if (turnPhase !== "deciding") return;
     if (!remainingDice?.length) return;
-    if (timeLeft > AFK_TAKEOVER_THRESHOLD_SECONDS) return;
-    if (afkTakeover) return;
+    if (timeLeft > 0) return;
+    if (isAfkTakeover) return;
 
     setAfkTakeover(true);
-    extendDecisionTime();
   }, [
+    online,
     currentIsBot,
     currentIsAutoHuman,
     turnPhase,
-    canInteractWithPieces,
     remainingDice,
     timeLeft,
-    afkTakeover,
-    extendDecisionTime,
+    isAfkTakeover,
+    setAfkTakeover,
   ]);
 
   useEffect(() => {
@@ -115,7 +120,6 @@ export function BotController() {
     pieces,
     currentPlayer,
     executeMove,
-    afkTakeover,
   ]);
 
   return null;
