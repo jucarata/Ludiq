@@ -15,6 +15,24 @@ type ProfileBody = {
   username?: string;
 };
 
+function uniqueConstraintResponse(error: {
+  code?: string;
+  message?: string;
+  details?: string;
+}) {
+  const haystack = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  if (haystack.includes("wallet_address")) {
+    return NextResponse.json(
+      { error: "That wallet is already linked to another profile" },
+      { status: 409 },
+    );
+  }
+  return NextResponse.json(
+    { error: "That username is already taken" },
+    { status: 409 },
+  );
+}
+
 export async function GET(request: Request) {
   try {
     const privyUserId = await requirePrivyUserId(request);
@@ -93,10 +111,7 @@ export async function POST(request: Request) {
 
       if (error) {
         if (error.code === "23505") {
-          return NextResponse.json(
-            { error: "That username is already taken" },
-            { status: 409 },
-          );
+          return uniqueConstraintResponse(error);
         }
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
@@ -118,10 +133,7 @@ export async function POST(request: Request) {
 
     if (error) {
       if (error.code === "23505") {
-        return NextResponse.json(
-          { error: "That username is already taken" },
-          { status: 409 },
-        );
+        return uniqueConstraintResponse(error);
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }

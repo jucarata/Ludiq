@@ -17,7 +17,10 @@ export const es: Messages = {
   },
   multiplayer: {
     title: "Multijugador",
-    subtitle: "Crea una sala o únete con un código.",
+    subtitle: "Elige cómo quieres jugar.",
+    competitive: "Competitivo",
+    freePlay: "Partida libre",
+    freeSubtitle: "Crea una sala o únete con un código.",
     createRoom: "Crear sala",
     joinRoom: "Unirse a sala",
     back: "Atrás",
@@ -130,8 +133,17 @@ export const es: Messages = {
   profile: {
     title: "Perfil",
     signInBlurb:
-      "Inicia sesión con tu correo. Crearemos tu billetera y guardaremos tu nombre de usuario para que tu perfil te acompañe en cualquier dispositivo.",
-    signIn: "Iniciar sesión",
+      "Inicia sesión con tu correo o conecta la billetera que ya usas. Luego elige un nombre de usuario para que tu perfil te acompañe en cualquier dispositivo.",
+    signIn: "Iniciar sesión con correo",
+    signInWithWallet: "Conecta tu billetera",
+    signInOr: "o",
+    connectWalletHint: "Elige la extensión de billetera que ya usas.",
+    connectingWallet: "Conectando…",
+    noWalletsDetected:
+      "No se detectó ninguna extensión. Instala Rabby, MetaMask, Rainbow u otra billetera y recarga.",
+    closeWalletConnect: "Cerrar modal de conectar billetera",
+    errorWalletConnect: "No se pudo conectar la billetera. Inténtalo de nuevo.",
+    errorWalletRejected: "Conexión cancelada en tu billetera.",
     loading: "Cargando…",
     loadingProfile: "Cargando perfil…",
     chooseUsername: "Elige un nombre",
@@ -174,6 +186,7 @@ export const es: Messages = {
     validWalletRequired: "Se requiere una dirección de billetera válida",
     usernameRequired: "El nombre de usuario es obligatorio",
     usernameTaken: "Ese nombre de usuario ya está en uso",
+    walletTaken: "Esa billetera ya está asociada a otro perfil",
     unexpectedError: "Error inesperado",
   },
 };

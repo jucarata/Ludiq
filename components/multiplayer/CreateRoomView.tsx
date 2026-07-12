@@ -262,7 +262,7 @@ export function CreateRoomView() {
 
       clearStoredHostRoomCode();
       setRoom(null);
-      router.replace("/multiplayer");
+      router.replace("/multiplayer?mode=free");
     } catch (err) {
       leavingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.leaveError"));
@@ -308,7 +308,7 @@ export function CreateRoomView() {
       }
 
       clearStoredHostRoomCode();
-      router.push("/multiplayer");
+      router.push("/multiplayer?mode=free");
     } catch (err) {
       closingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.closeError"));
@@ -389,7 +389,7 @@ export function CreateRoomView() {
         >
           {t("room.retry")}
         </button>
-        <Link href="/multiplayer" className={retroBackButtonClassName}>
+        <Link href="/multiplayer?mode=free" className={retroBackButtonClassName}>
           {t("room.back")}
         </Link>
       </main>

@@ -15,7 +15,10 @@ export const en = {
   },
   multiplayer: {
     title: "Multiplayer",
-    subtitle: "Create a room or join one with a code.",
+    subtitle: "Choose how you want to play.",
+    competitive: "Competitive",
+    freePlay: "Free play",
+    freeSubtitle: "Create a room or join one with a code.",
     createRoom: "Create room",
     joinRoom: "Join room",
     back: "Back",
@@ -128,8 +131,17 @@ export const en = {
   profile: {
     title: "Profile",
     signInBlurb:
-      "Sign in with your email. We'll create your wallet and save your username so your profile follows you on any device.",
-    signIn: "Sign in",
+      "Sign in with email or connect the wallet you already use. Then choose a username so your profile follows you on any device.",
+    signIn: "Sign in with email",
+    signInWithWallet: "Connect your wallet",
+    signInOr: "or",
+    connectWalletHint: "Choose the wallet extension you already use.",
+    connectingWallet: "Connecting…",
+    noWalletsDetected:
+      "No wallet extension detected. Install Rabby, MetaMask, Rainbow, or another wallet and refresh.",
+    closeWalletConnect: "Close wallet connect modal",
+    errorWalletConnect: "Could not connect wallet. Try again.",
+    errorWalletRejected: "Connection cancelled in your wallet.",
     loading: "Loading…",
     loadingProfile: "Loading profile…",
     chooseUsername: "Choose username",
@@ -171,6 +183,7 @@ export const en = {
     validWalletRequired: "A valid wallet address is required",
     usernameRequired: "Username is required",
     usernameTaken: "That username is already taken",
+    walletTaken: "That wallet is already linked to another profile",
     unexpectedError: "Unexpected error",
   },
 };

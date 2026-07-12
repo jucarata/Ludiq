@@ -72,6 +72,8 @@ export function mapApiErrorToMessageKey(
       return "api.usernameRequired";
     case "That username is already taken":
       return "api.usernameTaken";
+    case "That wallet is already linked to another profile":
+      return "api.walletTaken";
     case "Unexpected error":
       return "api.unexpectedError";
     case en.validation.usernameLength:

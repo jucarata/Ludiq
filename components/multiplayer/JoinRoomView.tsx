@@ -250,7 +250,7 @@ export function JoinRoomView() {
 
       clearStoredHostRoomCode();
       setRoom(null);
-      router.replace("/multiplayer");
+      router.replace("/multiplayer?mode=free");
     } catch (err) {
       leavingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.leaveError"));
@@ -296,7 +296,7 @@ export function JoinRoomView() {
       }
 
       clearStoredHostRoomCode();
-      router.push("/multiplayer");
+      router.push("/multiplayer?mode=free");
     } catch (err) {
       closingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.closeError"));

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { FaCheck, FaCopy, FaGear, FaWallet } from "react-icons/fa6";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
+import { ConnectWalletModal } from "@/components/profile/ConnectWalletModal";
 import type { Profile } from "@/lib/profile/types";
 import {
   mapApiErrorToMessageKey,
@@ -313,6 +314,7 @@ function ProfileAuthenticatedView() {
   const [errorFallback, setErrorFallback] = useState<string | null>(null);
   const [walletOpen, setWalletOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [connectWalletOpen, setConnectWalletOpen] = useState(false);
 
   const language = localeToLanguageOption(locale);
 
@@ -336,16 +338,36 @@ function ProfileAuthenticatedView() {
   );
 
   const walletAddress = useMemo(() => {
+    const linkedWallets =
+      user?.linkedAccounts?.filter(
+        (account) => account.type === "wallet" && "address" in account,
+      ) ?? [];
+
+    const external = linkedWallets.find((account) => {
+      if (!("walletClientType" in account)) return false;
+      const clientType = account.walletClientType;
+      return clientType !== "privy" && clientType !== "privy-v2";
+    });
+    if (external && "address" in external) {
+      return external.address as string;
+    }
+
     const embedded = user?.wallet?.address;
     if (embedded) return embedded;
-    const linked = user?.linkedAccounts?.find(
-      (account) => account.type === "wallet" && "address" in account,
-    );
-    if (linked && "address" in linked) return linked.address as string;
+
+    const anyLinked = linkedWallets[0];
+    if (anyLinked && "address" in anyLinked) {
+      return anyLinked.address as string;
+    }
     return null;
   }, [user]);
 
   const email = user?.email?.address ?? user?.google?.email ?? null;
+
+  const shortWallet = useMemo(() => {
+    if (!walletAddress) return null;
+    return `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`;
+  }, [walletAddress]);
 
   const fetchProfile = useCallback(async () => {
     if (!authenticated) {
@@ -474,23 +496,40 @@ function ProfileAuthenticatedView() {
             {t("profile.signInBlurb")}
           </p>
         </div>
-        <div className="flex w-[min(100%,15rem)] flex-col items-center gap-3 sm:w-[16rem]">
+        <div className="flex w-[min(100%,16.5rem)] flex-col items-center gap-3 sm:w-[17.5rem]">
           <button
             type="button"
-            onClick={login}
-            className={`${retroPlayButtonClassName} w-full min-w-0`}
+            onClick={() => login({ loginMethods: ["email"] })}
+            className={`${retroPlayButtonClassName} w-full min-w-0 px-3 text-[0.6rem] leading-none sm:px-4 sm:text-[0.7rem]`}
           >
-            {t("profile.signIn")}
+            <span className="whitespace-nowrap">{t("profile.signIn")}</span>
+          </button>
+          <p className="text-xs uppercase tracking-wide text-[var(--board-path)]/55">
+            {t("profile.signInOr")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setConnectWalletOpen(true)}
+            className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-2.5 text-[0.55rem] leading-none sm:gap-2.5 sm:px-3.5 sm:text-[0.65rem]`}
+          >
+            <FaWallet className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+            <span className="whitespace-nowrap">
+              {t("profile.signInWithWallet")}
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.65rem] leading-none sm:gap-3 sm:px-5 sm:text-xs`}
+            className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.6rem] leading-none sm:gap-2.5 sm:px-4 sm:text-[0.7rem]`}
           >
-            <FaGear className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden />
+            <FaGear className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
             <span className="whitespace-nowrap">{t("profile.settings")}</span>
           </button>
         </div>
+
+        {connectWalletOpen ? (
+          <ConnectWalletModal onClose={() => setConnectWalletOpen(false)} />
+        ) : null}
 
         {settingsOpen ? (
           <SettingsModal
@@ -528,6 +567,15 @@ function ProfileAuthenticatedView() {
             <p className="text-sm text-[var(--board-path)]/75">
               {t("profile.usernameHint")}
             </p>
+            {shortWallet ? (
+              <p className="font-mono text-xs text-[var(--board-path)]/55">
+                {shortWallet}
+              </p>
+            ) : (
+              <p className="text-xs text-[var(--board-path)]/55">
+                {t("profile.creatingWallet")}
+              </p>
+            )}
           </div>
           <input
             value={username}
@@ -544,6 +592,13 @@ function ProfileAuthenticatedView() {
             className={retroPlayButtonClassName}
           >
             {saving ? t("profile.saving") : t("profile.createProfile")}
+          </button>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className={`${retroActionFont.className} flex h-10 min-w-[7.5rem] items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 text-[0.5rem] uppercase tracking-normal text-[#173532] shadow-[3px_3px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532] sm:h-11 sm:min-w-[8.5rem] sm:px-6 sm:text-[0.55rem]`}
+          >
+            {t("profile.signOut")}
           </button>
         </section>
       ) : (
