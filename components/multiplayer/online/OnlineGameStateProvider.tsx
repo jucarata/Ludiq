@@ -241,6 +241,26 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   }, [winner]);
 
   useEffect(() => {
+    if (!game.afkTakeover) return;
+    setSelectedPiece(null);
+    setMenuAnchor(null);
+    /*
+     * Stale optimistic locks (e.g. a cancelled last-second click) would keep
+     * canInteractWithPieces false forever and freeze AFK. Clear them when the
+     * server hands control to the bot and nothing is mid-animation.
+     */
+    if (!movingRef.current && !animation) {
+      unconfirmedMoveRef.current = false;
+      ownMovePendingRef.current = false;
+      turnAdvanceBlockedRef.current = false;
+      pendingServerPiecesRef.current = null;
+      setPendingServerPieces(null);
+      setHoldOptimisticBoard(false);
+      setOptimisticDice(null);
+    }
+  }, [game.afkTakeover, animation]);
+
+  useEffect(() => {
     if (!isAfkTakeover) return;
     setSelectedPiece(null);
     setMenuAnchor(null);
@@ -258,10 +278,12 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     canInteractWithPieces && isMyTurn && currentPlayer === selfColor;
 
   /* Humans lose control once the timer expires and AFK bot takes over. */
-  const canHumanInteractWithPieces =
-    canMoveOwnPieces &&
-    !isAfkTakeover &&
-    !(isAutoEnabled(selfColor) && timeLeft <= 0);
+  const afkLocked =
+    game.afkTakeover ||
+    isAfkTakeover ||
+    (isAutoEnabled(selfColor) && timeLeft <= 0);
+
+  const canHumanInteractWithPieces = canMoveOwnPieces && !afkLocked;
 
   useEffect(() => {
     if (!canMoveOwnPieces || !remainingDice?.length) return;

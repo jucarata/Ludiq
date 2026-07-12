@@ -46,7 +46,7 @@ export function OnlineGameView({ code }: { code: string }) {
 
   const applyGame = useCallback((next: OnlineGameStateView) => {
     setGame((prev) => {
-      if (prev && next.version < prev.version) return prev;
+      if (prev && next.version <= prev.version) return prev;
       return next;
     });
   }, []);

@@ -86,6 +86,9 @@ export const es: Messages = {
     loadingGame: "Cargando partida…",
     gameError: "No se pudo cargar la partida.",
     waitingTurn: "Esperando a {label}…",
+    potLabel: "Bote",
+    potHint: "Aquí entrarán las apuestas antes de la partida.",
+    potAmountPending: "— USDT",
   },
   setup: {
     players: "Jugadores",

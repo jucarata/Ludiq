@@ -84,6 +84,9 @@ export const en = {
     loadingGame: "Loading game…",
     gameError: "Could not load the game.",
     waitingTurn: "Waiting for {label}…",
+    potLabel: "Pot",
+    potHint: "Stakes will land here before the match.",
+    potAmountPending: "— USDT",
   },
   setup: {
     players: "Players",

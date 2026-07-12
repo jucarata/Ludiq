@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GamePiece } from "@/components/board/GamePiece";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { PiggyBank } from "@/components/multiplayer/PiggyBank";
 import {
   PLAYER_COLORS,
   type PlayerColor,
@@ -63,6 +64,7 @@ export function RoomLobby({
 
   const self = room.players.find((player) => player.isSelf) ?? null;
   const isHost = Boolean(self?.isHost);
+  const isCompetitive = room.mode === "competitive";
   const canStartGame =
     isHost &&
     Boolean(onStartGame) &&
@@ -189,6 +191,25 @@ export function RoomLobby({
 
   return (
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-5 sm:gap-5 sm:py-6">
+      {isCompetitive ? (
+        <section
+          aria-label={t("room.potLabel")}
+          className="flex w-full max-w-sm flex-col items-center"
+        >
+          <div className="relative flex flex-col items-center">
+            <PiggyBank
+              className="piggy-bob h-28 w-auto sm:h-32"
+              coinCount={Math.min(6, Math.max(2, room.players.length + 1))}
+            />
+            <p
+              className={`${retroActionFont.className} -mt-1 text-[0.7rem] tracking-wide text-[#f5c518] sm:text-xs`}
+            >
+              {t("room.potAmountPending")}
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       <div className="flex flex-col items-center gap-1 text-center">
         <h1 className="text-3xl font-black tracking-tight text-[var(--board-path)] sm:text-4xl">
           {title}
