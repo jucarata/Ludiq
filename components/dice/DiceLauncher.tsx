@@ -10,6 +10,13 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { hasAnyPieceOnRoute } from "@/lib/game/pieces";
 
+const SHELL =
+  "mb-4 flex h-[12rem] shrink-0 flex-col items-center justify-center gap-2 md:h-[13rem]";
+const CARD =
+  "flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-3";
+const DIE = "h-12 w-12 md:h-14 md:w-14";
+const BANNER_SLOT = "flex h-8 w-full shrink-0 items-center justify-center";
+
 export function DiceLauncher() {
   const { currentPlayer } = useTurn();
   const isBot = useIsBot();
@@ -40,28 +47,47 @@ export function DiceLauncher() {
   const showExitAttempts = needsExitDoubles && !hasRolledThisTurn;
   const showRollResult =
     turnRoll !== null && (hasRolledThisTurn || (!canRoll && !isRolling));
+  const showNoDoublesBanner =
+    showExitAttempts && turnRoll !== null && exitRollAttempts > 0;
+
+  const exitAttemptLine = showExitAttempts ? (
+    <span className="text-[10px] font-medium text-[#d4c5a0]/80">
+      {t("dice.exitAttempt", {
+        current: attemptNumber,
+        max: maxExitRollAttempts,
+      })}
+    </span>
+  ) : null;
+
+  const statusCard = (message: string, extra?: React.ReactNode) => (
+    <div className={SHELL}>
+      <div className={BANNER_SLOT} aria-hidden />
+      <div className={CARD}>
+        <div className="flex items-center gap-2" aria-hidden>
+          <DieFace value={3} className={`${DIE} opacity-60`} />
+          <DieFace value={5} className={`${DIE} opacity-60`} />
+        </div>
+        <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
+          {message}
+        </span>
+        {extra}
+      </div>
+      <p className="min-h-[1rem] text-center text-xs invisible" aria-hidden>
+        {t("dice.tapToRoll")}
+      </p>
+    </div>
+  );
 
   if (isRolling && !canRoll && !hasRolledThisTurn) {
-    return (
-      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
-        <div className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
-          <div className="flex items-center gap-2" aria-hidden>
-            <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
-            <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
-          </div>
-          <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
-            {t("dice.rolling")}
-          </span>
-        </div>
-      </div>
-    );
+    return statusCard(t("dice.rolling"));
   }
 
   if (showRollResult && turnRoll) {
     return (
-      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
+      <div className={SHELL}>
+        <div className={BANNER_SLOT} aria-hidden />
         <div
-          className="flex min-h-[5.5rem] w-full items-center justify-center gap-3 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem] md:gap-4"
+          className={`${CARD} flex-row gap-3 md:gap-4`}
           aria-label={t("dice.rolled", {
             label,
             d1: turnRoll[0],
@@ -76,90 +102,58 @@ export function DiceLauncher() {
             {turnRoll[1]}
           </span>
         </div>
+        <p className="min-h-[1rem] text-center text-xs invisible" aria-hidden>
+          {t("dice.tapToRoll")}
+        </p>
       </div>
     );
   }
 
   if (!canRoll && !currentIsBot && !currentIsAutoHuman) {
-    return (
-      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
-        <div className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
-          <div className="flex items-center gap-2" aria-hidden>
-            <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
-            <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
-          </div>
-          <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
-            {t("room.waitingTurn", { label })}
-          </span>
-          {showExitAttempts && (
-            <span className="text-[10px] font-medium text-[#d4c5a0]/80">
-              {t("dice.exitAttempt", {
-                current: attemptNumber,
-                max: maxExitRollAttempts,
-              })}
-            </span>
-          )}
-        </div>
-      </div>
-    );
+    return statusCard(t("room.waitingTurn", { label }), exitAttemptLine);
   }
 
   if (currentIsBot || currentIsAutoHuman) {
-    return (
-      <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
-        <div className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-5 py-4 md:min-h-[6.5rem]">
-          <div className="flex items-center gap-2" aria-hidden>
-            <DieFace value={3} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
-            <DieFace value={5} className="h-12 w-12 opacity-60 md:h-14 md:w-14" />
-          </div>
-          <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-[#457b9d]">
-            {isRolling
-              ? t("dice.rolling")
-              : currentIsBot
-                ? t("dice.cpuTurn")
-                : t("dice.autoMode")}
-          </span>
-          {showExitAttempts && (
-            <span className="text-[10px] font-medium text-[#d4c5a0]/80">
-              {t("dice.exitAttempt", {
-                current: attemptNumber,
-                max: maxExitRollAttempts,
-              })}
-            </span>
-          )}
-        </div>
-      </div>
+    return statusCard(
+      isRolling
+        ? t("dice.rolling")
+        : currentIsBot
+          ? t("dice.cpuTurn")
+          : t("dice.autoMode"),
+      exitAttemptLine,
     );
   }
 
   return (
-    <div className="mb-4 flex min-h-[8.5rem] flex-col items-center justify-center gap-2 md:min-h-[9.5rem]">
-      {showExitAttempts && turnRoll !== null && exitRollAttempts > 0 && (
-        <div
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1a1a2e]/80 px-3 py-1.5"
-          aria-label={t("dice.rolled", {
-            label,
-            d1: turnRoll[0],
-            d2: turnRoll[1],
-          })}
-        >
-          <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
-            {turnRoll[0]}
-          </span>
-          <span className="text-sm text-[#d4c5a0]/60">+</span>
-          <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
-            {turnRoll[1]}
-          </span>
-          <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-[#e07a5f]">
-            {t("dice.noDoubles")}
-          </span>
-        </div>
-      )}
+    <div className={SHELL}>
+      <div className={BANNER_SLOT}>
+        {showNoDoublesBanner && turnRoll ? (
+          <div
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1a1a2e]/80 px-3 py-1"
+            aria-label={t("dice.rolled", {
+              label,
+              d1: turnRoll[0],
+              d2: turnRoll[1],
+            })}
+          >
+            <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
+              {turnRoll[0]}
+            </span>
+            <span className="text-sm text-[#d4c5a0]/60">+</span>
+            <span className="font-mono text-lg font-bold tabular-nums text-[#fcd34d]/80">
+              {turnRoll[1]}
+            </span>
+            <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-[#e07a5f]">
+              {t("dice.noDoubles")}
+            </span>
+          </div>
+        ) : null}
+      </div>
       <button
         type="button"
         onClick={isAiming ? cancelAim : armDice}
         disabled={!canRoll || isRolling}
-        className={`flex w-full flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all ${
+        className={`flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 rounded-xl px-4 py-3 transition-all ${
           isAiming
             ? "bg-[#353550] ring-2 ring-[#fcd34d] ring-offset-2 ring-offset-[#2a2a3e]"
             : "bg-[#1a1a2e] hover:bg-[#252540] disabled:cursor-not-allowed disabled:opacity-50"
@@ -172,8 +166,8 @@ export function DiceLauncher() {
         }
       >
         <div className="flex items-center gap-2" aria-hidden>
-          <DieFace value={3} className="h-14 w-14 md:h-16 md:w-16" />
-          <DieFace value={5} className="h-14 w-14 md:h-16 md:w-16" />
+          <DieFace value={3} className={DIE} />
+          <DieFace value={5} className={DIE} />
         </div>
         <span className="text-xs font-semibold uppercase tracking-wide text-[#d4c5a0]">
           {isAiming ? t("dice.cancel") : t("dice.rollDice")}

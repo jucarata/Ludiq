@@ -29,10 +29,10 @@ export function GameView({ activePlayers, botPlayers }: GameViewProps) {
           <DiceProvider>
             <BotController />
             <main className="flex min-h-0 flex-1 w-full max-w-full flex-col overflow-hidden py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:py-4 sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))] md:items-center md:justify-center">
-              <div className="flex min-h-0 w-full max-w-full flex-1 flex-col gap-2 md:w-auto md:flex-none md:flex-row md:items-stretch md:gap-4 md:[--board-size:min(calc(100dvw-2rem-var(--turn-panel-width)-1rem),calc(100dvh-2rem))] md:[--turn-panel-width:17rem]">
-                <div className="relative flex min-h-0 min-w-0 w-full max-w-full flex-1 items-center justify-center overflow-hidden [container-type:size] md:w-auto md:flex-none md:shrink-0 md:overflow-visible md:[container-type:normal]">
+              <div className="flex min-h-0 w-full max-w-full flex-1 flex-col gap-2 [--mobile-panel-reserve:17.5rem] md:w-auto md:flex-none md:flex-row md:items-stretch md:gap-4 md:[--board-size:min(calc(100dvw-2rem-var(--turn-panel-width)-1rem),calc(100dvh-2rem))] md:[--turn-panel-width:17rem]">
+                <div className="relative flex min-h-0 min-w-0 w-full max-w-full flex-1 items-center justify-center overflow-hidden md:w-auto md:flex-none md:shrink-0 md:overflow-visible">
                   <BoardDiceZone>
-                    <ParquesBoard className="[--board-dim:min(100cqw,100cqh)] md:[--board-dim:var(--board-size)]" />
+                    <ParquesBoard className="[--board-dim:min(calc(100dvw-1rem-env(safe-area-inset-left)-env(safe-area-inset-right)),calc(100dvh-var(--mobile-panel-reserve)-1rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] md:[--board-dim:var(--board-size)]" />
                     <TurnAnnouncement />
                     <WinnerAnnouncement />
                   </BoardDiceZone>
