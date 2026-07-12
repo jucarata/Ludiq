@@ -6,9 +6,14 @@ import { FaRankingStar, FaUser } from "react-icons/fa6";
 import { useHomePlayOptional } from "@/components/home/HomePlayContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
+  retroIconButtonActiveClassName,
   retroIconButtonClassName,
   retroPlayButtonClassName,
 } from "@/lib/fonts";
+
+function navIconClassName(active: boolean) {
+  return active ? retroIconButtonActiveClassName : retroIconButtonClassName;
+}
 
 export function AppFooter() {
   const pathname = usePathname();
@@ -16,6 +21,8 @@ export function AppFooter() {
   const { t } = useTranslations();
   const activeMode = homePlay?.activeMode ?? null;
   const isHome = pathname === "/" || pathname === "";
+  const isProfile = pathname.startsWith("/profile");
+  const isLeaderboard = pathname.startsWith("/leaderboard");
 
   return (
     <footer
@@ -57,7 +64,8 @@ export function AppFooter() {
           <button
             type="button"
             aria-label={t("nav.leaderboard")}
-            className={`${retroIconButtonClassName} absolute right-full mr-3`}
+            aria-current={isLeaderboard ? "page" : undefined}
+            className={`${navIconClassName(isLeaderboard)} absolute right-full mr-3`}
           >
             <FaRankingStar className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
           </button>
@@ -65,7 +73,8 @@ export function AppFooter() {
           <Link
             href="/profile"
             aria-label={t("nav.profile")}
-            className={`${retroIconButtonClassName} absolute left-full ml-3`}
+            aria-current={isProfile ? "page" : undefined}
+            className={`${navIconClassName(isProfile)} absolute left-full ml-3`}
           >
             <FaUser className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
           </Link>

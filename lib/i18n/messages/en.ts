@@ -17,12 +17,17 @@ export const en = {
     title: "Multiplayer",
     subtitle: "Choose how you want to play.",
     competitive: "Competitive",
+    competitiveSubtitle: "Create a room or join one with a code.",
     freePlay: "Free play",
     freeSubtitle: "Create a room or join one with a code.",
     createRoom: "Create room",
     joinRoom: "Join room",
     back: "Back",
     roomClosed: "The room was closed by the host.",
+    checkingAuth: "Checking authentication…",
+    authRequired:
+      "You must be signed in with a wallet to play Competitive mode.",
+    goToProfile: "Go to profile",
   },
   room: {
     createTitle: "Create room",

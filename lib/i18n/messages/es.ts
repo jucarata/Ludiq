@@ -19,12 +19,17 @@ export const es: Messages = {
     title: "Multijugador",
     subtitle: "Elige cómo quieres jugar.",
     competitive: "Competitivo",
+    competitiveSubtitle: "Crea una sala o únete con un código.",
     freePlay: "Partida libre",
     freeSubtitle: "Crea una sala o únete con un código.",
     createRoom: "Crear sala",
     joinRoom: "Unirse a sala",
     back: "Atrás",
     roomClosed: "El anfitrión cerró la sala.",
+    checkingAuth: "Comprobando autenticación…",
+    authRequired:
+      "Debes estar autenticado con una wallet para jugar el modo Competitivo.",
+    goToProfile: "Ir al perfil",
   },
   room: {
     createTitle: "Crear sala",

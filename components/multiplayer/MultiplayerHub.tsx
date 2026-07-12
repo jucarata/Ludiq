@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { FaDice } from "react-icons/fa6";
 import { GiCrossedSwords } from "react-icons/gi";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -13,15 +14,17 @@ import {
 } from "@/lib/fonts";
 
 const modeCardClassName =
-  "flex aspect-[3/4] w-full flex-col items-center justify-center gap-4 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-green)] px-3 py-6 text-center text-[var(--board-path)] shadow-[4px_4px_0_#173532] transition-[transform,box-shadow,filter] duration-150";
+  "flex aspect-[3/4] w-full flex-col items-center justify-center gap-4 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-green)] px-3 py-6 text-center text-[var(--board-path)] shadow-[4px_4px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532]";
 
 export function MultiplayerHub() {
   const { t } = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { ready, authenticated } = usePrivy();
   const [closedNotice, setClosedNotice] = useState(false);
-  const isFreePlay =
-    searchParams.get("mode") === "free" || searchParams.get("closed") === "1";
+  const mode = searchParams.get("mode");
+  const isFreePlay = mode === "free" || searchParams.get("closed") === "1";
+  const isCompetitive = mode === "competitive";
 
   useEffect(() => {
     if (searchParams.get("closed") !== "1") return;
@@ -73,6 +76,87 @@ export function MultiplayerHub() {
     );
   }
 
+  if (isCompetitive) {
+    if (!ready) {
+      return (
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-8">
+          <p className="text-sm text-[var(--board-path-border)]">
+            {t("multiplayer.checkingAuth")}
+          </p>
+        </main>
+      );
+    }
+
+    if (!authenticated) {
+      return (
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+              {t("multiplayer.competitive")}
+            </h1>
+            <p className="max-w-md text-sm text-[var(--board-path-border)]">
+              {t("multiplayer.authRequired")}
+            </p>
+          </div>
+
+          <div className="flex w-full max-w-sm flex-col items-center gap-4">
+            <Link
+              href="/profile"
+              className={`${retroPlayButtonClassName} w-full min-w-0`}
+              aria-label={t("multiplayer.goToProfile")}
+            >
+              {t("multiplayer.goToProfile")}
+            </Link>
+            <Link
+              href="/multiplayer"
+              className={`${retroBackButtonClassName} w-full min-w-0`}
+              aria-label={t("multiplayer.back")}
+            >
+              {t("multiplayer.back")}
+            </Link>
+          </div>
+        </main>
+      );
+    }
+
+    return (
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+            {t("multiplayer.competitive")}
+          </h1>
+          <p className="max-w-md text-sm text-[var(--board-path-border)]">
+            {t("multiplayer.competitiveSubtitle")}
+          </p>
+        </div>
+
+        <div className="flex w-full max-w-sm flex-col items-center gap-4">
+          <button
+            type="button"
+            className={`${retroPlayButtonClassName} w-full min-w-0`}
+            aria-label={t("multiplayer.createRoom")}
+          >
+            {t("multiplayer.createRoom")}
+          </button>
+          <button
+            type="button"
+            className={`${retroPlayButtonClassName} w-full min-w-0`}
+            aria-label={t("multiplayer.joinRoom")}
+          >
+            {t("multiplayer.joinRoom")}
+          </button>
+          <Link
+            href="/multiplayer"
+            className={`${retroBackButtonClassName} w-full min-w-0`}
+            aria-label={t("multiplayer.back")}
+          >
+            {t("multiplayer.back")}
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -85,8 +169,8 @@ export function MultiplayerHub() {
       </div>
 
       <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:gap-4">
-        <button
-          type="button"
+        <Link
+          href="/multiplayer?mode=competitive"
           className={modeCardClassName}
           aria-label={t("multiplayer.competitive")}
         >
@@ -96,10 +180,10 @@ export function MultiplayerHub() {
           >
             {t("multiplayer.competitive")}
           </span>
-        </button>
+        </Link>
         <Link
           href="/multiplayer?mode=free"
-          className={`${modeCardClassName} hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532]`}
+          className={modeCardClassName}
           aria-label={t("multiplayer.freePlay")}
         >
           <FaDice className="h-14 w-14 sm:h-16 sm:w-16" aria-hidden />
