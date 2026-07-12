@@ -1,4 +1,5 @@
 import { PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
+import { createActionId, isValidActionId } from "@/lib/game/action-id";
 import { rollDicePair } from "@/lib/game/dice";
 import {
   canMovePiece,
@@ -10,7 +11,10 @@ import {
   isValidDiceRoll,
   toOnlineGameStateView,
 } from "@/lib/game/online-parse";
-import type { OnlineGameStateView } from "@/lib/game/online-types";
+import type {
+  OnlineGameAction,
+  OnlineGameStateView,
+} from "@/lib/game/online-types";
 import {
   createInitialPieces,
   hasPlayerWon,
@@ -37,6 +41,20 @@ type GameStateRow = Database["public"]["Tables"]["game_states"]["Row"];
 
 function piecesToJson(pieces: PieceState[]): Json {
   return pieces as unknown as Json;
+}
+
+function resolveActionId(clientId: string | undefined): string {
+  return isValidActionId(clientId) ? clientId : createActionId();
+}
+
+function actionMeta(
+  lastAction: OnlineGameAction,
+  actionId: string,
+): Pick<
+  Database["public"]["Tables"]["game_states"]["Update"],
+  "last_action" | "action_id"
+> {
+  return { last_action: lastAction, action_id: actionId };
 }
 
 function isSelfPlayer(
@@ -168,6 +186,7 @@ async function finishGame(
   winner: PlayerColor,
   expectedVersion: number,
   pieces: PieceState[],
+  actionId: string = createActionId(),
 ): Promise<GameStateRow> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
@@ -190,6 +209,7 @@ async function finishGame(
     winner,
     current_turn: winner,
     exit_roll_attempts: 0,
+    ...actionMeta("move", actionId),
   });
 }
 
@@ -269,6 +289,8 @@ export async function startRoomGame(params: {
         turn_started_at: now,
         version: 1,
         updated_at: now,
+        last_action: null,
+        action_id: null,
       },
       { onConflict: "room_id" },
     )
@@ -354,6 +376,8 @@ export async function rollOnlineDice(params: {
   identity: RoomIdentity;
   /** Client-generated roll for optimistic UI; server validates range only. */
   roll?: [number, number];
+  /** Shared with live broadcast so peers can dedupe. */
+  actionId?: string;
 }): Promise<{
   room: RoomView;
   game: OnlineGameStateView;
@@ -383,6 +407,7 @@ export async function rollOnlineDice(params: {
     });
   }
 
+  const actionId = resolveActionId(params.actionId);
   const roll = isValidDiceRoll(params.roll) ? params.roll : rollDicePair();
   const resolution = resolveRoll(
     state.pieces,
@@ -390,6 +415,7 @@ export async function rollOnlineDice(params: {
     roll,
     state.exitRollAttempts,
   );
+  const meta = actionMeta("roll", actionId);
 
   let nextRow: GameStateRow;
 
@@ -401,6 +427,7 @@ export async function rollOnlineDice(params: {
       exit_roll_attempts: state.exitRollAttempts + 1,
       last_roll: roll as unknown as Json,
       turn_started_at: new Date().toISOString(),
+      ...meta,
     });
   } else if (resolution.action === "skip_turn") {
     const advanced = advanceToNextTurn({
@@ -410,6 +437,7 @@ export async function rollOnlineDice(params: {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(resolution.nextPieces),
       ...advanced,
+      ...meta,
     });
   } else {
     nextRow = await writeGameState(room.id, state.version, {
@@ -419,6 +447,7 @@ export async function rollOnlineDice(params: {
       exit_roll_attempts: state.exitRollAttempts,
       last_roll: roll as unknown as Json,
       turn_started_at: new Date().toISOString(),
+      ...meta,
     });
   }
 
@@ -434,6 +463,7 @@ export async function moveOnlinePiece(params: {
   identity: RoomIdentity;
   pieceIndex: PieceIndex;
   dieValue: number;
+  actionId?: string;
 }): Promise<{ room: RoomView; game: OnlineGameStateView }> {
   const { room, row, selfColor } = await requirePlayingMember(params);
   const state = toOnlineGameStateView(row);
@@ -483,6 +513,8 @@ export async function moveOnlinePiece(params: {
     });
   }
 
+  const actionId = resolveActionId(params.actionId);
+  const meta = actionMeta("move", actionId);
   const destination = piece.routeIndex + params.dieValue;
   let nextPieces = state.pieces.map((p) =>
     p.player === selfColor && p.index === params.pieceIndex
@@ -497,6 +529,7 @@ export async function moveOnlinePiece(params: {
       selfColor,
       state.version,
       nextPieces,
+      actionId,
     );
     const updatedRoom = await getRoomByCode(params.code, params.identity);
     return {
@@ -515,11 +548,13 @@ export async function moveOnlinePiece(params: {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(nextPieces),
       ...advanceToNextTurn(state),
+      ...meta,
     });
   } else if (!hasAnyValidMove(nextPieces, selfColor, nextRemaining)) {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(nextPieces),
       ...advanceToNextTurn(state),
+      ...meta,
     });
   } else {
     nextRow = await writeGameState(room.id, state.version, {
@@ -527,6 +562,7 @@ export async function moveOnlinePiece(params: {
       remaining_dice: nextRemaining as unknown as Json,
       turn_phase: "deciding",
       turn_started_at: new Date().toISOString(),
+      ...meta,
     });
   }
 
@@ -576,6 +612,7 @@ export async function advanceOnlineTurn(params: {
   const nextRow = await writeGameState(room.id, state.version, {
     pieces: piecesToJson(state.pieces),
     ...advanceToNextTurn(state),
+    ...actionMeta("timeout", createActionId()),
   });
 
   return { room, game: toOnlineGameStateView(nextRow) };

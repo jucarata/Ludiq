@@ -9,6 +9,7 @@ type MoveBody = {
   code?: string;
   pieceIndex?: number;
   dieValue?: number;
+  actionId?: string;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       identity,
       pieceIndex: body.pieceIndex as PieceIndex,
       dieValue: body.dieValue,
+      actionId: body.actionId,
     });
     return NextResponse.json(result);
   } catch (error) {

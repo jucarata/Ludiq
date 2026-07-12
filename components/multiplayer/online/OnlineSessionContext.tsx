@@ -33,20 +33,30 @@ type OnlineSessionContextValue = {
   applyGame: (game: OnlineGameStateView) => void;
   getAuthHeaders: () => Promise<Record<string, string>>;
   guestBody: () => GuestBody;
-  postRoll: (roll: [number, number]) => Promise<{
+  postRoll: (
+    roll: [number, number],
+    actionId: string,
+  ) => Promise<{
     game: OnlineGameStateView;
     roll: [number, number];
   }>;
   postMove: (
     pieceIndex: PieceIndex,
     dieValue: number,
+    actionId: string,
   ) => Promise<OnlineGameStateView>;
   postAdvanceTurn: () => Promise<OnlineGameStateView>;
-  sendLiveRoll: (roll: [number, number]) => void;
+  sendLiveRoll: (params: {
+    roll: [number, number];
+    actionId: string;
+    basedOnVersion: number;
+  }) => void;
   sendLiveMove: (params: {
     pieceIndex: PieceIndex;
     dieValue: number;
     fromRouteIndex: number;
+    actionId: string;
+    basedOnVersion: number;
   }) => void;
   subscribeLiveRoll: (handler: (payload: LiveRollPayload) => void) => () => void;
   subscribeLiveMove: (handler: (payload: LiveMovePayload) => void) => () => void;
@@ -130,12 +140,12 @@ export function OnlineSessionProvider({
   }, [room.players]);
 
   const postRoll = useCallback(
-    async (roll: [number, number]) => {
+    async (roll: [number, number], actionId: string) => {
       const headers = await getAuthHeaders();
       const res = await fetch("/api/game/roll", {
         method: "POST",
         headers,
-        body: JSON.stringify({ code, roll, ...guestBody() }),
+        body: JSON.stringify({ code, roll, actionId, ...guestBody() }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -154,7 +164,7 @@ export function OnlineSessionProvider({
   );
 
   const postMove = useCallback(
-    async (pieceIndex: PieceIndex, dieValue: number) => {
+    async (pieceIndex: PieceIndex, dieValue: number, actionId: string) => {
       const headers = await getAuthHeaders();
       const res = await fetch("/api/game/move", {
         method: "POST",
@@ -163,6 +173,7 @@ export function OnlineSessionProvider({
           code,
           pieceIndex,
           dieValue,
+          actionId,
           ...guestBody(),
         }),
       });

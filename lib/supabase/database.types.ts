@@ -136,6 +136,8 @@ export interface Database {
           active_players: Json;
           exit_roll_attempts: number;
           last_roll: Json | null;
+          last_action: string | null;
+          action_id: string | null;
           winner: PlayerColor | null;
           turn_started_at: string;
           version: number;
@@ -150,6 +152,8 @@ export interface Database {
           active_players?: Json;
           exit_roll_attempts?: number;
           last_roll?: Json | null;
+          last_action?: string | null;
+          action_id?: string | null;
           winner?: PlayerColor | null;
           turn_started_at?: string;
           version?: number;
@@ -164,6 +168,8 @@ export interface Database {
           active_players?: Json;
           exit_roll_attempts?: number;
           last_roll?: Json | null;
+          last_action?: string | null;
+          action_id?: string | null;
           winner?: PlayerColor | null;
           turn_started_at?: string;
           version?: number;

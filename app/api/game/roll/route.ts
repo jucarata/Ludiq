@@ -8,6 +8,7 @@ import { resolveRoomIdentity } from "@/lib/room/service";
 type RollBody = {
   code?: string;
   roll?: [number, number];
+  actionId?: string;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       code,
       identity,
       roll: body.roll,
+      actionId: body.actionId,
     });
     return NextResponse.json(result);
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { PlayerColor } from "@/lib/board/types";
+import { isValidActionId } from "@/lib/game/action-id";
 import type { PieceIndex } from "@/lib/game/pieces";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -10,6 +11,9 @@ export type LiveRollPayload = {
   kind: "roll";
   color: PlayerColor;
   roll: [number, number];
+  actionId: string;
+  /** game.version the actor had before this action (pre-write). */
+  basedOnVersion: number;
   ts: number;
 };
 
@@ -19,6 +23,9 @@ export type LiveMovePayload = {
   pieceIndex: PieceIndex;
   dieValue: number;
   fromRouteIndex: number;
+  actionId: string;
+  /** game.version the actor had before this action (pre-write). */
+  basedOnVersion: number;
   ts: number;
 };
 
@@ -29,6 +36,13 @@ const LIVE_EVENT = "action";
 function isLiveActionPayload(value: unknown): value is LiveActionPayload {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
+  if (
+    !isValidActionId(row.actionId) ||
+    typeof row.basedOnVersion !== "number" ||
+    !Number.isFinite(row.basedOnVersion)
+  ) {
+    return false;
+  }
   if (row.kind === "roll") {
     return (
       typeof row.color === "string" &&
@@ -106,13 +120,20 @@ export function useGameLiveChannel({
   }, [roomId]);
 
   const sendLiveRoll = useCallback(
-    (roll: [number, number], color: PlayerColor = selfColorRef.current) => {
+    (params: {
+      roll: [number, number];
+      actionId: string;
+      basedOnVersion: number;
+      color?: PlayerColor;
+    }) => {
       const channel = channelRef.current;
       if (!channel) return;
       const payload: LiveRollPayload = {
         kind: "roll",
-        color,
-        roll,
+        color: params.color ?? selfColorRef.current,
+        roll: params.roll,
+        actionId: params.actionId,
+        basedOnVersion: params.basedOnVersion,
         ts: Date.now(),
       };
       void channel.send({
@@ -129,6 +150,8 @@ export function useGameLiveChannel({
       pieceIndex: PieceIndex;
       dieValue: number;
       fromRouteIndex: number;
+      actionId: string;
+      basedOnVersion: number;
       color?: PlayerColor;
     }) => {
       const channel = channelRef.current;
@@ -139,6 +162,8 @@ export function useGameLiveChannel({
         pieceIndex: params.pieceIndex,
         dieValue: params.dieValue,
         fromRouteIndex: params.fromRouteIndex,
+        actionId: params.actionId,
+        basedOnVersion: params.basedOnVersion,
         ts: Date.now(),
       };
       void channel.send({

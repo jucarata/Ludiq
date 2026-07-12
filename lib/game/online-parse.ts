@@ -1,5 +1,8 @@
 import { PLAYER_ORDER, type PlayerColor } from "@/lib/board/types";
-import type { OnlineGameStateView } from "@/lib/game/online-types";
+import type {
+  OnlineGameAction,
+  OnlineGameStateView,
+} from "@/lib/game/online-types";
 import type { PieceIndex, PieceState } from "@/lib/game/pieces";
 import type { TurnPhase } from "@/lib/game/turns";
 
@@ -9,6 +12,12 @@ const TURN_PHASES = new Set<TurnPhase>([
   "rolling",
   "deciding",
   "ended",
+]);
+const GAME_ACTIONS = new Set<OnlineGameAction>([
+  "roll",
+  "move",
+  "advance",
+  "timeout",
 ]);
 
 export type GameStateRowLike = {
@@ -20,6 +29,8 @@ export type GameStateRowLike = {
   active_players: unknown;
   exit_roll_attempts?: number | null;
   last_roll: unknown;
+  last_action?: string | null;
+  action_id?: string | null;
   winner: string | null;
   turn_started_at: string;
   version: number;
@@ -105,6 +116,18 @@ export function isValidDiceRoll(
   return parseLastRoll(value) != null;
 }
 
+function parseLastAction(value: unknown): OnlineGameAction | null {
+  if (typeof value !== "string") return null;
+  return GAME_ACTIONS.has(value as OnlineGameAction)
+    ? (value as OnlineGameAction)
+    : null;
+}
+
+function parseActionId(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  return value.length <= 64 ? value : null;
+}
+
 export function toOnlineGameStateView(
   row: GameStateRowLike,
 ): OnlineGameStateView {
@@ -124,6 +147,8 @@ export function toOnlineGameStateView(
     remainingDice: parseDice(row.remaining_dice),
     exitRollAttempts: row.exit_roll_attempts ?? 0,
     lastRoll: parseLastRoll(row.last_roll),
+    lastAction: parseLastAction(row.last_action),
+    actionId: parseActionId(row.action_id),
     winner: row.winner && isPlayerColor(row.winner) ? row.winner : null,
     version: row.version,
     turnStartedAt: row.turn_started_at,

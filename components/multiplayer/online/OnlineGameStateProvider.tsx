@@ -15,6 +15,7 @@ import type {
 import { useTurn } from "@/components/game/TurnContext";
 import { useOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import type { PlayerColor } from "@/lib/board/types";
+import { createActionId } from "@/lib/game/action-id";
 import type { BotMoveDecision } from "@/lib/game/bot";
 import {
   FINISH_CELEBRATION_MS,
@@ -85,6 +86,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const unconfirmedMoveRef = useRef(false);
   const [holdOptimisticBoard, setHoldOptimisticBoard] = useState(false);
   const lastSyncedVersion = useRef(game.version);
+  const seenMoveActionIdsRef = useRef<Set<string>>(
+    new Set(game.actionId && game.lastAction === "move" ? [game.actionId] : []),
+  );
+  const gameRef = useRef(game);
+  gameRef.current = game;
   const postChainRef = useRef(Promise.resolve());
   const piecesBeforeMoveRef = useRef<PieceState[]>(game.pieces);
   const diceBeforeMoveRef = useRef<number[] | null>(game.remainingDice);
@@ -94,6 +100,14 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   displayPiecesRef.current = displayPieces;
   remainingDiceRef.current = optimisticDice ?? game.remainingDice;
   pendingServerPiecesRef.current = pendingServerPieces;
+
+  const markMoveActionSeen = useCallback((actionId: string) => {
+    seenMoveActionIdsRef.current.add(actionId);
+    if (seenMoveActionIdsRef.current.size > 40) {
+      const keep = [...seenMoveActionIdsRef.current].slice(-20);
+      seenMoveActionIdsRef.current = new Set(keep);
+    }
+  }, []);
 
   const remainingDice = optimisticDice ?? game.remainingDice;
   const winner = game.winner;
@@ -152,6 +166,9 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return subscribeLiveMove((payload) => {
+      const latest = gameRef.current;
+      if (latest.version > payload.basedOnVersion) return;
+      if (seenMoveActionIdsRef.current.has(payload.actionId)) return;
       if (movingRef.current || unconfirmedMoveRef.current) return;
 
       const pieces = displayPiecesRef.current;
@@ -160,6 +177,8 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
           p.player === payload.color && p.index === payload.pieceIndex,
       );
       if (!piece || piece.location !== "route") return;
+
+      markMoveActionSeen(payload.actionId);
 
       const from = piece.routeIndex ?? payload.fromRouteIndex;
       const dice = remainingDiceRef.current;
@@ -179,7 +198,14 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
         target: from + payload.dieValue,
       });
     });
-  }, [subscribeLiveMove]);
+  }, [markMoveActionSeen, subscribeLiveMove]);
+
+  /* Marcar actionIds de move confirmados por DB (live pudo haberse perdido). */
+  useEffect(() => {
+    if (game.lastAction === "move" && game.actionId) {
+      markMoveActionSeen(game.actionId);
+    }
+  }, [game.actionId, game.lastAction, markMoveActionSeen]);
 
   useEffect(() => {
     if (!celebration) return;
@@ -342,17 +368,22 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
       const pieceIndex = piece.index;
       const dieValue = choice.value;
+      const actionId = createActionId();
+      const basedOnVersion = gameRef.current.version;
+      markMoveActionSeen(actionId);
       sendLiveMove({
         pieceIndex,
         dieValue,
         fromRouteIndex: from,
+        actionId,
+        basedOnVersion,
       });
 
       postChainRef.current = postChainRef.current
         .catch(() => undefined)
         .then(async () => {
           try {
-            const nextGame = await postMove(pieceIndex, dieValue);
+            const nextGame = await postMove(pieceIndex, dieValue, actionId);
             applyGame(nextGame);
 
             if (movingRef.current) {
@@ -383,6 +414,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       confirmServerPieces,
       displayPieces,
       extendDecisionTime,
+      markMoveActionSeen,
       postMove,
       remainingDice,
       selfColor,

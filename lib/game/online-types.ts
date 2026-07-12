@@ -7,6 +7,12 @@ import {
 } from "@/lib/game/turns";
 import type { RoomView } from "@/lib/room/types";
 
+export type OnlineGameAction =
+  | "roll"
+  | "move"
+  | "advance"
+  | "timeout";
+
 export type OnlineGameStateView = {
   roomId: string;
   activePlayers: PlayerColor[];
@@ -16,6 +22,8 @@ export type OnlineGameStateView = {
   remainingDice: number[] | null;
   exitRollAttempts: number;
   lastRoll: [number, number] | null;
+  lastAction: OnlineGameAction | null;
+  actionId: string | null;
   winner: PlayerColor | null;
   version: number;
   turnStartedAt: string;
