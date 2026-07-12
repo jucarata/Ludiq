@@ -62,6 +62,31 @@ function piecesSignature(pieces: PieceState[]): string {
     .join("|");
 }
 
+/** Detect a forward route step so AFK/server moves can animate cell-by-cell. */
+function findRouteAdvance(
+  before: PieceState[],
+  after: PieceState[],
+): MoveAnimation | null {
+  for (const next of after) {
+    if (next.location !== "route" || next.routeIndex === undefined) continue;
+    const prev = before.find(
+      (piece) => piece.player === next.player && piece.index === next.index,
+    );
+    if (!prev || prev.location !== "route" || prev.routeIndex === undefined) {
+      continue;
+    }
+    if (next.routeIndex > prev.routeIndex) {
+      return {
+        player: next.player,
+        index: next.index,
+        from: prev.routeIndex,
+        target: next.routeIndex,
+      };
+    }
+  }
+  return null;
+}
+
 
 export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   const {
@@ -133,12 +158,13 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       setPendingServerPieces(null);
       setHoldOptimisticBoard(false);
       setOptimisticDice(null);
+      turnAdvanceBlockedRef.current = false;
       /* Solo reemplazar si el server discrepa: evita un “salto” visual innecesario. */
       setDisplayPieces((prev) =>
         piecesSignature(prev) === piecesSignature(pieces) ? prev : pieces,
       );
     },
-    [],
+    [turnAdvanceBlockedRef],
   );
 
   useEffect(() => {
@@ -174,6 +200,32 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     if (game.version < lastSyncedVersion.current) return;
     if (game.version === lastSyncedVersion.current) return;
 
+    /*
+     * Server-driven moves (AFK bot, missed live broadcast): animate the
+     * route advance instead of teleporting the piece.
+     */
+    if (game.lastAction === "move") {
+      const advance = findRouteAdvance(
+        displayPiecesRef.current,
+        game.pieces,
+      );
+      if (advance) {
+        lastSyncedVersion.current = game.version;
+        if (game.actionId) markMoveActionSeen(game.actionId);
+        pendingServerPiecesRef.current = game.pieces;
+        setPendingServerPieces(game.pieces);
+        unconfirmedMoveRef.current = true;
+        movingRef.current = true;
+        turnAdvanceBlockedRef.current = true;
+        setHoldOptimisticBoard(true);
+        setOptimisticDice(game.remainingDice);
+        setSelectedPiece(null);
+        setMenuAnchor(null);
+        setAnimation(advance);
+        return;
+      }
+    }
+
     lastSyncedVersion.current = game.version;
     setDisplayPieces(game.pieces);
     setOptimisticDice(null);
@@ -182,10 +234,13 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
   }, [
     animation,
     confirmServerPieces,
+    game.actionId,
     game.lastAction,
     game.pieces,
     game.remainingDice,
     game.version,
+    markMoveActionSeen,
+    turnAdvanceBlockedRef,
   ]);
 
   useEffect(() => {
@@ -347,6 +402,8 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
 
     if (!piece || piece.routeIndex === undefined) {
       setAnimation(null);
+      movingRef.current = false;
+      turnAdvanceBlockedRef.current = false;
       return;
     }
 
@@ -382,10 +439,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       setPendingServerPieces(null);
       unconfirmedMoveRef.current = false;
       setHoldOptimisticBoard(false);
+      turnAdvanceBlockedRef.current = false;
     }
     /* Si aún no hay confirmación del server, holdOptimisticBoard sigue true
        para no pisar con game.pieces viejo. */
-  }, [animation, displayPieces]);
+  }, [animation, displayPieces, turnAdvanceBlockedRef]);
 
   const handleRollResult = useCallback(
     (

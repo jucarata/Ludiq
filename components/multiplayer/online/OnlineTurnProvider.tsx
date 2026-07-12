@@ -17,8 +17,8 @@ import {
   type TurnPhase,
 } from "@/lib/game/turns";
 
-/** Delay between AFK bot moves (server-executed). */
-const AFK_BOT_GAP_MS = 1600;
+/** Delay between AFK bot moves (server-executed). Leave room for step animation. */
+const AFK_BOT_GAP_MS = 2200;
 
 export function OnlineTurnProvider({ children }: { children: ReactNode }) {
   const { game, isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef } =
@@ -82,8 +82,8 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
 
     const pump = () => {
       if (cancelled || advancingRef.current) return;
-      /* Stale optimistic locks must not block timeout forever. */
-      turnAdvanceBlockedRef.current = false;
+      /* Wait while a piece is mid-animation so moves don't stack/teleport. */
+      if (turnAdvanceBlockedRef.current) return;
       advancingRef.current = true;
       void postAdvanceTurn({ autoEnabled: auto })
         .catch(() => undefined)
