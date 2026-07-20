@@ -154,17 +154,27 @@ export async function depositCompetitiveEntry(params: {
 
 /**
  * Approve + joinDeposit ENTRY_FEE into an existing competitive room.
+ * If this wallet already paid on-chain, returns null (no new tx).
  */
 export async function joinCompetitiveEntry(params: {
   wallet: CompetitiveWallet;
   roomKey: Hex;
   walletAddress?: string | null;
-}): Promise<Hex> {
+}): Promise<Hex | null> {
   try {
     const escrow = getEscrowAddress();
     const chain = getCompetitiveChain();
     const { client, account } = await getWalletClient(params.wallet);
     assertWalletMatchesProfile(account, params.walletAddress);
+
+    const alreadyPaid = await publicClient().readContract({
+      address: escrow,
+      abi: competitiveEscrowAbi,
+      functionName: "hasPaid",
+      args: [params.roomKey, account],
+    });
+    if (alreadyPaid) return null;
+
     await assertCanPayEntry(account);
 
     const approveHash = await client.writeContract({

@@ -977,7 +977,8 @@ export async function confirmCompetitiveEntry(params: {
   code: string;
   identity: RoomIdentity;
   mode?: RoomMode;
-  entryTxHash: string;
+  /** Optional when the wallet already paid on-chain (retry / sync). */
+  entryTxHash?: string;
 }): Promise<RoomView> {
   const mode = params.mode ?? DEFAULT_ROOM_MODE;
   if (mode !== "competitive") {
@@ -1062,27 +1063,60 @@ export async function confirmCompetitiveEntry(params: {
     );
   }
 
-  const { verifyDepositTransaction } = await import("@/lib/celo/competitive");
-  try {
-    await verifyDepositTransaction({
-      txHash: params.entryTxHash,
+  const {
+    hasPlayerPaidEntry,
+    verifyDepositTransaction,
+  } = await import("@/lib/celo/competitive");
+
+  let verifiedTxHash: string | null =
+    params.entryTxHash?.trim().toLowerCase() || null;
+
+  if (verifiedTxHash) {
+    try {
+      await verifyDepositTransaction({
+        txHash: verifiedTxHash,
+        roomKey: roomRow.escrow_room_key,
+        expectedPlayer: profile.wallet_address,
+      });
+    } catch (error) {
+      // Payment may already be on-chain from a prior attempt whose
+      // confirmation failed — accept that as proof instead of failing hard.
+      const paidOnChain = await hasPlayerPaidEntry({
+        roomKey: roomRow.escrow_room_key,
+        player: profile.wallet_address,
+      });
+      if (!paidOnChain) {
+        const message =
+          error instanceof Error ? error.message : "Invalid deposit transaction";
+        throw new Response(JSON.stringify({ error: message }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+  } else {
+    const paidOnChain = await hasPlayerPaidEntry({
       roomKey: roomRow.escrow_room_key,
-      expectedPlayer: profile.wallet_address,
+      player: profile.wallet_address,
     });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Invalid deposit transaction";
-    throw new Response(JSON.stringify({ error: message }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    if (!paidOnChain) {
+      throw new Response(
+        JSON.stringify({
+          error: "Entry transaction hash is required",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
   }
 
   const { error: playerError } = await supabase
     .from("game_room_players")
     .update({
       entry_paid: true,
-      entry_tx_hash: params.entryTxHash.toLowerCase(),
+      ...(verifiedTxHash ? { entry_tx_hash: verifiedTxHash } : {}),
     })
     .eq("id", self.id)
     .eq("entry_paid", false);

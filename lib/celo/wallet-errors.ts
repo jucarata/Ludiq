@@ -60,6 +60,14 @@ export function formatCompetitiveTxError(error: unknown): string {
     return `Could not switch wallet to ${network}`;
   }
 
+  if (
+    lower.includes("alreadypaid") ||
+    lower.includes("already paid") ||
+    lower.includes("0x0d70a0e3")
+  ) {
+    return "Entry fee already paid on-chain. Tap Confirm again to sync the lobby.";
+  }
+
   if (raw.length > 0 && raw.length < 160 && !lower.includes("internal")) {
     return raw;
   }

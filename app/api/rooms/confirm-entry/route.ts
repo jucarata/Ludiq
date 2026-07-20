@@ -29,12 +29,6 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (!entryTxHash) {
-      return NextResponse.json(
-        { error: "Entry transaction hash is required" },
-        { status: 400 },
-      );
-    }
 
     const identity = await resolveRoomIdentity({
       privyUserId,

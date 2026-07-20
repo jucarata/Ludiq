@@ -541,7 +541,7 @@ export function JoinRoomView() {
         body: JSON.stringify({
           code: room.code,
           mode,
-          entryTxHash,
+          ...(entryTxHash ? { entryTxHash } : {}),
         }),
       });
 

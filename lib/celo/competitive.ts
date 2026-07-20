@@ -82,6 +82,36 @@ function addressesEqual(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
 }
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** On-chain check: whether this wallet already deposited into the room. */
+export async function hasPlayerPaidEntry(params: {
+  roomKey: string;
+  player: string;
+  /** Retry briefly — receipt can land before some RPCs expose state. */
+  retries?: number;
+}): Promise<boolean> {
+  const client = getCompetitivePublicClient();
+  const escrow = getEscrowAddress();
+  const roomKey = normalizeHex32(params.roomKey);
+  const player = params.player as Address;
+  const retries = params.retries ?? 4;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const paid = await client.readContract({
+      address: escrow,
+      abi: competitiveEscrowAbi,
+      functionName: "hasPaid",
+      args: [roomKey, player],
+    });
+    if (paid) return true;
+    if (attempt < retries - 1) await sleep(800 * (attempt + 1));
+  }
+  return false;
+}
+
 export async function verifyDepositTransaction(params: {
   txHash: string;
   roomKey: string;
@@ -134,11 +164,10 @@ export async function verifyDepositTransaction(params: {
     throw new Error("Deposit amount mismatch");
   }
 
-  const paid = await client.readContract({
-    address: escrow,
-    abi: competitiveEscrowAbi,
-    functionName: "hasPaid",
-    args: [roomKey, params.expectedPlayer as Address],
+  // Prefer the address from the event (the actual payer).
+  const paid = await hasPlayerPaidEntry({
+    roomKey,
+    player: deposited.player,
   });
   if (!paid) {
     throw new Error("Escrow does not record this player as paid");
