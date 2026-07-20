@@ -11,7 +11,7 @@ export type LeaderboardEntry = {
   profileId: string;
   username: string;
   trophies: number;
-  /** Estimated USDC prize if this rank holds through week end. */
+  /** Estimated USDT prize if this rank holds through week end. */
   prizeUsdc: number;
 };
 
@@ -32,7 +32,7 @@ export type WeeklyLeaderboard = {
   weeklyCommissionUsdc: number;
   /** 40% of weekly commission reserved for leaderboard prizes. */
   prizePoolUsdc: number;
-  /** Current estimated prize per podium place (USDC). */
+  /** Current estimated prize per podium place (USDT). */
   prizesByPlace: Record<"1" | "2" | "3", number>;
   top: LeaderboardEntry[];
   me: LeaderboardMe | null;

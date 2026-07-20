@@ -33,20 +33,20 @@ export function formatCompetitiveTxError(error: unknown): string {
     lower.includes("insufficient balance") ||
     lower.includes("exceeds balance")
   ) {
-    if (lower.includes("usdc")) {
-      return `Not enough USDC on ${network} (need 0.20)`;
+    if (lower.includes("usdt")) {
+      return `Not enough USDT on ${network} (need 0.20)`;
     }
     return isCeloSepoliaMode()
-      ? "Need CELO for gas on Celo Sepolia (USDC alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
-      : "Need CELO for network fees on Celo (USDC alone is not enough).";
+      ? "Need CELO for gas on Celo Sepolia (USDT alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
+      : "Need CELO for network fees on Celo (USDT alone is not enough).";
   }
 
   if (
     lower.includes("transfer amount exceeds balance") ||
     lower.includes("erc20: transfer amount exceeds balance") ||
-    lower.includes("insufficient usdc")
+    lower.includes("insufficient usdt")
   ) {
-    return `Not enough USDC on ${network} (need 0.20)`;
+    return `Not enough USDT on ${network} (need 0.20)`;
   }
 
   if (
@@ -60,10 +60,9 @@ export function formatCompetitiveTxError(error: unknown): string {
     return `Could not switch wallet to ${network}`;
   }
 
-  // Keep short technical hints when useful (Privy / viem often include them).
   if (raw.length > 0 && raw.length < 160 && !lower.includes("internal")) {
     return raw;
   }
 
-  return `Could not deposit entry fee. Check USDC and network fees on ${network}.`;
+  return `Could not deposit entry fee. Check USDT and network fees on ${network}.`;
 }

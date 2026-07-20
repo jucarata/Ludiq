@@ -7,19 +7,14 @@ import {
 } from "viem";
 import { celo, celoSepolia } from "viem/chains";
 import {
-  CELO_MAINNET_USDC,
-  CELO_SEPOLIA_USDC,
+  CELO_MAINNET_USDT,
+  CELO_SEPOLIA_USDT,
   getCompetitiveRpcUrl,
   isCeloSepoliaMode,
 } from "@/lib/celo/constants";
 
 export const CELO_TOKENS = {
-  USDC: CELO_MAINNET_USDC,
-  USDT: {
-    address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as Address,
-    symbol: "USDT",
-    decimals: 6,
-  },
+  USDT: CELO_MAINNET_USDT,
   /** Minteo Colombian Peso (not Mento COPm). */
   COPM: {
     address: "0xC92E8Fc2947E32F2B574CCA9F2F12097A71d5606" as Address,
@@ -31,8 +26,8 @@ export const CELO_TOKENS = {
 export { isCeloSepoliaMode };
 
 export const CELO_ACTIVE_USDT = isCeloSepoliaMode()
-  ? CELO_SEPOLIA_USDC
-  : CELO_TOKENS.USDC;
+  ? CELO_SEPOLIA_USDT
+  : CELO_TOKENS.USDT;
 
 export type CeloTokenSymbol = keyof typeof CELO_TOKENS;
 
@@ -48,8 +43,8 @@ const publicClient = createPublicClient({
 });
 
 const BALANCE_TOKENS = isCeloSepoliaMode()
-  ? ({ USDC: CELO_SEPOLIA_USDC } as const)
-  : ({ USDC: CELO_TOKENS.USDC, USDT: CELO_TOKENS.USDT } as const);
+  ? ({ USDT: CELO_SEPOLIA_USDT } as const)
+  : ({ USDT: CELO_TOKENS.USDT } as const);
 
 function formatTokenAmount(value: bigint, decimals: number): string {
   const asNumber = Number(formatUnits(value, decimals));

@@ -8,7 +8,7 @@ interface IERC20 {
 
 /// @title CompetitiveEscrow
 /// @notice Multi-player competitive room escrow on Celo.
-///         Each player deposits 0.20 (0.18 pool + 0.02 commission held until settle).
+///         Each player deposits 0.20 USDT (0.18 pool + 0.02 commission held until settle).
 ///         Host opens the room; joiners call joinDeposit. Full refunds while Funded.
 contract CompetitiveEscrow {
     uint256 public constant ENTRY_FEE = 200_000; // 0.20 (6 decimals)

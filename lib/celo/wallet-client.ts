@@ -64,10 +64,10 @@ async function waitForTx(hash: Hex): Promise<void> {
   }
 }
 
-/** Fails early with a clear message when USDC / gas is missing. */
+/** Fails early with a clear message when USDT / gas is missing. */
 async function assertCanPayEntry(account: Address): Promise<void> {
   const client = publicClient();
-  const [usdcBalance, celoBalance] = await Promise.all([
+  const [usdtBalance, celoBalance] = await Promise.all([
     client.readContract({
       address: COMPETITIVE_TOKEN.address,
       abi: erc20Abi,
@@ -79,15 +79,15 @@ async function assertCanPayEntry(account: Address): Promise<void> {
 
   const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
 
-  if (usdcBalance < ENTRY_FEE_RAW) {
-    throw new Error(`Insufficient USDC on ${network} (need 0.20)`);
+  if (usdtBalance < ENTRY_FEE_RAW) {
+    throw new Error(`Insufficient USDT on ${network} (need 0.20)`);
   }
   // ~0.0001 CELO is enough for approve + deposit; keep a small buffer.
   if (celoBalance < BigInt("100000000000000")) {
     throw new Error(
       isCeloSepoliaMode()
-        ? "Need CELO for gas on Celo Sepolia (USDC alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
-        : "Need CELO for network fees on Celo (USDC alone is not enough).",
+        ? "Need CELO for gas on Celo Sepolia (USDT alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
+        : "Need CELO for network fees on Celo (USDT alone is not enough).",
     );
   }
 }

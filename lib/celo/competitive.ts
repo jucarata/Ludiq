@@ -20,6 +20,7 @@ import {
 } from "@/lib/celo/constants";
 
 export {
+  CELO_MAINNET_USDT,
   CELO_MAINNET_USDC,
   CELO_SEPOLIA_USDC,
   CELO_SEPOLIA_USDT,

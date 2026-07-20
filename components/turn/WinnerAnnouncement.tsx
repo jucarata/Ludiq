@@ -18,7 +18,7 @@ export function WinnerAnnouncement({
 }: {
   menuHref?: string;
   onBackToMenu?: () => void;
-  /** Competitive pot paid to the winner (USDC on testnet). */
+  /** Competitive pot paid to the winner (USDT). */
   prizeUsdt?: number | null;
   /** Competitive: trophies granted to the winner (1 × participant count). */
   trophiesAwarded?: number | null;

@@ -4,7 +4,7 @@ Escrow for competitive rooms on **Celo** (Mainnet or Sepolia).
 
 ## Economics
 
-Each player pays **0.20 USDC**:
+Each player pays **0.20 USDT**:
 
 | Share | Amount | Destination |
 |-------|--------|-------------|
@@ -34,8 +34,8 @@ Constructor args:
 
 | Network | Token | Address |
 |---------|-------|---------|
-| **Celo Mainnet** | USDC (Circle) | `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` |
-| Celo Sepolia | USDC (Circle) | `0x01C5C0122039549AD1493B8220cABEdD739BC44E` |
+| **Celo Mainnet** | USDT (Tether) | `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e` |
+| Celo Sepolia | USDT | `0xd077A400968890Eacc75cdc901F0356c943e4fDb` |
 
 ## Flow
 
@@ -60,7 +60,7 @@ Constants are immutable — after changing pool/commission shares, **redeploy** 
 
 ```bash
 # From repo root (or cd contracts)
-export STAKE_TOKEN=0xcebA9300f2b948710d2653dD7B07f33A8B32118C
+export STAKE_TOKEN=0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e
 export COMMISSION_WALLET=0xYourCommissionWallet
 export ESCROW_OWNER=0xYourBackendOwnerWallet   # optional; defaults to deployer
 export DEPLOYER_PRIVATE_KEY=0x...
@@ -80,7 +80,7 @@ forge verify-contract ADDRESS \
     --chain-id 42220 \
     --watch \
     --constructor-args $(cast abi-encode "constructor(address,address,address)" \
-      0xcebA9300f2b948710d2653dD7B07f33A8B32118C \
+      0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e \
       $COMMISSION_WALLET \
       $ESCROW_OWNER) \
     --root contracts

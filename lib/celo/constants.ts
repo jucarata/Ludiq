@@ -1,23 +1,30 @@
 import { parseUnits, type Address } from "viem";
 import { celo, celoSepolia, type Chain } from "viem/chains";
 
-/** Celo Sepolia USDC (6 decimals) — Circle testnet token. */
+/** Celo Sepolia USDC (6 decimals) — Circle testnet token (legacy reference). */
 export const CELO_SEPOLIA_USDC = {
   address: "0x01C5C0122039549AD1493B8220cABEdD739BC44E" as Address,
   symbol: "USDC",
   decimals: 6,
 } as const;
 
-/** Celo Mainnet USDC (6 decimals) — Circle. */
+/** Celo Mainnet USDC (6 decimals) — Circle (legacy reference). */
 export const CELO_MAINNET_USDC = {
   address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as Address,
   symbol: "USDC",
   decimals: 6,
 } as const;
 
-/** Legacy USDT address (kept for reference; competitive mode uses USDC). */
+/** Celo Sepolia USDT (6 decimals). */
 export const CELO_SEPOLIA_USDT = {
   address: "0xd077A400968890Eacc75cdc901F0356c943e4fDb" as Address,
+  symbol: "USDT",
+  decimals: 6,
+} as const;
+
+/** Celo Mainnet USDT (6 decimals) — Tether. */
+export const CELO_MAINNET_USDT = {
+  address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as Address,
   symbol: "USDT",
   decimals: 6,
 } as const;
@@ -49,10 +56,10 @@ export function getCompetitiveRpcUrl(): string {
   );
 }
 
-/** Stake token for competitive rooms — USDC on the configured chain. */
+/** Stake token for competitive rooms — USDT on the configured chain. */
 export const COMPETITIVE_TOKEN = isCeloSepoliaMode()
-  ? CELO_SEPOLIA_USDC
-  : CELO_MAINNET_USDC;
+  ? CELO_SEPOLIA_USDT
+  : CELO_MAINNET_USDT;
 
 export const ENTRY_FEE_USDT = "0.20";
 /** Pool contribution per paying player (90% of entry). */
