@@ -8,6 +8,29 @@ export const en = {
     leaderboard: "Leaderboard",
     profile: "Profile",
   },
+  leaderboard: {
+    title: "Leaderboard",
+    subtitle: "Top trophy hunters this week. Win competitive matches to climb.",
+    thisWeek: "Week of {range}",
+    topThree: "Top 3",
+    trophyCount: "{count} trophies",
+    prizePayout: "≈ {amount} USDC",
+    prizePool: "Prize pool this week: {amount} USDC",
+    yourPrize: "Current prize: {amount} USDC",
+    emptySlot: "Open",
+    emptyWeek: "No trophies yet this week. Be the first to win!",
+    yourRank: "Your rank",
+    guestBlurb:
+      "Anyone can watch the ranking. Connect a wallet and play competitive to earn trophies.",
+    connectCta: "Connect wallet",
+    finishProfileBlurb:
+      "Finish your profile to appear on the weekly leaderboard.",
+    finishProfileCta: "Go to profile",
+    notRankedYet: "No trophies this week yet.",
+    playCompetitiveCta: "Play competitive",
+    loading: "Loading ranking…",
+    error: "Could not load the leaderboard. Try again later.",
+  },
   home: {
     multiplayer: "Online",
     playLocal: "Local",
@@ -167,6 +190,7 @@ export const en = {
     autoFor: "Auto — {label}",
     gameOverWinner: "Game over! Winner",
     prizeWon: "Prize: {amount} USDC",
+    trophiesWon: "+{count} trophies",
     backToMenu: "Back to menu",
   },
   profile: {

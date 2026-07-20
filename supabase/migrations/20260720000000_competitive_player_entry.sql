@@ -1,4 +1,4 @@
--- Competitive: track per-player entry payment + pot accrues 0.15 per payer.
+-- Competitive: track per-player entry payment + pot accrues 0.18 per payer.
 
 alter table public.game_room_players
   add column if not exists entry_paid boolean not null default false,

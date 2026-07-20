@@ -10,6 +10,30 @@ export const es: Messages = {
     leaderboard: "Clasificación",
     profile: "Perfil",
   },
+  leaderboard: {
+    title: "Clasificación",
+    subtitle:
+      "Los mejores cazadores de trofeos de la semana. Gana partidas competitivas para subir.",
+    thisWeek: "Semana del {range}",
+    topThree: "Top 3",
+    trophyCount: "{count} trofeos",
+    prizePayout: "≈ {amount} USDC",
+    prizePool: "Premio acumulado esta semana: {amount} USDC",
+    yourPrize: "Premio actual: {amount} USDC",
+    emptySlot: "Libre",
+    emptyWeek: "Aún no hay trofeos esta semana. ¡Sé el primero en ganar!",
+    yourRank: "Tu puesto",
+    guestBlurb:
+      "Cualquiera puede ver el ranking. Conecta una billetera y juega competitivo para ganar trofeos.",
+    connectCta: "Conectar billetera",
+    finishProfileBlurb:
+      "Completa tu perfil para aparecer en la clasificación semanal.",
+    finishProfileCta: "Ir al perfil",
+    notRankedYet: "Aún no tienes trofeos esta semana.",
+    playCompetitiveCta: "Jugar competitivo",
+    loading: "Cargando clasificación…",
+    error: "No se pudo cargar la clasificación. Inténtalo más tarde.",
+  },
   home: {
     multiplayer: "Online",
     playLocal: "Local",
@@ -169,6 +193,7 @@ export const es: Messages = {
     autoFor: "Auto — {label}",
     gameOverWinner: "¡Fin del juego! Ganador",
     prizeWon: "Premio: {amount} USDC",
+    trophiesWon: "+{count} trofeos",
     backToMenu: "Volver al menú",
   },
   profile: {

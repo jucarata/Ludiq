@@ -14,11 +14,14 @@ export function WinnerAnnouncement({
   menuHref = "/",
   onBackToMenu,
   prizeUsdt,
+  trophiesAwarded,
 }: {
   menuHref?: string;
   onBackToMenu?: () => void;
   /** Competitive pot paid to the winner (USDC on testnet). */
   prizeUsdt?: number | null;
+  /** Competitive: trophies granted to the winner (1 × participant count). */
+  trophiesAwarded?: number | null;
 } = {}) {
   const { winner } = useGameState();
   const { t, locale } = useTranslations();
@@ -33,6 +36,10 @@ export function WinnerAnnouncement({
   const label = getPlayerColorLabel(locale, winner);
   const showPrize =
     typeof prizeUsdt === "number" && Number.isFinite(prizeUsdt) && prizeUsdt > 0;
+  const showTrophies =
+    typeof trophiesAwarded === "number" &&
+    Number.isFinite(trophiesAwarded) &&
+    trophiesAwarded > 0;
 
   return (
     <div
@@ -57,6 +64,11 @@ export function WinnerAnnouncement({
           {showPrize ? (
             <p className="mt-3 text-sm font-bold tracking-wide text-[#f5c518]">
               {t("turn.prizeWon", { amount: prizeUsdt.toFixed(2) })}
+            </p>
+          ) : null}
+          {showTrophies ? (
+            <p className="mt-2 text-sm font-bold tracking-wide text-[#e8c547]">
+              {t("turn.trophiesWon", { count: trophiesAwarded })}
             </p>
           ) : null}
         </div>

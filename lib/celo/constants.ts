@@ -18,10 +18,10 @@ export const CELO_SEPOLIA_USDT = {
 export const COMPETITIVE_TOKEN = CELO_SEPOLIA_USDC;
 
 export const ENTRY_FEE_USDT = "0.20";
-/** Pool contribution per paying player (75% of entry). */
-export const POOL_SHARE_USDT = "0.15";
-/** Commission per paying player (25% of entry), held in escrow until withdraw. */
-export const COMMISSION_SHARE_USDT = "0.05";
+/** Pool contribution per paying player (90% of entry). */
+export const POOL_SHARE_USDT = "0.18";
+/** Commission per paying player (10% of entry), held in escrow until withdraw. */
+export const COMMISSION_SHARE_USDT = "0.02";
 
 export const ENTRY_FEE_RAW = parseUnits(
   ENTRY_FEE_USDT,
@@ -29,6 +29,10 @@ export const ENTRY_FEE_RAW = parseUnits(
 );
 export const POOL_SHARE_RAW = parseUnits(
   POOL_SHARE_USDT,
+  COMPETITIVE_TOKEN.decimals,
+);
+export const COMMISSION_SHARE_RAW = parseUnits(
+  COMMISSION_SHARE_USDT,
   COMPETITIVE_TOKEN.decimals,
 );
 

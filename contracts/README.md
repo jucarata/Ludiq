@@ -8,14 +8,16 @@ Each player pays **0.20 USDC**:
 
 | Share | Amount | Destination |
 |-------|--------|-------------|
-| Pool | 0.15 | Accumulates; paid to winner on `settle` |
-| Commission | 0.05 | Held in contract; owner `withdrawCommission` later |
+| Pool | 0.18 (90%) | Accumulates; paid to winner on `settle` |
+| Commission | 0.02 (10%) | Held in contract; owner `withdrawCommission` later |
+
+Of weekly accrued commission, **40%** is reserved for the trophy leaderboard (1st 50% / 2nd 30% / 3rd 20% of that slice). Leaderboard payouts are app-side; this contract only holds commission.
 
 ## Flow
 
 1. **Host** `approve`s USDC, then calls `deposit(roomKey)` with **0.20 USDC** (creates room; host is already paid).
-2. Lobby pool starts at **0.15 USDC**.
-3. **Joiners** in lobby `approve` + `joinDeposit(roomKey)` (**0.20** each). Pool grows by **0.15** per joiner.
+2. Lobby pool starts at **0.18 USDC**.
+3. **Joiners** in lobby `approve` + `joinDeposit(roomKey)` (**0.20** each). Pool grows by **0.18** per joiner.
 4. Host can start only when every player in the lobby has paid (host included via create).
 5. On room close (before start): host calls `refund(roomKey)` → full **0.20** back to each depositor (host pays gas).
 6. On game start: backend `lock(roomKey)`.
@@ -29,6 +31,8 @@ forge test
 ```
 
 ## Deploy (Celo Sepolia)
+
+Constants are immutable — after changing pool/commission shares, **redeploy** and update `NEXT_PUBLIC_ESCROW_ADDRESS`.
 
 USDC testnet (Circle): `0x01C5C0122039549AD1493B8220cABEdD739BC44E`
 

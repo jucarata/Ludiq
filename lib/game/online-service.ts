@@ -320,6 +320,71 @@ async function settleCompetitivePotIfNeeded(
   };
 }
 
+/**
+ * Competitive: winner earns 1 trophy × number of paid participants.
+ * Idempotent via game_rooms.trophies_awarded (claim room row before profile bump).
+ */
+async function awardCompetitiveTrophiesIfNeeded(
+  roomId: string,
+  winner: PlayerColor,
+): Promise<{ trophies_awarded?: number }> {
+  const supabase = getSupabaseAdminClient();
+  const { data: room, error: roomError } = await supabase
+    .from("game_rooms")
+    .select("mode, trophies_awarded")
+    .eq("id", roomId)
+    .maybeSingle();
+
+  if (roomError) throw new Error(roomError.message);
+  if (!room || room.mode !== "competitive") return {};
+  if (typeof room.trophies_awarded === "number") {
+    return { trophies_awarded: room.trophies_awarded };
+  }
+
+  const { data: players, error: playersError } = await supabase
+    .from("game_room_players")
+    .select("user_id, color, entry_paid")
+    .eq("room_id", roomId);
+
+  if (playersError) throw new Error(playersError.message);
+
+  const participants = (players ?? []).filter((p) => p.entry_paid === true);
+  const trophies = Math.max(1, participants.length);
+  const winnerPlayer = participants.find((p) => p.color === winner);
+  if (!winnerPlayer?.user_id) {
+    throw new Error("Winner profile not found for trophies");
+  }
+
+  const { data: claimed, error: claimError } = await supabase
+    .from("game_rooms")
+    .update({ trophies_awarded: trophies })
+    .eq("id", roomId)
+    .is("trophies_awarded", null)
+    .select("trophies_awarded")
+    .maybeSingle();
+
+  if (claimError) throw new Error(claimError.message);
+  if (!claimed) {
+    const { data: existing } = await supabase
+      .from("game_rooms")
+      .select("trophies_awarded")
+      .eq("id", roomId)
+      .maybeSingle();
+    if (typeof existing?.trophies_awarded === "number") {
+      return { trophies_awarded: existing.trophies_awarded };
+    }
+    return {};
+  }
+
+  const { error: awardError } = await supabase.rpc("award_profile_trophies", {
+    p_profile_id: winnerPlayer.user_id,
+    p_amount: trophies,
+  });
+  if (awardError) throw new Error(awardError.message);
+
+  return { trophies_awarded: trophies };
+}
+
 async function finishGame(
   roomId: string,
   winner: PlayerColor,
@@ -341,6 +406,13 @@ async function finishGame(
     // Still finish the game; payout can be retried manually if needed.
   }
 
+  let trophyFields: { trophies_awarded?: number } = {};
+  try {
+    trophyFields = await awardCompetitiveTrophiesIfNeeded(roomId, winner);
+  } catch (error) {
+    console.error("Competitive trophy award failed:", error);
+  }
+
   const { error: roomError } = await supabase
     .from("game_rooms")
     .update({
@@ -348,6 +420,7 @@ async function finishGame(
       winner,
       finished_at: now,
       ...settleFields,
+      ...trophyFields,
     })
     .eq("id", roomId);
 

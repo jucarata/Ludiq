@@ -23,11 +23,16 @@ export function formatCompetitiveTxError(error: unknown): string {
   }
 
   if (
+    lower.includes("not enough celo") ||
+    lower.includes("need celo for gas") ||
     lower.includes("insufficient funds") ||
     lower.includes("insufficient balance") ||
     lower.includes("exceeds balance")
   ) {
-    return "Not enough CELO for gas on Celo Sepolia";
+    if (lower.includes("usdc")) {
+      return "Not enough USDC on Celo Sepolia (need 0.20)";
+    }
+    return "Need CELO for gas on Celo Sepolia (USDC alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia";
   }
 
   if (

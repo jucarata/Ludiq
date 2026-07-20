@@ -58,6 +58,23 @@ export function OnlineGameView({ code }: { code: string }) {
     });
   }, []);
 
+  const refreshRoom = useCallback(async () => {
+    try {
+      const headers = await authHeaders();
+      const guest = getGuestIdentity();
+      const params = new URLSearchParams({ code, mode });
+      params.set("guestSessionId", guest.guestSessionId);
+      params.set("guestName", guest.guestName);
+
+      const res = await fetch(`/api/game?${params.toString()}`, { headers });
+      if (!res.ok) return;
+      const data = (await res.json()) as { room: RoomView };
+      setRoom(data.room);
+    } catch {
+      /* Room refresh is best-effort (trophies / pot after finish). */
+    }
+  }, [authHeaders, code, mode]);
+
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
@@ -106,6 +123,7 @@ export function OnlineGameView({ code }: { code: string }) {
   useGameRealtime({
     roomId: room?.id ?? null,
     onGame: applyGame,
+    onFinished: refreshRoom,
   });
 
   const self = room?.players.find((player) => player.isSelf);
@@ -268,6 +286,12 @@ export function OnlineGameView({ code }: { code: string }) {
                               room.mode === "competitive" &&
                               room.potAmountUsdt > 0
                                 ? room.potAmountUsdt
+                                : null
+                            }
+                            trophiesAwarded={
+                              room.mode === "competitive" && game.winner
+                                ? (room.trophiesAwarded ??
+                                  room.players.filter((p) => p.entryPaid).length)
                                 : null
                             }
                           />

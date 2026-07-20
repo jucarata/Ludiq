@@ -11,6 +11,7 @@ export type Profile = {
   avatar_url: string | null;
   games_played: number;
   games_won: number;
+  trophies: number;
   created_at: string;
   updated_at: string;
 };

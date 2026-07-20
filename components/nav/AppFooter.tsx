@@ -61,14 +61,14 @@ export function AppFooter() {
             <span className="invisible flex h-14 min-w-[12.5rem] sm:h-[3.75rem] sm:min-w-[14rem]" aria-hidden />
           )}
 
-          <button
-            type="button"
+          <Link
+            href="/leaderboard"
             aria-label={t("nav.leaderboard")}
             aria-current={isLeaderboard ? "page" : undefined}
             className={`${navIconClassName(isLeaderboard)} absolute right-full mr-3`}
           >
             <FaRankingStar className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
-          </button>
+          </Link>
 
           <Link
             href="/profile"

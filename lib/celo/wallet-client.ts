@@ -80,10 +80,11 @@ async function assertCanPayEntry(account: Address): Promise<void> {
   if (usdcBalance < ENTRY_FEE_RAW) {
     throw new Error("Insufficient USDC on Celo Sepolia (need 0.20)");
   }
-  // ~0.001 CELO covers approve + deposit with headroom on Sepolia.
-  // Use BigInt() — tsconfig targets ES2017, so `…n` literals fail typecheck.
-  if (celoBalance < BigInt("1000000000000000")) {
-    throw new Error("Not enough CELO for gas on Celo Sepolia");
+  // ~0.0001 CELO is enough for approve + deposit on Sepolia; keep a small buffer.
+  if (celoBalance < BigInt("100000000000000")) {
+    throw new Error(
+      "Need CELO for gas on Celo Sepolia (USDC alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia",
+    );
   }
 }
 

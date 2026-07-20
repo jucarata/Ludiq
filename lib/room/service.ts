@@ -1,4 +1,5 @@
 import type { PlayerColor } from "@/lib/board/types";
+import { POOL_SHARE_USDT } from "@/lib/celo/constants";
 import { generateRoomCode } from "@/lib/room/code";
 import { firstAvailableColor } from "@/lib/room/colors";
 import type { RoomMode } from "@/lib/room/mode";
@@ -6,6 +7,9 @@ import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
 import type { RoomPlayerView, RoomView } from "@/lib/room/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
+
+/** Off-chain pot tracker: matches on-chain POOL_SHARE_PER_PLAYER. */
+const POOL_SHARE_PER_PLAYER = Number(POOL_SHARE_USDT);
 
 type RoomRow = Database["public"]["Tables"]["game_rooms"]["Row"];
 type PlayerRow = Database["public"]["Tables"]["game_room_players"]["Row"];
@@ -131,6 +135,8 @@ export function toRoomView(
     potAmountUsdt: Number(room.pot_amount_usdt ?? 0),
     potStatus: room.pot_status ?? "none",
     escrowRoomKey: room.escrow_room_key ?? null,
+    trophiesAwarded:
+      typeof room.trophies_awarded === "number" ? room.trophies_awarded : null,
   };
 }
 
@@ -285,7 +291,7 @@ export async function createRoomWithHost(
 
     competitiveInsert = {
       escrow_room_key: competitiveDeposit.escrowRoomKey.toLowerCase(),
-      pot_amount_usdt: 0.15,
+      pot_amount_usdt: POOL_SHARE_PER_PLAYER,
       pot_status: "funded",
       deposit_tx_hash: competitiveDeposit.depositTxHash.toLowerCase(),
     };
@@ -1086,7 +1092,8 @@ export async function confirmCompetitiveEntry(params: {
   const { error: potError } = await supabase
     .from("game_rooms")
     .update({
-      pot_amount_usdt: Number(roomRow.pot_amount_usdt ?? 0) + 0.15,
+      pot_amount_usdt:
+        Number(roomRow.pot_amount_usdt ?? 0) + POOL_SHARE_PER_PLAYER,
     })
     .eq("id", roomRow.id);
 

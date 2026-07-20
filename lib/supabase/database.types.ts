@@ -30,6 +30,7 @@ export interface Database {
           avatar_url: string | null;
           games_played: number;
           games_won: number;
+          trophies: number;
           created_at: string;
           updated_at: string;
         };
@@ -43,6 +44,7 @@ export interface Database {
           avatar_url?: string | null;
           games_played?: number;
           games_won?: number;
+          trophies?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -56,6 +58,7 @@ export interface Database {
           avatar_url?: string | null;
           games_played?: number;
           games_won?: number;
+          trophies?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -79,6 +82,7 @@ export interface Database {
           deposit_tx_hash: string | null;
           refund_tx_hash: string | null;
           payout_tx_hash: string | null;
+          trophies_awarded: number | null;
         };
         Insert: {
           id?: string;
@@ -97,6 +101,7 @@ export interface Database {
           deposit_tx_hash?: string | null;
           refund_tx_hash?: string | null;
           payout_tx_hash?: string | null;
+          trophies_awarded?: number | null;
         };
         Update: {
           id?: string;
@@ -115,6 +120,7 @@ export interface Database {
           deposit_tx_hash?: string | null;
           refund_tx_hash?: string | null;
           payout_tx_hash?: string | null;
+          trophies_awarded?: number | null;
         };
         Relationships: [];
       };
@@ -277,6 +283,13 @@ export interface Database {
       generate_room_code: {
         Args: Record<string, never>;
         Returns: string;
+      };
+      award_profile_trophies: {
+        Args: {
+          p_profile_id: string;
+          p_amount: number;
+        };
+        Returns: number;
       };
     };
     Enums: {
