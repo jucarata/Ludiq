@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { FaDice } from "react-icons/fa6";
 import { GiCrossedSwords } from "react-icons/gi";
+import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
   retroActionFont,
@@ -95,13 +96,7 @@ export function MultiplayerHub() {
 
   if (isCompetitive) {
     if (!ready) {
-      return (
-        <main className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-8">
-          <p className="text-sm text-[var(--board-path-border)]">
-            {t("multiplayer.checkingAuth")}
-          </p>
-        </main>
-      );
+      return <DiceWaitScreen title={t("multiplayer.checkingAuth")} />;
     }
 
     if (!authenticated) {
@@ -160,10 +155,13 @@ export function MultiplayerHub() {
         <div className="flex w-full max-w-sm flex-col items-center gap-4">
           <Link
             href="/multiplayer/create?mode=competitive"
-            className={`${retroPlayButtonClassName} w-full min-w-0`}
-            aria-label={t("multiplayer.createRoom")}
+            className={`${retroPlayButtonClassName} h-auto min-h-14 w-full min-w-0 flex-col gap-0.5 py-2 leading-tight sm:min-h-[3.75rem]`}
+            aria-label={`${t("multiplayer.createRoom")} ${t("multiplayer.createRoomPrice")}`}
           >
-            {t("multiplayer.createRoom")}
+            <span>{t("multiplayer.createRoom")}</span>
+            <span className="text-[0.65rem] normal-case tracking-wide text-[var(--board-path)]/90 sm:text-xs">
+              {t("multiplayer.createRoomPrice")}
+            </span>
           </Link>
           <Link
             href="/multiplayer/join?mode=competitive"

@@ -13,9 +13,12 @@ import { retroBackButtonClassName } from "@/lib/fonts";
 export function WinnerAnnouncement({
   menuHref = "/",
   onBackToMenu,
+  prizeUsdt,
 }: {
   menuHref?: string;
   onBackToMenu?: () => void;
+  /** Competitive pot paid to the winner (USDC on testnet). */
+  prizeUsdt?: number | null;
 } = {}) {
   const { winner } = useGameState();
   const { t, locale } = useTranslations();
@@ -28,6 +31,8 @@ export function WinnerAnnouncement({
 
   const { fill, dark } = PLAYER_COLORS[winner];
   const label = getPlayerColorLabel(locale, winner);
+  const showPrize =
+    typeof prizeUsdt === "number" && Number.isFinite(prizeUsdt) && prizeUsdt > 0;
 
   return (
     <div
@@ -49,6 +54,11 @@ export function WinnerAnnouncement({
           >
             {label}
           </p>
+          {showPrize ? (
+            <p className="mt-3 text-sm font-bold tracking-wide text-[#f5c518]">
+              {t("turn.prizeWon", { amount: prizeUsdt.toFixed(2) })}
+            </p>
+          ) : null}
         </div>
         {onBackToMenu ? (
           <button

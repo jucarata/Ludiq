@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import type { Hex } from "viem";
 import { ParquesBoard } from "@/components/board/ParquesBoard";
 import { BoardDiceZone } from "@/components/board/BoardDiceZone";
 import { AutoModeProvider } from "@/components/game/AutoModeContext";
@@ -16,12 +17,17 @@ import { OnlineSessionProvider } from "@/components/multiplayer/online/OnlineSes
 import { OnlineTurnProvider } from "@/components/multiplayer/online/OnlineTurnProvider";
 import { TurnAnnouncement } from "@/components/turn/TurnAnnouncement";
 import { TurnPanel } from "@/components/turn/TurnPanel";
+import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { WinnerAnnouncement } from "@/components/turn/WinnerAnnouncement";
 import type { OnlineGameStateView } from "@/lib/game/online-types";
 import { useGameRealtime } from "@/lib/game/use-game-realtime";
+import { refundCompetitiveEntry } from "@/lib/celo/wallet-client";
+import { resolveCompetitiveWallet } from "@/lib/celo/resolve-competitive-wallet";
+import { retroBackButtonClassName } from "@/lib/fonts";
 import { getGuestIdentity } from "@/lib/room/guest";
 import { parseRoomMode } from "@/lib/room/mode";
 import type { RoomView } from "@/lib/room/types";
+import type { Profile } from "@/lib/profile/types";
 
 export function OnlineGameView({ code }: { code: string }) {
   const { t } = useTranslations();
@@ -29,6 +35,7 @@ export function OnlineGameView({ code }: { code: string }) {
   const searchParams = useSearchParams();
   const mode = parseRoomMode(searchParams.get("mode"));
   const { ready, authenticated, getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [game, setGame] = useState<OnlineGameStateView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,14 +147,11 @@ export function OnlineGameView({ code }: { code: string }) {
   );
 
   if (!ready || loading || !room || !game || !self) {
-    return (
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 py-8">
-        <p className="text-sm text-[var(--board-path-border)]">
-          {t("room.loadingGame")}
-        </p>
-      </main>
-    );
+    return <DiceWaitScreen title={t("room.waitLoadingBoard")} />;
   }
+
+  const cancelledWithoutWinner =
+    game.turnPhase === "ended" && game.winner == null;
 
   const backToMenu = () => {
     void (async () => {
@@ -158,7 +162,38 @@ export function OnlineGameView({ code }: { code: string }) {
           mode: typeof mode;
           guestSessionId?: string;
           guestName?: string;
+          refundTxHash?: string;
         } = { code: room.code, mode };
+
+        if (
+          self.isHost &&
+          room.mode === "competitive" &&
+          room.potStatus === "funded" &&
+          room.escrowRoomKey
+        ) {
+          try {
+            const profileRes = await fetch("/api/profile", { headers });
+            let profileWallet: string | null = null;
+            if (profileRes.ok) {
+              const profileData = (await profileRes.json()) as {
+                profile: Profile | null;
+              };
+              profileWallet = profileData.profile?.wallet_address ?? null;
+            }
+            if (profileWallet) {
+              const wallet = await resolveCompetitiveWallet({
+                profileWallet,
+                privyWallets: wallets,
+              });
+              body.refundTxHash = await refundCompetitiveEntry({
+                wallet,
+                roomKey: room.escrowRoomKey as Hex,
+              });
+            }
+          } catch {
+            /* Host can retry refund later; still leave the screen. */
+          }
+        }
 
         if (self.isGuest) {
           const guest = getGuestIdentity();
@@ -177,6 +212,28 @@ export function OnlineGameView({ code }: { code: string }) {
       router.replace("/");
     })();
   };
+
+  if (cancelledWithoutWinner) {
+    return (
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6 py-8">
+        <div className="max-w-md text-center">
+          <h1 className="text-2xl font-black text-[var(--board-path)]">
+            {t("room.potLockFailedTitle")}
+          </h1>
+          <p className="mt-2 text-sm text-[var(--board-path-border)]">
+            {t("room.potLockFailed")}
+          </p>
+        </div>
+        <button
+          type="button"
+          className={retroBackButtonClassName}
+          onClick={backToMenu}
+        >
+          {t("turn.backToMenu")}
+        </button>
+      </main>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -205,7 +262,15 @@ export function OnlineGameView({ code }: { code: string }) {
                         <BoardDiceZone>
                           <ParquesBoard className="[--board-dim:min(100cqw,100cqh)] md:[--board-dim:var(--board-size)]" />
                           <TurnAnnouncement />
-                          <WinnerAnnouncement onBackToMenu={backToMenu} />
+                          <WinnerAnnouncement
+                            onBackToMenu={backToMenu}
+                            prizeUsdt={
+                              room.mode === "competitive" &&
+                              room.potAmountUsdt > 0
+                                ? room.potAmountUsdt
+                                : null
+                            }
+                          />
                         </BoardDiceZone>
                       </div>
                       <TurnPanel />

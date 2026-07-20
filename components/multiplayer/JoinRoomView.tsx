@@ -2,7 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { AppFooter } from "@/components/nav/AppFooter";
@@ -15,11 +16,17 @@ import {
   normalizeRoomCode,
   ROOM_CODE_LENGTH,
 } from "@/lib/room/code";
+import {
+  joinCompetitiveEntry,
+  refundCompetitiveEntry,
+} from "@/lib/celo/wallet-client";
+import { resolveCompetitiveWallet } from "@/lib/celo/resolve-competitive-wallet";
 import { clearStoredHostRoomCode, getGuestIdentity } from "@/lib/room/guest";
 import { parseRoomMode } from "@/lib/room/mode";
 import { withOptimisticColor } from "@/lib/room/optimistic";
 import type { RoomView } from "@/lib/room/types";
 import { useRoomRealtime } from "@/lib/room/use-room-realtime";
+import type { Hex } from "viem";
 
 function mapJoinError(error: string | undefined): MessageKey {
   switch (error) {
@@ -47,6 +54,7 @@ export function JoinRoomView() {
   const mode = parseRoomMode(searchParams.get("mode"));
   const hubHref = `/multiplayer?mode=${mode}`;
   const { ready, authenticated, getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
   const [codeInput, setCodeInput] = useState("");
   const [room, setRoom] = useState<RoomView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +64,12 @@ export function JoinRoomView() {
   const [leaving, setLeaving] = useState(false);
   const [kicking, setKicking] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [confirmingEntry, setConfirmingEntry] = useState(false);
   const closingRef = useRef(false);
   const leavingRef = useRef(false);
   const kickingRef = useRef(false);
   const startingRef = useRef(false);
+  const confirmingEntryRef = useRef(false);
   const pendingColorRef = useRef<PlayerColor | null>(null);
 
   const authHeaders = useCallback(async () => {
@@ -245,6 +255,43 @@ export function JoinRoomView() {
     }
   };
 
+  const refundIfNeeded = async (
+    current: RoomView,
+  ): Promise<string | undefined> => {
+    const selfPlayer = current.players.find((player) => player.isSelf);
+    if (
+      current.mode !== "competitive" ||
+      current.potStatus !== "funded" ||
+      !current.escrowRoomKey ||
+      !selfPlayer?.isHost
+    ) {
+      return undefined;
+    }
+    try {
+      const headers = await authHeaders();
+      const profileRes = await fetch("/api/profile", { headers });
+      let profileWallet: string | null = null;
+      if (profileRes.ok) {
+        const profileData = (await profileRes.json()) as {
+          profile: Profile | null;
+        };
+        profileWallet = profileData.profile?.wallet_address ?? null;
+      }
+      if (!profileWallet) throw new Error(t("room.refundError"));
+
+      const wallet = await resolveCompetitiveWallet({
+        profileWallet,
+        privyWallets: wallets,
+      });
+      return await refundCompetitiveEntry({
+        wallet,
+        roomKey: current.escrowRoomKey as Hex,
+      });
+    } catch {
+      throw new Error(t("room.refundError"));
+    }
+  };
+
   const handleLeaveRoom = async () => {
     if (!room || leaving || closing) return;
 
@@ -253,6 +300,7 @@ export function JoinRoomView() {
     setError(null);
 
     try {
+      const refundTxHash = await refundIfNeeded(room);
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
@@ -260,10 +308,13 @@ export function JoinRoomView() {
         mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
+        refundTxHash?: string;
       } = {
         code: room.code,
         mode,
       };
+
+      if (refundTxHash) body.refundTxHash = refundTxHash;
 
       if (selfPlayer?.isGuest) {
         const guest = getGuestIdentity();
@@ -302,6 +353,7 @@ export function JoinRoomView() {
     setError(null);
 
     try {
+      const refundTxHash = await refundIfNeeded(room);
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
@@ -309,10 +361,13 @@ export function JoinRoomView() {
         mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
+        refundTxHash?: string;
       } = {
         code: room.code,
         mode,
       };
+
+      if (refundTxHash) body.refundTxHash = refundTxHash;
 
       if (selfPlayer?.isGuest) {
         const guest = getGuestIdentity();
@@ -442,14 +497,75 @@ export function JoinRoomView() {
     }
   };
 
+  const handleConfirmEntry = async () => {
+    if (!room || confirmingEntry || closing || leaving) return;
+    const selfPlayer = room.players.find((player) => player.isSelf);
+    if (!selfPlayer || selfPlayer.isHost || selfPlayer.entryPaid) return;
+    if (!room.escrowRoomKey) {
+      setError(t("room.confirmEntryError"));
+      return;
+    }
+
+    confirmingEntryRef.current = true;
+    setConfirmingEntry(true);
+    setError(null);
+
+    try {
+      const headers = await authHeaders();
+      const profileRes = await fetch("/api/profile", { headers });
+      let profileWallet: string | null = null;
+      if (profileRes.ok) {
+        const profileData = (await profileRes.json()) as {
+          profile: Profile | null;
+        };
+        profileWallet = profileData.profile?.wallet_address ?? null;
+      }
+      if (!profileWallet) {
+        throw new Error(t("room.depositWalletRequired"));
+      }
+
+      const competitiveWallet = await resolveCompetitiveWallet({
+        profileWallet,
+        privyWallets: wallets,
+      });
+
+      const entryTxHash = await joinCompetitiveEntry({
+        wallet: competitiveWallet,
+        roomKey: room.escrowRoomKey as Hex,
+        walletAddress: profileWallet,
+      });
+
+      const res = await fetch("/api/rooms/confirm-entry", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          code: room.code,
+          mode,
+          entryTxHash,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? t("room.confirmEntryError"));
+      }
+
+      const data = (await res.json()) as { room: RoomView };
+      setRoom(data.room);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t("room.confirmEntryError"),
+      );
+    } finally {
+      confirmingEntryRef.current = false;
+      setConfirmingEntry(false);
+    }
+  };
+
   if (!ready) {
-    return (
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 py-8">
-        <p className="text-sm text-[var(--board-path-border)]">
-          {t("room.joining")}
-        </p>
-      </main>
-    );
+    return <DiceWaitScreen title={t("room.waitJoining")} />;
   }
 
   if (room) {
@@ -461,12 +577,14 @@ export function JoinRoomView() {
         leaving={leaving}
         kicking={kicking}
         starting={starting}
+        confirmingEntry={confirmingEntry}
         error={error}
         onSelectColor={(color) => void handleSelectColor(color)}
         onLeave={() => void handleLeaveRoom()}
         onCloseRoom={() => void handleCloseRoom()}
         onKickPlayer={(playerId) => void handleKickPlayer(playerId)}
         onStartGame={() => void handleStartGame()}
+        onConfirmEntry={() => void handleConfirmEntry()}
       />
     );
   }
@@ -475,6 +593,9 @@ export function JoinRoomView() {
 
   return (
     <>
+      {joining ? (
+        <DiceWaitScreen title={t("room.waitJoining")} />
+      ) : (
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
@@ -519,10 +640,11 @@ export function JoinRoomView() {
             disabled={!canJoin}
             className={retroPlayButtonClassName}
           >
-            {joining ? t("room.joining") : t("room.joinAction")}
+            {t("room.joinAction")}
           </button>
         </form>
       </main>
+      )}
       <AppFooter />
     </>
   );

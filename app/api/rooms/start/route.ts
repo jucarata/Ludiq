@@ -1,5 +1,8 @@
-import { NextResponse } from "next/server";
-import { startRoomGame } from "@/lib/game/online-service";
+import { after, NextResponse } from "next/server";
+import {
+  lockCompetitivePotInBackground,
+  startRoomGame,
+} from "@/lib/game/online-service";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
 import { parseRoomMode } from "@/lib/room/mode";
@@ -39,8 +42,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await startRoomGame({ code, identity, mode });
-    return NextResponse.json(result);
+    const { room, game, pendingLock } = await startRoomGame({
+      code,
+      identity,
+      mode,
+    });
+
+    if (pendingLock) {
+      after(() => lockCompetitivePotInBackground(pendingLock));
+    }
+
+    return NextResponse.json({ room, game });
   } catch (error) {
     if (error instanceof Response) return error;
     const message =

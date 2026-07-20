@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { PlayerColor } from "@/lib/board/types";
@@ -15,10 +16,17 @@ import {
   getStoredHostRoomCode,
   setStoredHostRoomCode,
 } from "@/lib/room/guest";
+import {
+  depositCompetitiveEntry,
+  refundCompetitiveEntry,
+  type CompetitiveWallet,
+} from "@/lib/celo/wallet-client";
+import { resolveCompetitiveWallet } from "@/lib/celo/resolve-competitive-wallet";
 import { parseRoomMode } from "@/lib/room/mode";
 import { withOptimisticColor } from "@/lib/room/optimistic";
 import type { RoomView } from "@/lib/room/types";
 import { useRoomRealtime } from "@/lib/room/use-room-realtime";
+import type { Hex } from "viem";
 
 export function CreateRoomView() {
   const { t } = useTranslations();
@@ -27,6 +35,7 @@ export function CreateRoomView() {
   const mode = parseRoomMode(searchParams.get("mode"));
   const hubHref = `/multiplayer?mode=${mode}`;
   const { ready, authenticated, getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,6 +150,7 @@ export function CreateRoomView() {
       }
 
       let hasProfileUsername = false;
+      let profileWallet: string | null = null;
       if (authenticated) {
         const profileRes = await fetch("/api/profile", { headers });
         if (profileRes.ok) {
@@ -148,6 +158,7 @@ export function CreateRoomView() {
             profile: Profile | null;
           };
           hasProfileUsername = Boolean(profileData.profile?.username);
+          profileWallet = profileData.profile?.wallet_address ?? null;
         }
       }
 
@@ -155,11 +166,39 @@ export function CreateRoomView() {
         mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
+        escrowRoomKey?: string;
+        depositTxHash?: string;
       } = { mode };
 
       if (!hasProfileUsername) {
         createBody.guestSessionId = guest.guestSessionId;
         createBody.guestName = guest.guestName;
+      }
+
+      let competitiveWallet: CompetitiveWallet | undefined;
+
+      if (mode === "competitive") {
+        if (!profileWallet) {
+          throw new Error(t("room.depositWalletRequired"));
+        }
+        try {
+          competitiveWallet = await resolveCompetitiveWallet({
+            profileWallet,
+            privyWallets: wallets,
+          });
+          const deposit = await depositCompetitiveEntry({
+            wallet: competitiveWallet,
+            walletAddress: profileWallet,
+          });
+          createBody.escrowRoomKey = deposit.escrowRoomKey;
+          createBody.depositTxHash = deposit.depositTxHash;
+        } catch (depositErr) {
+          throw new Error(
+            depositErr instanceof Error
+              ? depositErr.message
+              : t("room.depositError"),
+          );
+        }
       }
 
       const createRes = await fetch("/api/rooms", {
@@ -169,6 +208,20 @@ export function CreateRoomView() {
       });
 
       if (!createRes.ok) {
+        if (
+          createBody.escrowRoomKey &&
+          competitiveWallet &&
+          mode === "competitive"
+        ) {
+          try {
+            await refundCompetitiveEntry({
+              wallet: competitiveWallet,
+              roomKey: createBody.escrowRoomKey as Hex,
+            });
+          } catch {
+            // Best-effort refund if room creation failed after deposit.
+          }
+        }
         const data = (await createRes.json().catch(() => null)) as {
           error?: string;
         } | null;
@@ -183,13 +236,17 @@ export function CreateRoomView() {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, authenticated, mode, playHref, router, t]);
+  }, [authHeaders, authenticated, mode, playHref, router, t, wallets]);
 
   useEffect(() => {
     if (!ready || bootstrapped.current) return;
+    // Competitive create needs a connected Privy wallet for the deposit.
+    if (mode === "competitive" && authenticated && wallets.length === 0) {
+      return;
+    }
     bootstrapped.current = true;
     void bootstrapRoom();
-  }, [ready, bootstrapRoom]);
+  }, [ready, bootstrapRoom, mode, authenticated, wallets.length]);
 
   const handleSelectColor = async (color: PlayerColor) => {
     if (!room || changingColor || closing) return;
@@ -253,6 +310,41 @@ export function CreateRoomView() {
     }
   };
 
+  const refundIfNeeded = async (current: RoomView): Promise<string | undefined> => {
+    const selfPlayer = current.players.find((player) => player.isSelf);
+    if (
+      current.mode !== "competitive" ||
+      current.potStatus !== "funded" ||
+      !current.escrowRoomKey ||
+      !selfPlayer?.isHost
+    ) {
+      return undefined;
+    }
+    try {
+      const headers = await authHeaders();
+      const profileRes = await fetch("/api/profile", { headers });
+      let profileWallet: string | null = null;
+      if (profileRes.ok) {
+        const profileData = (await profileRes.json()) as {
+          profile: Profile | null;
+        };
+        profileWallet = profileData.profile?.wallet_address ?? null;
+      }
+      if (!profileWallet) throw new Error(t("room.refundError"));
+
+      const wallet = await resolveCompetitiveWallet({
+        profileWallet,
+        privyWallets: wallets,
+      });
+      return await refundCompetitiveEntry({
+        wallet,
+        roomKey: current.escrowRoomKey as Hex,
+      });
+    } catch {
+      throw new Error(t("room.refundError"));
+    }
+  };
+
   const handleLeaveRoom = async () => {
     if (!room || leaving || closing) return;
 
@@ -261,6 +353,7 @@ export function CreateRoomView() {
     setError(null);
 
     try {
+      const refundTxHash = await refundIfNeeded(room);
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
@@ -268,10 +361,13 @@ export function CreateRoomView() {
         mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
+        refundTxHash?: string;
       } = {
         code: room.code,
         mode,
       };
+
+      if (refundTxHash) body.refundTxHash = refundTxHash;
 
       if (selfPlayer?.isGuest) {
         const guest = getGuestIdentity();
@@ -310,6 +406,7 @@ export function CreateRoomView() {
     setError(null);
 
     try {
+      const refundTxHash = await refundIfNeeded(room);
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
@@ -317,10 +414,13 @@ export function CreateRoomView() {
         mode: typeof mode;
         guestSessionId?: string;
         guestName?: string;
+        refundTxHash?: string;
       } = {
         code: room.code,
         mode,
       };
+
+      if (refundTxHash) body.refundTxHash = refundTxHash;
 
       if (selfPlayer?.isGuest) {
         const guest = getGuestIdentity();
@@ -452,11 +552,12 @@ export function CreateRoomView() {
 
   if (!ready || loading) {
     return (
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 py-8">
-        <p className="text-sm text-[var(--board-path-border)]">
-          {t("room.creating")}
-        </p>
-      </main>
+      <DiceWaitScreen
+        title={t("room.waitShuffle")}
+        hint={
+          mode === "competitive" ? t("room.waitWalletHint") : t("room.creating")
+        }
+      />
     );
   }
 

@@ -9,6 +9,7 @@ type CloseBody = {
   mode?: string;
   guestSessionId?: string;
   guestName?: string;
+  refundTxHash?: string;
 };
 
 export async function POST(request: Request) {
@@ -38,7 +39,12 @@ export async function POST(request: Request) {
       );
     }
 
-    await closeRoom({ code, identity, mode });
+    await closeRoom({
+      code,
+      identity,
+      mode,
+      refundTxHash: body.refundTxHash,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Response) return error;

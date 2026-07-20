@@ -1,4 +1,5 @@
 import type { PlayerColor } from "@/lib/board/types";
+import type { PotStatus } from "@/lib/celo/constants";
 import type { RoomMode } from "@/lib/room/mode";
 
 export type RoomPlayerView = {
@@ -9,6 +10,7 @@ export type RoomPlayerView = {
   isSelf: boolean;
   isGuest: boolean;
   autoEnabled: boolean;
+  entryPaid: boolean;
 };
 
 export type RoomView = {
@@ -18,4 +20,7 @@ export type RoomView = {
   status: "waiting" | "playing" | "finished";
   hostId: string | null;
   players: RoomPlayerView[];
+  potAmountUsdt: number;
+  potStatus: PotStatus;
+  escrowRoomKey: string | null;
 };

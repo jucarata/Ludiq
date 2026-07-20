@@ -26,3 +26,8 @@ npm-debug.log*
 
 # typescript
 next-env.d.ts
+
+# foundry
+/contracts/cache/
+/contracts/out/
+/contracts/broadcast/

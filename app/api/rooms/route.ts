@@ -11,6 +11,8 @@ type CreateRoomBody = {
   mode?: string;
   guestSessionId?: string;
   guestName?: string;
+  escrowRoomKey?: string;
+  depositTxHash?: string;
 };
 
 export async function POST(request: Request) {
@@ -32,7 +34,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const room = await createRoomWithHost(identity, mode);
+    const competitiveDeposit =
+      mode === "competitive" && body.escrowRoomKey && body.depositTxHash
+        ? {
+            escrowRoomKey: body.escrowRoomKey,
+            depositTxHash: body.depositTxHash,
+          }
+        : undefined;
+
+    const room = await createRoomWithHost(identity, mode, competitiveDeposit);
     return NextResponse.json({ room }, { status: 201 });
   } catch (error) {
     if (error instanceof Response) return error;

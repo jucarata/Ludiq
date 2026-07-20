@@ -33,7 +33,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
             createOnLogin: "users-without-wallets",
           },
         },
-        defaultChain: celo,
+        defaultChain:
+          process.env.NEXT_PUBLIC_CELO_CHAIN?.toLowerCase() === "sepolia" ||
+          process.env.NEXT_PUBLIC_CELO_CHAIN?.toLowerCase() === "celo-sepolia"
+            ? celoSepolia
+            : celo,
         supportedChains: [celo, celoSepolia],
       }}
     >

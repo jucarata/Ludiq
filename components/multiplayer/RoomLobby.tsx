@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GamePiece } from "@/components/board/GamePiece";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { PiggyBank } from "@/components/multiplayer/PiggyBank";
 import {
   PLAYER_COLORS,
@@ -26,12 +27,14 @@ type RoomLobbyProps = {
   leaving?: boolean;
   kicking?: boolean;
   starting?: boolean;
+  confirmingEntry?: boolean;
   error?: string | null;
   onSelectColor: (color: PlayerColor) => void;
   onLeave: () => void;
   onCloseRoom?: () => void;
   onKickPlayer?: (playerId: string) => void;
   onStartGame?: () => void;
+  onConfirmEntry?: () => void;
 };
 
 type BubbleAnchor = { x: number; y: number };
@@ -43,12 +46,14 @@ export function RoomLobby({
   leaving = false,
   kicking = false,
   starting = false,
+  confirmingEntry = false,
   error = null,
   onSelectColor,
   onLeave,
   onCloseRoom,
   onKickPlayer,
   onStartGame,
+  onConfirmEntry,
 }: RoomLobbyProps) {
   const { t, locale } = useTranslations();
   const [picking, setPicking] = useState(false);
@@ -61,13 +66,28 @@ export function RoomLobby({
   const self = room.players.find((player) => player.isSelf) ?? null;
   const isHost = Boolean(self?.isHost);
   const isCompetitive = room.mode === "competitive";
+  const allEntriesPaid =
+    !isCompetitive || room.players.every((player) => player.entryPaid);
   const canStartGame =
     isHost &&
     Boolean(onStartGame) &&
     room.status === "waiting" &&
     room.players.length >= 2 &&
-    room.players.length <= 4;
-  const busy = changingColor || closing || leaving || kicking || starting;
+    room.players.length <= 4 &&
+    allEntriesPaid;
+  const needsEntryConfirm =
+    isCompetitive &&
+    Boolean(self) &&
+    !self?.isHost &&
+    !self?.entryPaid &&
+    Boolean(onConfirmEntry);
+  const busy =
+    changingColor ||
+    closing ||
+    leaving ||
+    kicking ||
+    starting ||
+    confirmingEntry;
   const takenColors = room.players.map((player) => player.color);
   const freeColors = availableColors(
     takenColors.filter((color) => color !== self?.color),
@@ -186,18 +206,45 @@ export function RoomLobby({
   };
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-5 sm:gap-5 sm:py-6">
+    <main className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-5 sm:gap-5 sm:py-6">
+      {starting ? (
+        <DiceWaitScreen title={t("room.waitStarting")} overlay />
+      ) : null}
+      {confirmingEntry ? (
+        <DiceWaitScreen
+          title={t("room.waitShuffle")}
+          hint={t("room.waitWalletHint")}
+          overlay
+        />
+      ) : null}
+      {!starting && closing ? (
+        <DiceWaitScreen title={t("room.closing")} overlay />
+      ) : null}
+      {!starting && !closing && leaving ? (
+        <DiceWaitScreen title={t("room.leaving")} overlay />
+      ) : null}
       {isCompetitive ? (
         <section
           aria-label={t("room.potLabel")}
           className="flex w-full max-w-sm flex-col items-center"
         >
           <div className="relative flex flex-col items-center">
-            <PiggyBank className="piggy-bob h-28 w-auto sm:h-32" />
+            <PiggyBank
+              className="piggy-bob h-28 w-auto sm:h-32"
+              coinCount={
+                room.potAmountUsdt > 0
+                  ? Math.min(6, Math.max(1, Math.round(room.potAmountUsdt * 10)))
+                  : 0
+              }
+            />
             <p
               className={`${retroActionFont.className} -mt-1 text-[0.7rem] tracking-wide text-[#f5c518] sm:text-xs`}
             >
-              {t("room.potAmountPending")}
+              {room.potAmountUsdt > 0
+                ? t("room.potAmount", {
+                    amount: room.potAmountUsdt.toFixed(2),
+                  })
+                : t("room.potAmountPending")}
             </p>
           </div>
         </section>
@@ -243,8 +290,22 @@ export function RoomLobby({
             const { fill } = PLAYER_COLORS[player.color];
             const label = getPlayerColorLabel(locale, player.color);
             const isSelf = player.isSelf;
+            const entryConfirmed = !isCompetitive || player.entryPaid;
             const showKick =
-              canKickPlayers && !isSelf && !player.isHost;
+              canKickPlayers &&
+              !isSelf &&
+              !player.isHost &&
+              (!isCompetitive || !player.entryPaid);
+            const paymentBorderClass = isCompetitive
+              ? entryConfirmed
+                ? "border-[var(--board-green)]"
+                : "border-[var(--board-red)]"
+              : "border-[var(--board-path-border)]";
+            const paymentBorderMutedClass = isCompetitive
+              ? entryConfirmed
+                ? "border-[var(--board-green)]"
+                : "border-[var(--board-red)]"
+              : "border-[var(--board-path-border)]/40";
             const pieceFrameClassName =
               "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-[3px] sm:h-16 sm:w-16";
 
@@ -278,12 +339,18 @@ export function RoomLobby({
                           : t("room.yourPieceAria", { color: label })
                       }
                       onClick={handlePieceClick}
-                      className={`${pieceFrameClassName} transition-all ${
+                      className={`${pieceFrameClassName} ${paymentBorderClass} transition-all ${
                         canChangeColor
-                          ? "cursor-pointer border-[var(--board-path-border)] bg-[#2a2a3e] hover:brightness-110 active:scale-95"
-                          : "cursor-default border-[var(--board-path-border)]/60 bg-[#2a2a3e]"
+                          ? "cursor-pointer bg-[#2a2a3e] hover:brightness-110 active:scale-95"
+                          : "cursor-default bg-[#2a2a3e]"
                       }`}
-                      style={{ boxShadow: `0 0 14px ${fill}55` }}
+                      style={{
+                        boxShadow: isCompetitive
+                          ? entryConfirmed
+                            ? "0 0 12px color-mix(in srgb, var(--board-green) 55%, transparent)"
+                            : "0 0 12px color-mix(in srgb, var(--board-red) 55%, transparent)"
+                          : `0 0 14px ${fill}55`,
+                      }}
                     >
                       <GamePiece
                         color={player.color}
@@ -292,7 +359,16 @@ export function RoomLobby({
                     </button>
                   ) : (
                     <div
-                      className={`${pieceFrameClassName} border-[var(--board-path-border)]/40 bg-[#2a2a3e]`}
+                      className={`${pieceFrameClassName} ${paymentBorderMutedClass} bg-[#2a2a3e]`}
+                      style={
+                        isCompetitive
+                          ? {
+                              boxShadow: entryConfirmed
+                                ? "0 0 12px color-mix(in srgb, var(--board-green) 45%, transparent)"
+                                : "0 0 12px color-mix(in srgb, var(--board-red) 45%, transparent)",
+                            }
+                          : undefined
+                      }
                       aria-label={t("room.playerPieceAria", {
                         user: player.username,
                         color: label,
@@ -328,45 +404,94 @@ export function RoomLobby({
         </p>
       ) : null}
 
-      {isHost && onStartGame ? (
-        <div className="flex w-full max-w-sm flex-col items-center gap-2">
-          <button
-            type="button"
-            disabled={busy || !canStartGame}
-            onClick={onStartGame}
-            className={`${retroPlayButtonClassName} w-full min-w-0`}
-            aria-label={t("room.play")}
-          >
-            {starting ? t("room.starting") : t("room.play")}
-          </button>
-          {!canStartGame && !starting ? (
-            <p className="text-center text-[0.65rem] text-[var(--board-path-border)] sm:text-xs">
-              {t("room.playHint")}
-            </p>
+      {needsEntryConfirm || (isHost && onStartGame) ? (
+        <div className="flex w-full max-w-sm flex-col items-center gap-3">
+          {needsEntryConfirm ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onConfirmEntry}
+              className={`${retroPlayButtonClassName} h-auto min-h-14 w-full min-w-0 flex-col gap-0.5 py-2 leading-tight sm:min-h-[3.75rem]`}
+              aria-label={t("room.confirmEntry")}
+            >
+              <span>{t("room.confirmEntry")}</span>
+              <span className="text-[0.65rem] normal-case tracking-wide text-[var(--board-path)]/90 sm:text-xs">
+                {t("room.confirmEntryPrice")}
+              </span>
+            </button>
           ) : null}
-        </div>
-      ) : null}
 
-      <div className="flex flex-col items-center gap-3 sm:flex-row">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={handleBackClick}
-          className={retroBackButtonClassName}
-        >
-          {leaving ? t("room.leaving") : t("room.back")}
-        </button>
-        {isHost && onCloseRoom ? (
+          {isHost && onStartGame ? (
+            <>
+              <button
+                type="button"
+                disabled={busy || !canStartGame}
+                onClick={onStartGame}
+                className={`${retroPlayButtonClassName} w-full min-w-0`}
+                aria-label={t("room.play")}
+              >
+                {starting ? t("room.starting") : t("room.play")}
+              </button>
+              {!canStartGame && !starting ? (
+                <p className="-mt-1 text-center text-[0.65rem] text-[var(--board-path-border)] sm:text-xs">
+                  {isCompetitive && !allEntriesPaid
+                    ? t("room.playHintPayments")
+                    : t("room.playHint")}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+
           <button
             type="button"
             disabled={busy}
-            onClick={onCloseRoom}
-            className={retroDangerButtonClassName}
+            onClick={handleBackClick}
+            className={`${retroBackButtonClassName} h-auto min-h-14 w-full min-w-0 sm:min-h-[3.75rem]`}
           >
-            {closing ? t("room.closing") : t("room.closeRoom")}
+            {leaving ? t("room.leaving") : t("room.back")}
           </button>
-        ) : null}
-      </div>
+
+          {isHost && onCloseRoom ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onCloseRoom}
+              className={`${retroDangerButtonClassName} h-auto min-h-14 w-full min-w-0 sm:min-h-[3.75rem]`}
+            >
+              {closing ? t("room.closing") : t("room.closeRoom")}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3 sm:flex-row">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleBackClick}
+            className={retroBackButtonClassName}
+          >
+            {leaving ? t("room.leaving") : t("room.back")}
+          </button>
+          {isHost && onCloseRoom ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onCloseRoom}
+              className={retroDangerButtonClassName}
+            >
+              {closing ? t("room.closing") : t("room.closeRoom")}
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {isCompetitive && self && !self.isHost && self.entryPaid ? (
+        <p
+          className={`${retroActionFont.className} text-[0.65rem] tracking-wide text-[var(--board-green)] sm:text-xs`}
+        >
+          {t("room.entryConfirmed")}
+        </p>
+      ) : null}
 
       {confirmHostLeave
         ? createPortal(

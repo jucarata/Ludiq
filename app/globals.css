@@ -214,3 +214,43 @@ body {
   animation: piggy-bob 2.8s ease-in-out infinite;
 }
 
+@keyframes deposit-die-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  40% {
+    transform: translateY(-18px) rotate(8deg);
+  }
+  70% {
+    transform: translateY(-4px) rotate(-3deg);
+  }
+}
+
+@keyframes deposit-die-bounce-alt {
+  0%,
+  100% {
+    transform: translateY(0) rotate(8deg);
+  }
+  45% {
+    transform: translateY(-22px) rotate(-10deg);
+  }
+  75% {
+    transform: translateY(-6px) rotate(4deg);
+  }
+}
+
+.deposit-die {
+  display: inline-flex;
+  will-change: transform;
+}
+
+.deposit-die--a {
+  animation: deposit-die-bounce 0.85s ease-in-out infinite;
+}
+
+.deposit-die--b {
+  animation: deposit-die-bounce-alt 0.85s ease-in-out infinite;
+  animation-delay: 0.18s;
+}
+

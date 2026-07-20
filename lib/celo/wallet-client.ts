@@ -1,0 +1,208 @@
+"use client";
+
+import {
+  createPublicClient,
+  createWalletClient,
+  custom,
+  erc20Abi,
+  http,
+  type Address,
+  type Hex,
+  type WalletClient,
+} from "viem";
+import { celoSepolia } from "viem/chains";
+import {
+  COMPETITIVE_TOKEN,
+  ENTRY_FEE_RAW,
+  competitiveEscrowAbi,
+  getEscrowAddress,
+} from "@/lib/celo/constants";
+import { generateEscrowRoomKey } from "@/lib/celo/competitive-key";
+import { formatCompetitiveTxError } from "@/lib/celo/wallet-errors";
+
+export type CompetitiveWallet = {
+  address: string;
+  switchChain: (chainId: number) => Promise<void>;
+  getEthereumProvider: () => Promise<{
+    request: (args: {
+      method: string;
+      params?: unknown[];
+    }) => Promise<unknown>;
+  }>;
+};
+
+async function getWalletClient(
+  wallet: CompetitiveWallet,
+): Promise<{ client: WalletClient; account: Address }> {
+  await wallet.switchChain(celoSepolia.id);
+  const provider = await wallet.getEthereumProvider();
+  const account = wallet.address as Address;
+
+  const client = createWalletClient({
+    account,
+    chain: celoSepolia,
+    transport: custom(provider),
+  });
+
+  return { client, account };
+}
+
+function publicClient() {
+  return createPublicClient({
+    chain: celoSepolia,
+    transport: http(
+      process.env.NEXT_PUBLIC_CELO_SEPOLIA_RPC_URL ??
+        "https://forno.celo-sepolia.celo-testnet.org",
+    ),
+  });
+}
+
+async function waitForTx(hash: Hex): Promise<void> {
+  const receipt = await publicClient().waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") {
+    throw new Error("Transaction failed");
+  }
+}
+
+/** Fails early with a clear message when USDC / gas is missing. */
+async function assertCanPayEntry(account: Address): Promise<void> {
+  const client = publicClient();
+  const [usdcBalance, celoBalance] = await Promise.all([
+    client.readContract({
+      address: COMPETITIVE_TOKEN.address,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [account],
+    }),
+    client.getBalance({ address: account }),
+  ]);
+
+  if (usdcBalance < ENTRY_FEE_RAW) {
+    throw new Error("Insufficient USDC on Celo Sepolia (need 0.20)");
+  }
+  // ~0.001 CELO covers approve + deposit with headroom on Sepolia.
+  if (celoBalance < 1_000_000_000_000_000n) {
+    throw new Error("Not enough CELO for gas on Celo Sepolia");
+  }
+}
+
+function assertWalletMatchesProfile(
+  account: Address,
+  walletAddress?: string | null,
+): void {
+  if (
+    walletAddress &&
+    account.toLowerCase() !== walletAddress.toLowerCase()
+  ) {
+    throw new Error(
+      `Connected wallet does not match your profile wallet (${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)})`,
+    );
+  }
+}
+
+/**
+ * Approve + deposit ENTRY_FEE into the competitive escrow.
+ * Returns roomKey and deposit tx hash for the create-room API.
+ */
+export async function depositCompetitiveEntry(params: {
+  wallet: CompetitiveWallet;
+  walletAddress?: string | null;
+}): Promise<{ escrowRoomKey: Hex; depositTxHash: Hex }> {
+  try {
+    const escrow = getEscrowAddress();
+    const { client, account } = await getWalletClient(params.wallet);
+    assertWalletMatchesProfile(account, params.walletAddress);
+    await assertCanPayEntry(account);
+
+    const roomKey = generateEscrowRoomKey();
+
+    const approveHash = await client.writeContract({
+      address: COMPETITIVE_TOKEN.address,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [escrow, ENTRY_FEE_RAW],
+      chain: celoSepolia,
+      account,
+    });
+
+    await waitForTx(approveHash);
+
+    const depositTxHash = await client.writeContract({
+      address: escrow,
+      abi: competitiveEscrowAbi,
+      functionName: "deposit",
+      args: [roomKey],
+      chain: celoSepolia,
+      account,
+    });
+
+    await waitForTx(depositTxHash);
+
+    return { escrowRoomKey: roomKey, depositTxHash };
+  } catch (error) {
+    console.error("[depositCompetitiveEntry]", error);
+    throw new Error(formatCompetitiveTxError(error));
+  }
+}
+
+/**
+ * Approve + joinDeposit ENTRY_FEE into an existing competitive room.
+ */
+export async function joinCompetitiveEntry(params: {
+  wallet: CompetitiveWallet;
+  roomKey: Hex;
+  walletAddress?: string | null;
+}): Promise<Hex> {
+  try {
+    const escrow = getEscrowAddress();
+    const { client, account } = await getWalletClient(params.wallet);
+    assertWalletMatchesProfile(account, params.walletAddress);
+    await assertCanPayEntry(account);
+
+    const approveHash = await client.writeContract({
+      address: COMPETITIVE_TOKEN.address,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [escrow, ENTRY_FEE_RAW],
+      chain: celoSepolia,
+      account,
+    });
+
+    await waitForTx(approveHash);
+
+    const depositTxHash = await client.writeContract({
+      address: escrow,
+      abi: competitiveEscrowAbi,
+      functionName: "joinDeposit",
+      args: [params.roomKey],
+      chain: celoSepolia,
+      account,
+    });
+
+    await waitForTx(depositTxHash);
+    return depositTxHash;
+  } catch (error) {
+    console.error("[joinCompetitiveEntry]", error);
+    throw new Error(formatCompetitiveTxError(error));
+  }
+}
+
+export async function refundCompetitiveEntry(params: {
+  wallet: CompetitiveWallet;
+  roomKey: Hex;
+}): Promise<Hex> {
+  const escrow = getEscrowAddress();
+  const { client, account } = await getWalletClient(params.wallet);
+
+  const refundTxHash = await client.writeContract({
+    address: escrow,
+    abi: competitiveEscrowAbi,
+    functionName: "refund",
+    args: [params.roomKey],
+    chain: celoSepolia,
+    account,
+  });
+
+  await waitForTx(refundTxHash);
+  return refundTxHash;
+}

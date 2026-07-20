@@ -5,7 +5,11 @@ import {
   http,
   type Address,
 } from "viem";
-import { celo } from "viem/chains";
+import { celo, celoSepolia } from "viem/chains";
+import {
+  CELO_SEPOLIA_USDC,
+  isCeloSepoliaMode,
+} from "@/lib/celo/constants";
 
 export const CELO_TOKENS = {
   USDT: {
@@ -21,6 +25,12 @@ export const CELO_TOKENS = {
   },
 } as const;
 
+export { isCeloSepoliaMode };
+
+export const CELO_ACTIVE_USDT = isCeloSepoliaMode()
+  ? CELO_SEPOLIA_USDC
+  : CELO_TOKENS.USDT;
+
 export type CeloTokenSymbol = keyof typeof CELO_TOKENS;
 
 export type TokenBalance = {
@@ -30,9 +40,18 @@ export type TokenBalance = {
 };
 
 const publicClient = createPublicClient({
-  chain: celo,
-  transport: http(),
+  chain: isCeloSepoliaMode() ? celoSepolia : celo,
+  transport: http(
+    isCeloSepoliaMode()
+      ? (process.env.NEXT_PUBLIC_CELO_SEPOLIA_RPC_URL ??
+        "https://forno.celo-sepolia.celo-testnet.org")
+      : undefined,
+  ),
 });
+
+const BALANCE_TOKENS = isCeloSepoliaMode()
+  ? ({ USDC: CELO_SEPOLIA_USDC } as const)
+  : CELO_TOKENS;
 
 function formatTokenAmount(value: bigint, decimals: number): string {
   const asNumber = Number(formatUnits(value, decimals));
@@ -50,9 +69,13 @@ export async function fetchCeloTokenBalances(
 ): Promise<TokenBalance[]> {
   const owner = walletAddress as Address;
 
+  const tokenEntries = Object.entries(BALANCE_TOKENS) as [
+    string,
+    { address: Address; symbol: string; decimals: number },
+  ][];
+
   const results = await Promise.all(
-    (Object.keys(CELO_TOKENS) as CeloTokenSymbol[]).map(async (key) => {
-      const token = CELO_TOKENS[key];
+    tokenEntries.map(async ([, token]) => {
       const raw = await publicClient.readContract({
         address: token.address,
         abi: erc20Abi,

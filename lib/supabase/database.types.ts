@@ -8,6 +8,12 @@ export type Json =
 
 export type RoomStatus = "waiting" | "playing" | "finished";
 export type RoomMode = "free" | "competitive";
+export type PotStatus =
+  | "none"
+  | "funded"
+  | "locked"
+  | "settled"
+  | "refunded";
 export type PlayerColor = "red" | "green" | "yellow" | "blue";
 
 export interface Database {
@@ -67,6 +73,12 @@ export interface Database {
           created_at: string;
           started_at: string | null;
           finished_at: string | null;
+          escrow_room_key: string | null;
+          pot_amount_usdt: number;
+          pot_status: PotStatus;
+          deposit_tx_hash: string | null;
+          refund_tx_hash: string | null;
+          payout_tx_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -79,6 +91,12 @@ export interface Database {
           created_at?: string;
           started_at?: string | null;
           finished_at?: string | null;
+          escrow_room_key?: string | null;
+          pot_amount_usdt?: number;
+          pot_status?: PotStatus;
+          deposit_tx_hash?: string | null;
+          refund_tx_hash?: string | null;
+          payout_tx_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -91,6 +109,12 @@ export interface Database {
           created_at?: string;
           started_at?: string | null;
           finished_at?: string | null;
+          escrow_room_key?: string | null;
+          pot_amount_usdt?: number;
+          pot_status?: PotStatus;
+          deposit_tx_hash?: string | null;
+          refund_tx_hash?: string | null;
+          payout_tx_hash?: string | null;
         };
         Relationships: [];
       };
@@ -106,6 +130,8 @@ export interface Database {
           is_bot: boolean;
           auto_enabled: boolean;
           joined_at: string;
+          entry_paid: boolean;
+          entry_tx_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -118,6 +144,8 @@ export interface Database {
           is_bot?: boolean;
           auto_enabled?: boolean;
           joined_at?: string;
+          entry_paid?: boolean;
+          entry_tx_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -130,6 +158,8 @@ export interface Database {
           is_bot?: boolean;
           auto_enabled?: boolean;
           joined_at?: string;
+          entry_paid?: boolean;
+          entry_tx_hash?: string | null;
         };
         Relationships: [];
       };

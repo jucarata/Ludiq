@@ -189,6 +189,137 @@ function advanceToNextTurn(
   };
 }
 
+/**
+ * Background job after competitive start: lock pot on-chain.
+ * If lock fails, the game is cancelled — without lock the host could refund mid-game.
+ */
+export async function lockCompetitivePotInBackground(params: {
+  roomId: string;
+  escrowRoomKey: string;
+}): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  try {
+    const { lockEscrowRoom } = await import("@/lib/celo/competitive");
+    await lockEscrowRoom(params.escrowRoomKey);
+
+    const { error } = await supabase
+      .from("game_rooms")
+      .update({ pot_status: "locked" })
+      .eq("id", params.roomId)
+      .eq("status", "playing")
+      .eq("pot_status", "funded");
+
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    console.error("Competitive lock failed; cancelling game:", error);
+    await cancelGameForEscrowLockFailure(params.roomId);
+  }
+}
+
+async function cancelGameForEscrowLockFailure(roomId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  const { error: roomError } = await supabase
+    .from("game_rooms")
+    .update({
+      status: "finished",
+      finished_at: now,
+      winner: null,
+    })
+    .eq("id", roomId)
+    .eq("status", "playing")
+    .eq("pot_status", "funded");
+
+  if (roomError) throw new Error(roomError.message);
+
+  const { error: gameError } = await supabase
+    .from("game_states")
+    .update({
+      turn_phase: "ended",
+      winner: null,
+      remaining_dice: null,
+      afk_takeover: false,
+      updated_at: now,
+    })
+    .eq("room_id", roomId)
+    .neq("turn_phase", "ended");
+
+  if (gameError) throw new Error(gameError.message);
+}
+
+async function settleCompetitivePotIfNeeded(
+  roomId: string,
+  winner: PlayerColor,
+): Promise<{ payout_tx_hash?: string; pot_status?: "settled" }> {
+  const supabase = getSupabaseAdminClient();
+  const { data: room, error: roomError } = await supabase
+    .from("game_rooms")
+    .select(
+      "mode, pot_status, escrow_room_key, payout_tx_hash",
+    )
+    .eq("id", roomId)
+    .maybeSingle();
+
+  if (roomError) throw new Error(roomError.message);
+  if (!room || room.mode !== "competitive") return {};
+  if (room.pot_status === "settled" && room.payout_tx_hash) {
+    return {
+      payout_tx_hash: room.payout_tx_hash,
+      pot_status: "settled",
+    };
+  }
+  if (!room.escrow_room_key) return {};
+
+  // Start may still be locking in the background — lock now if needed.
+  if (room.pot_status === "funded") {
+    const { lockEscrowRoom } = await import("@/lib/celo/competitive");
+    await lockEscrowRoom(room.escrow_room_key);
+    const { error: lockUpdateError } = await supabase
+      .from("game_rooms")
+      .update({ pot_status: "locked" })
+      .eq("id", roomId)
+      .eq("pot_status", "funded");
+    if (lockUpdateError) throw new Error(lockUpdateError.message);
+  } else if (room.pot_status !== "locked") {
+    return {};
+  }
+
+  const { data: winnerPlayer, error: playerError } = await supabase
+    .from("game_room_players")
+    .select("user_id")
+    .eq("room_id", roomId)
+    .eq("color", winner)
+    .maybeSingle();
+
+  if (playerError) throw new Error(playerError.message);
+  if (!winnerPlayer?.user_id) {
+    throw new Error("Winner profile not found for payout");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("wallet_address")
+    .eq("id", winnerPlayer.user_id)
+    .maybeSingle();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profile?.wallet_address) {
+    throw new Error("Winner wallet not found for payout");
+  }
+
+  const { settleEscrowRoom } = await import("@/lib/celo/competitive");
+  const payoutTxHash = await settleEscrowRoom({
+    roomKey: room.escrow_room_key,
+    winner: profile.wallet_address,
+  });
+
+  return {
+    payout_tx_hash: payoutTxHash.toLowerCase(),
+    pot_status: "settled",
+  };
+}
+
 async function finishGame(
   roomId: string,
   winner: PlayerColor,
@@ -199,12 +330,24 @@ async function finishGame(
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
 
+  let settleFields: {
+    payout_tx_hash?: string;
+    pot_status?: "settled";
+  } = {};
+  try {
+    settleFields = await settleCompetitivePotIfNeeded(roomId, winner);
+  } catch (error) {
+    console.error("Competitive settle failed:", error);
+    // Still finish the game; payout can be retried manually if needed.
+  }
+
   const { error: roomError } = await supabase
     .from("game_rooms")
     .update({
       status: "finished",
       winner,
       finished_at: now,
+      ...settleFields,
     })
     .eq("id", roomId);
 
@@ -226,7 +369,12 @@ export async function startRoomGame(params: {
   code: string;
   identity: RoomIdentity;
   mode?: RoomMode;
-}): Promise<{ room: RoomView; game: OnlineGameStateView }> {
+}): Promise<{
+  room: RoomView;
+  game: OnlineGameStateView;
+  /** Competitive: lock on-chain after the response (do not block players). */
+  pendingLock?: { roomId: string; escrowRoomKey: string };
+}> {
   const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
   const roomRow = await findActiveRoomByCode(params.code, mode);
@@ -266,6 +414,41 @@ export async function startRoomGame(params: {
         headers: { "Content-Type": "application/json" },
       },
     );
+  }
+
+  if (roomRow.mode === "competitive") {
+    const unpaid = players.filter((player) => !player.entry_paid);
+    if (unpaid.length > 0) {
+      throw new Response(
+        JSON.stringify({
+          error: "All players must confirm payment before starting",
+        }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+  }
+
+  let pendingLock:
+    | { roomId: string; escrowRoomKey: string }
+    | undefined;
+
+  if (roomRow.mode === "competitive") {
+    if (roomRow.pot_status !== "funded" || !roomRow.escrow_room_key) {
+      throw new Response(
+        JSON.stringify({ error: "Competitive room pot is not funded" }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    pendingLock = {
+      roomId: roomRow.id,
+      escrowRoomKey: roomRow.escrow_room_key,
+    };
   }
 
   const taken = new Set(players.map((player) => player.color));
@@ -318,7 +501,11 @@ export async function startRoomGame(params: {
     throw new Error("Room disappeared after start");
   }
 
-  return { room, game: toOnlineGameStateView(gameRow) };
+  return {
+    room,
+    game: toOnlineGameStateView(gameRow),
+    pendingLock,
+  };
 }
 
 export async function getOnlineGame(params: {

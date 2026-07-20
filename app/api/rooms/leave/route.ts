@@ -9,6 +9,7 @@ type LeaveBody = {
   mode?: string;
   guestSessionId?: string;
   guestName?: string;
+  refundTxHash?: string;
 };
 
 export async function POST(request: Request) {
@@ -38,7 +39,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await leaveRoom({ code, identity, mode });
+    const result = await leaveRoom({
+      code,
+      identity,
+      mode,
+      refundTxHash: body.refundTxHash,
+    });
     return NextResponse.json({ ok: true, closed: result.closed });
   } catch (error) {
     if (error instanceof Response) return error;
