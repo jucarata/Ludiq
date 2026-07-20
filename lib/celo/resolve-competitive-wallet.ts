@@ -1,4 +1,7 @@
-import { celoSepolia } from "viem/chains";
+import {
+  getCompetitiveChain,
+  isCeloSepoliaMode,
+} from "@/lib/celo/constants";
 import type { CompetitiveWallet } from "@/lib/celo/wallet-client";
 import {
   subscribeInjectedWallets,
@@ -79,16 +82,17 @@ async function switchInjectedChain(
         : null;
     if (code !== 4902 && code !== -32603) throw error;
 
+    const chain = getCompetitiveChain();
     await provider.request({
       method: "wallet_addEthereumChain",
       params: [
         {
           chainId: hexId,
-          chainName: celoSepolia.name,
-          nativeCurrency: celoSepolia.nativeCurrency,
-          rpcUrls: [celoSepolia.rpcUrls.default.http[0]],
-          blockExplorerUrls: celoSepolia.blockExplorers?.default
-            ? [celoSepolia.blockExplorers.default.url]
+          chainName: chain.name,
+          nativeCurrency: chain.nativeCurrency,
+          rpcUrls: [chain.rpcUrls.default.http[0]],
+          blockExplorerUrls: chain.blockExplorers?.default
+            ? [chain.blockExplorers.default.url]
             : [],
         },
       ],
@@ -143,7 +147,8 @@ export async function resolveCompetitiveWallet(params: {
 
   if (lastError instanceof Error) throw lastError;
 
+  const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
   throw new Error(
-    `Unlock MetaMask (or your browser wallet) with ${shortAddr(params.profileWallet)} on Celo Sepolia, then try again.`,
+    `Unlock MetaMask (or your browser wallet) with ${shortAddr(params.profileWallet)} on ${network}, then try again.`,
   );
 }

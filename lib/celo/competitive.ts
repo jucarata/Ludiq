@@ -9,16 +9,18 @@ import {
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { celoSepolia } from "viem/chains";
 import {
   COMPETITIVE_TOKEN,
   ENTRY_FEE_RAW,
   ROOM_STATUS_ONCHAIN,
   competitiveEscrowAbi,
+  getCompetitiveChain,
+  getCompetitiveRpcUrl,
   getEscrowAddress,
 } from "@/lib/celo/constants";
 
 export {
+  CELO_MAINNET_USDC,
   CELO_SEPOLIA_USDC,
   CELO_SEPOLIA_USDT,
   COMMISSION_SHARE_RAW,
@@ -30,6 +32,8 @@ export {
   POOL_SHARE_USDT,
   ROOM_STATUS_ONCHAIN,
   competitiveEscrowAbi,
+  getCompetitiveChain,
+  getCompetitiveRpcUrl,
   getEscrowAddress,
   isCeloSepoliaMode,
 } from "@/lib/celo/constants";
@@ -37,18 +41,10 @@ export type { PotStatus } from "@/lib/celo/constants";
 
 export { erc20Abi } from "viem";
 
-function rpcUrl(): string {
-  return (
-    process.env.CELO_SEPOLIA_RPC_URL ??
-    process.env.NEXT_PUBLIC_CELO_SEPOLIA_RPC_URL ??
-    "https://forno.celo-sepolia.celo-testnet.org"
-  );
-}
-
 export function getCompetitivePublicClient() {
   return createPublicClient({
-    chain: celoSepolia,
-    transport: http(rpcUrl()),
+    chain: getCompetitiveChain(),
+    transport: http(getCompetitiveRpcUrl()),
   });
 }
 
@@ -225,11 +221,12 @@ function getOwnerAccount() {
 
 export async function lockEscrowRoom(roomKey: string): Promise<Hash> {
   const account = getOwnerAccount();
+  const chain = getCompetitiveChain();
   const client = getCompetitivePublicClient();
   const wallet = createWalletClient({
     account,
-    chain: celoSepolia,
-    transport: http(rpcUrl()),
+    chain,
+    transport: http(getCompetitiveRpcUrl()),
   });
   const escrow = getEscrowAddress();
   const key = normalizeHex32(roomKey);
@@ -239,7 +236,7 @@ export async function lockEscrowRoom(roomKey: string): Promise<Hash> {
     abi: competitiveEscrowAbi,
     functionName: "lock",
     args: [key],
-    chain: celoSepolia,
+    chain,
     account,
   });
 
@@ -255,11 +252,12 @@ export async function settleEscrowRoom(params: {
   winner: string;
 }): Promise<Hash> {
   const account = getOwnerAccount();
+  const chain = getCompetitiveChain();
   const client = getCompetitivePublicClient();
   const wallet = createWalletClient({
     account,
-    chain: celoSepolia,
-    transport: http(rpcUrl()),
+    chain,
+    transport: http(getCompetitiveRpcUrl()),
   });
   const escrow = getEscrowAddress();
   const key = normalizeHex32(params.roomKey);
@@ -270,7 +268,7 @@ export async function settleEscrowRoom(params: {
     abi: competitiveEscrowAbi,
     functionName: "settle",
     args: [key, winner],
-    chain: celoSepolia,
+    chain,
     account,
   });
 

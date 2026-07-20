@@ -1,4 +1,5 @@
 import { parseUnits, type Address } from "viem";
+import { celo, celoSepolia, type Chain } from "viem/chains";
 
 /** Celo Sepolia USDC (6 decimals) — Circle testnet token. */
 export const CELO_SEPOLIA_USDC = {
@@ -7,15 +8,51 @@ export const CELO_SEPOLIA_USDC = {
   decimals: 6,
 } as const;
 
-/** Legacy USDT address (kept for reference; competitive mode uses USDC on testnet). */
+/** Celo Mainnet USDC (6 decimals) — Circle. */
+export const CELO_MAINNET_USDC = {
+  address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as Address,
+  symbol: "USDC",
+  decimals: 6,
+} as const;
+
+/** Legacy USDT address (kept for reference; competitive mode uses USDC). */
 export const CELO_SEPOLIA_USDT = {
   address: "0xd077A400968890Eacc75cdc901F0356c943e4fDb" as Address,
   symbol: "USDT",
   decimals: 6,
 } as const;
 
-/** Stake token for competitive rooms (Celo Sepolia tests use USDC). */
-export const COMPETITIVE_TOKEN = CELO_SEPOLIA_USDC;
+export function isCeloSepoliaMode(): boolean {
+  const chain = process.env.NEXT_PUBLIC_CELO_CHAIN?.toLowerCase();
+  return (
+    chain === "sepolia" || chain === "celo-sepolia" || chain === "celosepolia"
+  );
+}
+
+/** Active chain for competitive escrow (Sepolia vs Mainnet). */
+export function getCompetitiveChain(): Chain {
+  return isCeloSepoliaMode() ? celoSepolia : celo;
+}
+
+export function getCompetitiveRpcUrl(): string {
+  if (isCeloSepoliaMode()) {
+    return (
+      process.env.CELO_SEPOLIA_RPC_URL ??
+      process.env.NEXT_PUBLIC_CELO_SEPOLIA_RPC_URL ??
+      "https://forno.celo-sepolia.celo-testnet.org"
+    );
+  }
+  return (
+    process.env.CELO_RPC_URL ??
+    process.env.NEXT_PUBLIC_CELO_RPC_URL ??
+    "https://forno.celo.org"
+  );
+}
+
+/** Stake token for competitive rooms — USDC on the configured chain. */
+export const COMPETITIVE_TOKEN = isCeloSepoliaMode()
+  ? CELO_SEPOLIA_USDC
+  : CELO_MAINNET_USDC;
 
 export const ENTRY_FEE_USDT = "0.20";
 /** Pool contribution per paying player (90% of entry). */
@@ -168,11 +205,4 @@ export function getEscrowAddress(): Address {
     throw new Error("NEXT_PUBLIC_ESCROW_ADDRESS is not configured");
   }
   return address as Address;
-}
-
-export function isCeloSepoliaMode(): boolean {
-  const chain = process.env.NEXT_PUBLIC_CELO_CHAIN?.toLowerCase();
-  return (
-    chain === "sepolia" || chain === "celo-sepolia" || chain === "celosepolia"
-  );
 }

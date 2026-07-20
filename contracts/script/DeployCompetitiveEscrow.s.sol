@@ -4,16 +4,23 @@ pragma solidity ^0.8.24;
 import {Script, console2} from "forge-std/Script.sol";
 import {CompetitiveEscrow} from "../src/CompetitiveEscrow.sol";
 
-/// @dev Deploy to Celo Sepolia:
-/// forge script script/DeployCompetitiveEscrow.s.sol:DeployCompetitiveEscrow \
-///   --rpc-url $CELO_SEPOLIA_RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY
+/// @dev Deploy CompetitiveEscrow (entry 0.20 USDC = 0.18 pool + 0.02 commission).
+///
+/// Celo Mainnet (Proof of Ship):
+///   STAKE_TOKEN=0xcebA9300f2b948710d2653dD7B07f33A8B32118C  # Circle USDC
+///   forge script script/DeployCompetitiveEscrow.s.sol:DeployCompetitiveEscrow \
+///     --rpc-url https://forno.celo.org --broadcast --private-key $DEPLOYER_PRIVATE_KEY
+///
+/// Celo Sepolia (default STAKE_TOKEN if unset):
+///   forge script script/DeployCompetitiveEscrow.s.sol:DeployCompetitiveEscrow \
+///     --rpc-url $CELO_SEPOLIA_RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY
 ///
 /// Env:
-///   STAKE_TOKEN (default: Celo Sepolia USDC)
+///   STAKE_TOKEN (default: Celo Sepolia USDC — set mainnet USDC for production)
 ///   COMMISSION_WALLET
 ///   ESCROW_OWNER (backend signer; defaults to msg.sender)
 contract DeployCompetitiveEscrow is Script {
-    // Circle USDC on Celo Sepolia (6 decimals)
+    // Circle USDC on Celo Sepolia (6 decimals) — override with mainnet USDC for prod
     address constant CELO_SEPOLIA_USDC = 0x01C5C0122039549AD1493B8220cABEdD739BC44E;
 
     function run() external {

@@ -1,3 +1,5 @@
+import { isCeloSepoliaMode } from "@/lib/celo/constants";
+
 /** Maps wallet / on-chain failures to a short user-facing message. */
 export function formatCompetitiveTxError(error: unknown): string {
   const raw =
@@ -8,6 +10,7 @@ export function formatCompetitiveTxError(error: unknown): string {
         : "Transaction failed";
 
   const lower = raw.toLowerCase();
+  const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
 
   if (
     lower.includes("user rejected") ||
@@ -25,14 +28,17 @@ export function formatCompetitiveTxError(error: unknown): string {
   if (
     lower.includes("not enough celo") ||
     lower.includes("need celo for gas") ||
+    lower.includes("need celo for network") ||
     lower.includes("insufficient funds") ||
     lower.includes("insufficient balance") ||
     lower.includes("exceeds balance")
   ) {
     if (lower.includes("usdc")) {
-      return "Not enough USDC on Celo Sepolia (need 0.20)";
+      return `Not enough USDC on ${network} (need 0.20)`;
     }
-    return "Need CELO for gas on Celo Sepolia (USDC alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia";
+    return isCeloSepoliaMode()
+      ? "Need CELO for gas on Celo Sepolia (USDC alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
+      : "Need CELO for network fees on Celo (USDC alone is not enough).";
   }
 
   if (
@@ -40,7 +46,7 @@ export function formatCompetitiveTxError(error: unknown): string {
     lower.includes("erc20: transfer amount exceeds balance") ||
     lower.includes("insufficient usdc")
   ) {
-    return "Not enough USDC on Celo Sepolia (need 0.20)";
+    return `Not enough USDC on ${network} (need 0.20)`;
   }
 
   if (
@@ -51,7 +57,7 @@ export function formatCompetitiveTxError(error: unknown): string {
   }
 
   if (lower.includes("chain") && lower.includes("switch")) {
-    return "Could not switch wallet to Celo Sepolia";
+    return `Could not switch wallet to ${network}`;
   }
 
   // Keep short technical hints when useful (Privy / viem often include them).
@@ -59,5 +65,5 @@ export function formatCompetitiveTxError(error: unknown): string {
     return raw;
   }
 
-  return "Could not deposit entry fee. Check USDC and gas on Celo Sepolia.";
+  return `Could not deposit entry fee. Check USDC and network fees on ${network}.`;
 }
