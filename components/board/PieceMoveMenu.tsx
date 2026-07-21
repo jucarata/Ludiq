@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DieMoveChoice } from "@/lib/game/movement";
 import { useGameState } from "@/components/game/GameStateContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -37,7 +37,9 @@ export function PieceMoveMenu({ options, onSelect }: PieceMoveMenuProps) {
   );
 }
 
-/** Menú flotante encima de la ficha seleccionada (fuera del overflow de la celda) */
+const VIEWPORT_EDGE_PAD = 8;
+
+/** Menú flotante junto a la ficha (arriba por defecto; abajo si no cabe en el viewport) */
 export function PieceMoveMenuOverlay() {
   const {
     selectedPiece,
@@ -47,6 +49,14 @@ export function PieceMoveMenuOverlay() {
     clearSelection,
   } = useGameState();
   const [mounted, setMounted] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [placeBelow, setPlaceBelow] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  const options =
+    selectedPiece && menuAnchor ? getMoveOptionsForSelection() : [];
+  const visible =
+    mounted && Boolean(selectedPiece && menuAnchor && options.length > 0);
 
   useEffect(() => {
     setMounted(true);
@@ -66,17 +76,36 @@ export function PieceMoveMenuOverlay() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [selectedPiece, clearSelection]);
 
-  if (!mounted || !selectedPiece || !menuAnchor) return null;
+  useLayoutEffect(() => {
+    if (!visible || !menuAnchor) {
+      setReady(false);
+      setPlaceBelow(false);
+      return;
+    }
 
-  const options = getMoveOptionsForSelection();
-  /* Sin movimientos válidos: la ficha queda seleccionada pero no sale menú */
-  if (options.length === 0) return null;
+    const el = menuRef.current;
+    if (!el) return;
+
+    /* Si no cabe arriba de la ficha, abrir debajo para no salir del viewport */
+    setPlaceBelow(menuAnchor.y < el.offsetHeight + VIEWPORT_EDGE_PAD);
+    setReady(true);
+  }, [visible, menuAnchor, options.length]);
+
+  if (!visible || !menuAnchor) return null;
 
   return createPortal(
     <div
+      ref={menuRef}
       data-piece-move-menu
-      className="pointer-events-auto fixed z-[70] -translate-x-1/2 -translate-y-full pb-2"
-      style={{ left: menuAnchor.x, top: menuAnchor.y }}
+      className={[
+        "pointer-events-auto fixed z-[70] -translate-x-1/2",
+        placeBelow ? "pt-2" : "-translate-y-full pb-2",
+        ready ? "opacity-100" : "opacity-0",
+      ].join(" ")}
+      style={{
+        left: menuAnchor.x,
+        top: placeBelow ? menuAnchor.bottom : menuAnchor.y,
+      }}
       onClick={(event) => event.stopPropagation()}
     >
       <PieceMoveMenu options={options} onSelect={applyMove} />

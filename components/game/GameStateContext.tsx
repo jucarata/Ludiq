@@ -49,7 +49,10 @@ export interface SelectedPiece {
 
 export interface MenuAnchor {
   x: number;
+  /** Borde superior de la ficha (ancla preferida del menú) */
   y: number;
+  /** Borde inferior — fallback si el menú se saldría por arriba del viewport */
+  bottom: number;
 }
 
 interface GameStateContextValue {

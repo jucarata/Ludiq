@@ -73,6 +73,7 @@ export function PieceSlot({
           onClick?.({
             x: rect.left + rect.width / 2,
             y: rect.top,
+            bottom: rect.bottom,
           });
         }}
         aria-label={t("board.movePiece", { n: index + 1 })}
