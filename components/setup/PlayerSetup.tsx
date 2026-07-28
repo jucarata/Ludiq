@@ -17,6 +17,7 @@ import {
 } from "@/lib/game/player-config";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import {
+  brandTitleFont,
   retroBackButtonClassName,
   retroPlayButtonClassName,
   retroRoleSwitchClassName,
@@ -134,7 +135,9 @@ export function PlayerSetup({ onStart }: PlayerSetupProps) {
   return (
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+        <h1
+          className={`${brandTitleFont.className} text-4xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-5xl`}
+        >
           {t("setup.players")}
         </h1>
         <p className="max-w-md text-sm text-[var(--board-path-border)]">

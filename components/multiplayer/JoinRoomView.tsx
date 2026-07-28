@@ -9,7 +9,7 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { AppFooter } from "@/components/nav/AppFooter";
 import type { PlayerColor } from "@/lib/board/types";
 import type { Profile } from "@/lib/profile/types";
-import { retroActionFont, retroPlayButtonClassName } from "@/lib/fonts";
+import { brandTitleFont, retroPlayButtonClassName } from "@/lib/fonts";
 import type { MessageKey } from "@/lib/i18n";
 import {
   isValidRoomCode,
@@ -598,7 +598,9 @@ export function JoinRoomView() {
       ) : (
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+          <h1
+            className={`${brandTitleFont.className} text-4xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-5xl`}
+          >
             {t("room.joinTitle")}
           </h1>
           <p className="max-w-md text-sm text-[var(--board-path-border)]">
@@ -627,7 +629,7 @@ export function JoinRoomView() {
               inputMode="text"
               placeholder="ABCD"
               aria-label={t("room.codeLabel")}
-              className={`${retroActionFont.className} w-full rounded-2xl border-4 border-[var(--board-path-border)] bg-[#2a2a3e] px-6 py-5 text-center text-3xl tracking-[0.35em] text-[var(--board-path)] outline-none placeholder:text-[var(--board-path-border)]/40 focus:border-[var(--board-green)] sm:text-4xl`}
+              className={`${brandTitleFont.className} w-full rounded-2xl border-4 border-[var(--brand-turquoise)]/40 bg-[#1e2158] px-6 py-5 text-center text-3xl font-extrabold tracking-[0.35em] text-[var(--brand-cream)] outline-none placeholder:text-[var(--brand-cream)]/30 focus:border-[var(--brand-mint)] sm:text-4xl`}
             />
           </label>
 

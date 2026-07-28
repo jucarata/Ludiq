@@ -9,14 +9,18 @@ import { GiCrossedSwords } from "react-icons/gi";
 import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
-  retroActionFont,
+  brandSecondaryButtonClassName,
+  brandTitleFont,
   retroBackButtonClassName,
   retroPlayButtonClassName,
 } from "@/lib/fonts";
 import { parseRoomMode } from "@/lib/room/mode";
 
 const modeCardClassName =
-  "flex aspect-[3/4] w-full flex-col items-center justify-center gap-4 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-green)] px-3 py-6 text-center text-[var(--board-path)] shadow-[4px_4px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532]";
+  "flex aspect-[3/4] w-full flex-col items-center justify-center gap-4 rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[var(--brand-mint)] px-3 py-6 text-center text-white shadow-[4px_4px_0_var(--brand-navy)] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--brand-navy)]";
+
+const modeCardCompetitiveClassName =
+  "flex aspect-[3/4] w-full flex-col items-center justify-center gap-4 rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[var(--brand-purple)] px-3 py-6 text-center text-white shadow-[4px_4px_0_var(--brand-navy)] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--brand-navy)]";
 
 export function MultiplayerHub() {
   const { t } = useTranslations();
@@ -49,7 +53,9 @@ export function MultiplayerHub() {
     return (
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+          <h1
+            className={`${brandTitleFont.className} text-4xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-5xl`}
+          >
             {t("multiplayer.freePlay")}
           </h1>
           <p className="max-w-md text-sm text-[var(--board-path-border)]">
@@ -77,7 +83,7 @@ export function MultiplayerHub() {
           </Link>
           <Link
             href="/multiplayer/join?mode=free"
-            className={`${retroPlayButtonClassName} w-full min-w-0`}
+            className={`${brandSecondaryButtonClassName} w-full min-w-0`}
             aria-label={t("multiplayer.joinRoom")}
           >
             {t("multiplayer.joinRoom")}
@@ -103,7 +109,9 @@ export function MultiplayerHub() {
       return (
         <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+            <h1
+              className={`${brandTitleFont.className} text-4xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-5xl`}
+            >
               {t("multiplayer.competitive")}
             </h1>
             <p className="max-w-md text-sm text-[var(--board-path-border)]">
@@ -134,7 +142,9 @@ export function MultiplayerHub() {
     return (
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+          <h1
+            className={`${brandTitleFont.className} text-4xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-5xl`}
+          >
             {t("multiplayer.competitive")}
           </h1>
           <p className="max-w-md text-sm text-[var(--board-path-border)]">
@@ -159,13 +169,13 @@ export function MultiplayerHub() {
             aria-label={`${t("multiplayer.createRoom")} ${t("multiplayer.createRoomPrice")}`}
           >
             <span>{t("multiplayer.createRoom")}</span>
-            <span className="text-[0.65rem] normal-case tracking-wide text-[var(--board-path)]/90 sm:text-xs">
+            <span className="text-[0.65rem] normal-case tracking-wide text-white/90 sm:text-xs">
               {t("multiplayer.createRoomPrice")}
             </span>
           </Link>
           <Link
             href="/multiplayer/join?mode=competitive"
-            className={`${retroPlayButtonClassName} w-full min-w-0`}
+            className={`${brandSecondaryButtonClassName} w-full min-w-0`}
             aria-label={t("multiplayer.joinRoom")}
           >
             {t("multiplayer.joinRoom")}
@@ -185,7 +195,9 @@ export function MultiplayerHub() {
   return (
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-8">
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-4xl font-black tracking-tight text-[var(--board-path)] sm:text-5xl">
+        <h1
+          className={`${brandTitleFont.className} text-4xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-5xl`}
+        >
           {t("multiplayer.title")}
         </h1>
         <p className="max-w-md text-sm text-[var(--board-path-border)]">
@@ -196,12 +208,12 @@ export function MultiplayerHub() {
       <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:gap-4">
         <Link
           href="/multiplayer?mode=competitive"
-          className={modeCardClassName}
+          className={modeCardCompetitiveClassName}
           aria-label={t("multiplayer.competitive")}
         >
           <GiCrossedSwords className="h-14 w-14 sm:h-16 sm:w-16" aria-hidden />
           <span
-            className={`${retroActionFont.className} text-[0.55rem] uppercase leading-tight sm:text-xs`}
+            className={`${brandTitleFont.className} text-sm font-extrabold uppercase leading-tight sm:text-base`}
           >
             {t("multiplayer.competitive")}
           </span>
@@ -213,7 +225,7 @@ export function MultiplayerHub() {
         >
           <FaDice className="h-14 w-14 sm:h-16 sm:w-16" aria-hidden />
           <span
-            className={`${retroActionFont.className} text-[0.55rem] uppercase leading-tight sm:text-xs`}
+            className={`${brandTitleFont.className} text-sm font-extrabold uppercase leading-tight sm:text-base`}
           >
             {t("multiplayer.freePlay")}
           </span>

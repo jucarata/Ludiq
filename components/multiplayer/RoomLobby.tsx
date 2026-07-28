@@ -11,6 +11,7 @@ import {
   type PlayerColor,
 } from "@/lib/board/types";
 import {
+  brandTitleFont,
   retroActionFont,
   retroBackButtonClassName,
   retroDangerButtonClassName,
@@ -238,7 +239,7 @@ export function RoomLobby({
               }
             />
             <p
-              className={`${retroActionFont.className} -mt-1 text-[0.7rem] tracking-wide text-[#f5c518] sm:text-xs`}
+              className={`${retroActionFont.className} -mt-1 text-base tracking-wide text-[#f5c518] sm:text-xs`}
             >
               {room.potAmountUsdt > 0
                 ? t("room.potAmount", {
@@ -256,17 +257,17 @@ export function RoomLobby({
       >
         <h1
           id="room-code-heading"
-          className="text-3xl font-black tracking-tight text-[var(--board-path)] sm:text-4xl"
+          className={`${brandTitleFont.className} text-3xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-4xl`}
         >
           {t("room.roomHeading")}
         </h1>
         <p
-          className={`${retroActionFont.className} select-all rounded-xl border-[3px] border-[var(--board-path-border)] bg-[#2a2a3e] px-6 py-3 text-2xl tracking-[0.35em] text-[var(--board-path)] sm:text-3xl`}
+          className={`${brandTitleFont.className} select-all rounded-2xl border-4 border-[var(--brand-turquoise)]/40 bg-[#1e2158] px-6 py-3 text-2xl font-extrabold tracking-[0.35em] text-[var(--brand-cream)] sm:text-3xl`}
           aria-label={t("room.codeAria", { code: room.code })}
         >
           {room.code}
         </p>
-        <p className="text-center text-[0.65rem] text-[var(--board-path-border)] sm:text-xs">
+        <p className="text-center text-sm text-[var(--board-path-border)] sm:text-base">
           {t("room.codeHint")}
         </p>
       </section>
@@ -320,7 +321,7 @@ export function RoomLobby({
                       type="button"
                       disabled={busy}
                       onClick={() => setConfirmKickId(player.id)}
-                      className="absolute right-0 top-0 z-10 flex h-4 w-4 translate-x-[5px] -translate-y-[5px] items-center justify-center rounded-sm border border-[#173532] bg-[var(--board-red)] text-[0.55rem] font-black leading-none text-[var(--board-path)] shadow-[1px_1px_0_#173532] transition hover:brightness-110 active:brightness-95 disabled:opacity-50"
+                      className="absolute right-0 top-0 z-10 flex h-4 w-4 translate-x-[5px] -translate-y-[5px] items-center justify-center rounded-sm border border-[#173532] bg-[var(--board-red)] text-sm font-black leading-none text-[var(--board-path)] shadow-[1px_1px_0_#173532] transition hover:brightness-110 active:brightness-95 disabled:opacity-50"
                       aria-label={t("room.kickAria", { user: player.username })}
                     >
                       ×
@@ -383,7 +384,7 @@ export function RoomLobby({
                 </div>
 
                 <span
-                  className={`max-w-full truncate text-center text-[0.65rem] font-semibold sm:text-xs ${
+                  className={`max-w-full truncate text-center text-base font-semibold sm:text-xs ${
                     isSelf
                       ? "text-[var(--board-green)]"
                       : "text-[var(--board-path-border)]"
@@ -415,7 +416,7 @@ export function RoomLobby({
               aria-label={t("room.confirmEntry")}
             >
               <span>{t("room.confirmEntry")}</span>
-              <span className="text-[0.65rem] normal-case tracking-wide text-[var(--board-path)]/90 sm:text-xs">
+              <span className="text-base normal-case tracking-wide text-[var(--board-path)]/90 sm:text-xs">
                 {t("room.confirmEntryPrice")}
               </span>
             </button>
@@ -433,7 +434,7 @@ export function RoomLobby({
                 {starting ? t("room.starting") : t("room.play")}
               </button>
               {!canStartGame && !starting ? (
-                <p className="-mt-1 text-center text-[0.65rem] text-[var(--board-path-border)] sm:text-xs">
+                <p className="-mt-1 text-center text-base text-[var(--board-path-border)] sm:text-xs">
                   {isCompetitive && !allEntriesPaid
                     ? t("room.playHintPayments")
                     : t("room.playHint")}
@@ -487,7 +488,7 @@ export function RoomLobby({
 
       {isCompetitive && self && !self.isHost && self.entryPaid ? (
         <p
-          className={`${retroActionFont.className} text-[0.65rem] tracking-wide text-[var(--board-green)] sm:text-xs`}
+          className={`${retroActionFont.className} text-base tracking-wide text-[var(--board-green)] sm:text-xs`}
         >
           {t("room.entryConfirmed")}
         </p>
@@ -508,7 +509,7 @@ export function RoomLobby({
               >
                 <h2
                   id="host-leave-title"
-                  className={`${retroActionFont.className} mb-3 text-[0.65rem]`}
+                  className={`${retroActionFont.className} mb-3 text-base`}
                 >
                   {t("room.hostLeaveTitle")}
                 </h2>
@@ -552,7 +553,7 @@ export function RoomLobby({
               >
                 <h2
                   id="kick-player-title"
-                  className={`${retroActionFont.className} mb-3 text-[0.65rem]`}
+                  className={`${retroActionFont.className} mb-3 text-base`}
                 >
                   {t("room.kickTitle")}
                 </h2>

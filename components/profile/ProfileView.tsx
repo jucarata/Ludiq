@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { FaCheck, FaCopy, FaGear, FaWallet } from "react-icons/fa6";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
@@ -17,40 +17,95 @@ import {
   type MessageKey,
 } from "@/lib/i18n";
 import {
-  retroActionFont,
-  retroPlayButtonClassName,
+  brandBackButtonClassName,
+  brandBodyFont,
+  brandPlayButtonClassName,
+  brandSecondaryButtonClassName,
+  brandTitleFont,
 } from "@/lib/fonts";
 import {
   fetchCeloTokenBalances,
   type TokenBalance,
 } from "@/lib/celo/tokens";
 
-function ProfileAvatar() {
+function ProfileAvatar({ size = "lg" }: { size?: "md" | "lg" }) {
+  const dim =
+    size === "lg"
+      ? "h-36 w-36 sm:h-40 sm:w-40"
+      : "h-28 w-28 sm:h-32 sm:w-32";
+
+  return (
+    <div className="relative" aria-hidden>
+      <div
+        className="pointer-events-none absolute inset-0 scale-125 rounded-full bg-[radial-gradient(circle,rgba(0,194,255,0.35),transparent_70%)] blur-md"
+      />
+      <div
+        className={`relative flex ${dim} items-center justify-center rounded-full border-[4px] border-[var(--brand-navy)] bg-[linear-gradient(165deg,#00C2FF_0%,#2ECC71_55%,#6A3DF3_100%)] shadow-[0_8px_0_rgba(20,23,77,0.85)]`}
+      >
+        <div className="flex h-[78%] w-[78%] items-center justify-center rounded-full border-[3px] border-white/70 bg-[var(--brand-cream)]">
+          <svg viewBox="0 0 64 64" className="h-[78%] w-[78%]">
+            <ellipse cx="32" cy="46" rx="14" ry="12" fill="#FFF8F0" />
+            <circle cx="32" cy="24" r="14" fill="#FFF8F0" />
+            <circle cx="27" cy="23" r="2.2" fill="#14174D" />
+            <circle cx="37" cy="23" r="2.2" fill="#14174D" />
+            <path
+              d="M26 29c2.2 2.4 9.8 2.4 12 0"
+              fill="none"
+              stroke="#14174D"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <circle cx="22.5" cy="27" r="2" fill="#FF4B6E" opacity="0.45" />
+            <circle cx="41.5" cy="27" r="2" fill="#FF4B6E" opacity="0.45" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalShell({
+  title,
+  closeLabel,
+  onClose,
+  children,
+}: {
+  title: string;
+  closeLabel: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslations();
+
   return (
     <div
-      className="flex h-36 w-36 items-center justify-center rounded-full border-[4px] border-[#173532] bg-[var(--board-green)] shadow-[4px_4px_0_#173532] sm:h-40 sm:w-40"
-      aria-hidden
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#080a24]/70 px-5 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={onClose}
     >
-      <svg viewBox="0 0 64 64" className="h-[70%] w-[70%]">
-        {/* body */}
-        <ellipse cx="32" cy="46" rx="14" ry="12" fill="#fefae0" />
-        {/* head */}
-        <circle cx="32" cy="24" r="14" fill="#fefae0" />
-        {/* eyes */}
-        <circle cx="27" cy="23" r="2.2" fill="#173532" />
-        <circle cx="37" cy="23" r="2.2" fill="#173532" />
-        {/* smile */}
-        <path
-          d="M26 29c2.2 2.4 9.8 2.4 12 0"
-          fill="none"
-          stroke="#173532"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        {/* cheeks */}
-        <circle cx="22.5" cy="27" r="2" fill="#e63946" opacity="0.35" />
-        <circle cx="41.5" cy="27" r="2" fill="#e63946" opacity="0.35" />
-      </svg>
+      <div
+        className="w-full max-w-sm overflow-hidden rounded-[1.5rem] border-[3px] border-[var(--brand-navy)] bg-[var(--brand-cream)] text-[var(--brand-navy)] shadow-[0_14px_0_rgba(20,23,77,0.85)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b-[3px] border-[var(--brand-navy)]/10 bg-[linear-gradient(180deg,rgba(0,194,255,0.12),transparent)] px-5 py-4">
+          <h2
+            className={`${brandTitleFont.className} text-lg font-extrabold uppercase tracking-wide`}
+          >
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`${brandBodyFont.className} rounded-xl border-2 border-[var(--brand-navy)] bg-white px-2.5 py-1 text-xs font-bold uppercase tracking-wide shadow-[2px_2px_0_var(--brand-navy)] transition-[transform,box-shadow] duration-150 hover:brightness-95 active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_var(--brand-navy)]`}
+            aria-label={closeLabel}
+          >
+            {t("profile.close")}
+          </button>
+        </div>
+        <div className="px-5 py-5">{children}</div>
+      </div>
     </div>
   );
 }
@@ -113,91 +168,78 @@ function WalletModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("profile.wallet")}
-      onClick={onClose}
+    <ModalShell
+      title={t("profile.wallet")}
+      closeLabel={t("profile.closeWallet")}
+      onClose={onClose}
     >
-      <div
-        className="w-full max-w-sm rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] p-5 text-[#173532] shadow-[6px_6px_0_#173532]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className={`${retroActionFont.className} text-[0.65rem]`}>
-            {t("profile.wallet")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border-2 border-[#173532] px-2 py-1 text-xs font-semibold uppercase"
-            aria-label={t("profile.closeWallet")}
-          >
-            {t("profile.close")}
-          </button>
-        </div>
-
-        {address ? (
-          <>
-            {balancesLoading ? (
-              <p className="mb-5 text-sm opacity-70">
-                {t("profile.loadingBalances")}
-              </p>
-            ) : balancesError ? (
-              <p className="mb-5 text-sm text-[var(--board-red)]">
-                {t("profile.errorBalances")}
-              </p>
-            ) : balances ? (
-              <div className="mb-5 grid grid-cols-2 gap-3">
-                {balances.map((token) => (
-                  <div key={token.symbol} className="flex flex-col items-center">
-                    <div className="flex w-full items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-green)] px-3 py-4 shadow-[3px_3px_0_#173532]">
-                      <span className="font-mono text-base font-semibold tabular-nums text-[var(--board-path)]">
-                        {token.formatted}
-                      </span>
-                    </div>
-                    <span className="mt-2 text-xs font-semibold tracking-wide opacity-70">
-                      {token.symbol}
+      {address ? (
+        <>
+          {balancesLoading ? (
+            <p className={`${brandBodyFont.className} mb-5 text-sm opacity-70`}>
+              {t("profile.loadingBalances")}
+            </p>
+          ) : balancesError ? (
+            <p
+              className={`${brandBodyFont.className} mb-5 text-sm font-semibold text-[var(--brand-coral)]`}
+            >
+              {t("profile.errorBalances")}
+            </p>
+          ) : balances ? (
+            <div className="mb-5 grid grid-cols-2 gap-3">
+              {balances.map((token) => (
+                <div key={token.symbol} className="flex flex-col items-center">
+                  <div className="flex w-full items-center justify-center rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[linear-gradient(165deg,#2ECC71_0%,#1B8A4A_100%)] px-3 py-4 shadow-[3px_3px_0_var(--brand-navy)]">
+                    <span className="font-mono text-base font-semibold tabular-nums text-white">
+                      {token.formatted}
                     </span>
                   </div>
-                ))}
-              </div>
-            ) : null}
-
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide">
-                {t("profile.address")}
-              </p>
-              <div className="flex items-center gap-2 rounded-xl border-[3px] border-[#173532] bg-[#fefae0]/55 px-3 py-2.5 shadow-[inset_2px_2px_0_rgba(23,53,50,0.12)]">
-                <p className="min-w-0 flex-1 break-all font-mono text-[0.8rem] leading-relaxed tracking-tight">
-                  {address}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void copyAddress()}
-                  className={`shrink-0 rounded-lg border-2 border-[#173532] p-2 transition-[transform,box-shadow,background-color] duration-150 ${
-                    copied
-                      ? "bg-[var(--board-green)] text-[var(--board-path)] shadow-[2px_2px_0_#173532]"
-                      : "bg-[var(--board-path)] text-[#173532] shadow-[2px_2px_0_#173532] hover:brightness-95 active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_#173532]"
-                  }`}
-                  aria-label={copied ? t("profile.copied") : t("profile.copy")}
-                  title={copied ? t("profile.copied") : t("profile.copy")}
-                >
-                  {copied ? (
-                    <FaCheck className="h-3.5 w-3.5" aria-hidden />
-                  ) : (
-                    <FaCopy className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                </button>
-              </div>
+                  <span
+                    className={`${brandTitleFont.className} mt-2 text-xs font-extrabold uppercase tracking-wide opacity-70`}
+                  >
+                    {token.symbol}
+                  </span>
+                </div>
+              ))}
             </div>
-          </>
-        ) : (
-          <p className="text-sm opacity-70">{t("profile.creatingWallet")}</p>
-        )}
-      </div>
-    </div>
+          ) : null}
+
+          <div>
+            <p
+              className={`${brandTitleFont.className} mb-2 text-xs font-extrabold uppercase tracking-wide opacity-70`}
+            >
+              {t("profile.address")}
+            </p>
+            <div className="flex items-center gap-2 rounded-2xl border-[3px] border-[var(--brand-navy)] bg-white px-3 py-2.5 shadow-[inset_2px_2px_0_rgba(20,23,77,0.08)]">
+              <p className="min-w-0 flex-1 break-all font-mono text-[0.8rem] leading-relaxed tracking-tight">
+                {address}
+              </p>
+              <button
+                type="button"
+                onClick={() => void copyAddress()}
+                className={`shrink-0 rounded-xl border-2 border-[var(--brand-navy)] p-2 transition-[transform,box-shadow,background-color] duration-150 ${
+                  copied
+                    ? "bg-[var(--brand-mint)] text-white shadow-[2px_2px_0_var(--brand-navy)]"
+                    : "bg-[var(--brand-cream)] text-[var(--brand-navy)] shadow-[2px_2px_0_var(--brand-navy)] hover:brightness-95 active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_var(--brand-navy)]"
+                }`}
+                aria-label={copied ? t("profile.copied") : t("profile.copy")}
+                title={copied ? t("profile.copied") : t("profile.copy")}
+              >
+                {copied ? (
+                  <FaCheck className="h-3.5 w-3.5" aria-hidden />
+                ) : (
+                  <FaCopy className="h-3.5 w-3.5" aria-hidden />
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className={`${brandBodyFont.className} text-sm opacity-70`}>
+          {t("profile.creatingWallet")}
+        </p>
+      )}
+    </ModalShell>
   );
 }
 
@@ -213,50 +255,29 @@ function SettingsModal({
   const { t } = useTranslations();
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("profile.settings")}
-      onClick={onClose}
+    <ModalShell
+      title={t("profile.settings")}
+      closeLabel={t("profile.closeSettings")}
+      onClose={onClose}
     >
-      <div
-        className="w-full max-w-sm rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] p-5 text-[#173532] shadow-[6px_6px_0_#173532]"
-        onClick={(event) => event.stopPropagation()}
+      <label
+        htmlFor="settings-language"
+        className={`${brandTitleFont.className} mb-2 block text-xs font-extrabold uppercase tracking-wide opacity-70`}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className={`${retroActionFont.className} text-[0.65rem]`}>
-            {t("profile.settings")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border-2 border-[#173532] px-2 py-1 text-xs font-semibold uppercase"
-            aria-label={t("profile.closeSettings")}
-          >
-            {t("profile.close")}
-          </button>
-        </div>
-
-        <label
-          htmlFor="settings-language"
-          className="mb-2 block text-xs uppercase tracking-wide opacity-60"
-        >
-          {t("profile.language")}
-        </label>
-        <select
-          id="settings-language"
-          value={language}
-          onChange={(event) =>
-            onLanguageChange(event.target.value as LanguageOption)
-          }
-          className="w-full rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-4 py-3 text-sm text-[#173532] outline-none focus:brightness-95"
-        >
-          <option value="ENGLISH">{t("profile.languageEnglish")}</option>
-          <option value="ESPAÑOL">{t("profile.languageSpanish")}</option>
-        </select>
-      </div>
-    </div>
+        {t("profile.language")}
+      </label>
+      <select
+        id="settings-language"
+        value={language}
+        onChange={(event) =>
+          onLanguageChange(event.target.value as LanguageOption)
+        }
+        className={`${brandBodyFont.className} w-full rounded-2xl border-[3px] border-[var(--brand-navy)] bg-white px-4 py-3 text-sm font-semibold text-[var(--brand-navy)] outline-none shadow-[3px_3px_0_var(--brand-navy)] focus:brightness-95`}
+      >
+        <option value="ENGLISH">{t("profile.languageEnglish")}</option>
+        <option value="ESPAÑOL">{t("profile.languageSpanish")}</option>
+      </select>
+    </ModalShell>
   );
 }
 
@@ -266,10 +287,15 @@ function ProfileGate() {
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <h1 className={`${retroActionFont.className} text-sm sm:text-base`}>
+        <h1
+          className={`${brandTitleFont.className} text-2xl font-extrabold tracking-wide text-[var(--brand-cream)]`}
+          style={{ textShadow: "0 3px 0 rgba(20,23,77,0.65)" }}
+        >
           {t("profile.title")}
         </h1>
-        <p className="max-w-md text-sm text-[var(--board-path)]/80">
+        <p
+          className={`${brandBodyFont.className} max-w-md text-sm leading-relaxed text-[var(--brand-cream)]/80`}
+        >
           {t("profile.missingPrivy", {
             privyAppId: "NEXT_PUBLIC_PRIVY_APP_ID",
             privySecret: "PRIVY_APP_SECRET",
@@ -283,7 +309,9 @@ function ProfileGate() {
                 <code
                   key={`${part}-${index}`}
                   className={
-                    part === ".env.local" ? undefined : "text-[var(--board-green)]"
+                    part === ".env.local"
+                      ? undefined
+                      : "text-[var(--brand-mint)]"
                   }
                 >
                   {part}
@@ -477,7 +505,7 @@ function ProfileAuthenticatedView() {
     return (
       <main className="flex flex-1 items-center justify-center px-6">
         <p
-          className={`${retroActionFont.className} text-xs text-[var(--board-path)]/70`}
+          className={`${brandTitleFont.className} text-sm font-extrabold uppercase tracking-wide text-[var(--brand-cream)]/70`}
         >
           {t("profile.loading")}
         </p>
@@ -487,44 +515,56 @@ function ProfileAuthenticatedView() {
 
   if (!authenticated) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-        <div className="space-y-3">
-          <h1 className={`${retroActionFont.className} text-sm sm:text-base`}>
-            {t("profile.title")}
-          </h1>
-          <p className="max-w-sm text-sm leading-relaxed text-[var(--board-path)]/80">
-            {t("profile.signInBlurb")}
-          </p>
-        </div>
-        <div className="flex w-[min(100%,16.5rem)] flex-col items-center gap-3 sm:w-[17.5rem]">
-          <button
-            type="button"
-            onClick={() => login({ loginMethods: ["email"] })}
-            className={`${retroPlayButtonClassName} w-full min-w-0 px-3 text-[0.6rem] leading-none sm:px-4 sm:text-[0.7rem]`}
-          >
-            <span className="whitespace-nowrap">{t("profile.signIn")}</span>
-          </button>
-          <p className="text-xs uppercase tracking-wide text-[var(--board-path)]/55">
-            {t("profile.signInOr")}
-          </p>
-          <button
-            type="button"
-            onClick={() => setConnectWalletOpen(true)}
-            className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-2.5 text-[0.55rem] leading-none sm:gap-2.5 sm:px-3.5 sm:text-[0.65rem]`}
-          >
-            <FaWallet className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
-            <span className="whitespace-nowrap">
-              {t("profile.signInWithWallet")}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.6rem] leading-none sm:gap-2.5 sm:px-4 sm:text-[0.7rem]`}
-          >
-            <FaGear className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
-            <span className="whitespace-nowrap">{t("profile.settings")}</span>
-          </button>
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-8 text-center">
+          <ProfileAvatar />
+
+          <div className="space-y-2">
+            <h1
+              className={`${brandTitleFont.className} text-[1.85rem] font-extrabold leading-none tracking-wide text-[var(--brand-cream)] sm:text-[2.1rem]`}
+              style={{ textShadow: "0 3px 0 rgba(20,23,77,0.65)" }}
+            >
+              {t("profile.title")}
+            </h1>
+            <p
+              className={`${brandBodyFont.className} mx-auto max-w-sm text-sm leading-relaxed font-semibold text-[var(--brand-cream)]/75 sm:text-[0.95rem]`}
+            >
+              {t("profile.signInBlurb")}
+            </p>
+          </div>
+
+          <div className="flex w-[min(100%,16.5rem)] flex-col items-center gap-3 sm:w-[17.5rem]">
+            <button
+              type="button"
+              onClick={() => login({ loginMethods: ["email"] })}
+              className={`${brandPlayButtonClassName} w-full min-w-0 px-3 text-sm leading-none sm:px-4 sm:text-base`}
+            >
+              <span className="whitespace-nowrap">{t("profile.signIn")}</span>
+            </button>
+            <p
+              className={`${brandTitleFont.className} text-xs font-extrabold uppercase tracking-wide text-[var(--brand-cream)]/45`}
+            >
+              {t("profile.signInOr")}
+            </p>
+            <button
+              type="button"
+              onClick={() => setConnectWalletOpen(true)}
+              className={`${brandSecondaryButtonClassName} w-full min-w-0 gap-2 px-2.5 text-sm leading-none sm:gap-2.5 sm:px-3.5 sm:text-base`}
+            >
+              <FaWallet className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+              <span className="whitespace-nowrap">
+                {t("profile.signInWithWallet")}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className={`${brandBackButtonClassName} w-full min-w-0 gap-2 px-3 text-sm leading-none sm:gap-2.5 sm:px-4 sm:text-base`}
+            >
+              <FaGear className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+              <span className="whitespace-nowrap">{t("profile.settings")}</span>
+            </button>
+          </div>
         </div>
 
         {connectWalletOpen ? (
@@ -543,36 +583,41 @@ function ProfileAuthenticatedView() {
   }
 
   const needsUsername = !profile?.username;
-  const errorMessage = errorKey
-    ? t(errorKey)
-    : errorFallback;
+  const errorMessage = errorKey ? t(errorKey) : errorFallback;
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto px-6 py-8">
+    <main className="relative mx-auto flex w-full min-h-0 flex-1 flex-col overflow-y-auto">
       {loadingProfile ? (
-        <div className="flex flex-1 items-center justify-center">
+        <div className="relative flex flex-1 items-center justify-center px-6">
           <p
-            className={`${retroActionFont.className} text-[0.55rem] opacity-70`}
+            className={`${brandTitleFont.className} text-sm font-extrabold uppercase tracking-wide text-[var(--brand-cream)]/70`}
           >
             {t("profile.loadingProfile")}
           </p>
         </div>
       ) : needsUsername ? (
-        <section className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-6 text-center">
-          <ProfileAvatar />
+        <section className="relative mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-5 px-6 py-8 text-center">
+          <ProfileAvatar size="md" />
           <div className="space-y-2">
-            <h2 className={`${retroActionFont.className} text-[0.65rem]`}>
+            <h2
+              className={`${brandTitleFont.className} text-[1.55rem] font-extrabold leading-none tracking-wide text-[var(--brand-cream)] sm:text-[1.75rem]`}
+              style={{ textShadow: "0 3px 0 rgba(20,23,77,0.65)" }}
+            >
               {t("profile.chooseUsername")}
             </h2>
-            <p className="text-sm text-[var(--board-path)]/75">
+            <p
+              className={`${brandBodyFont.className} text-sm font-semibold text-[var(--brand-cream)]/75`}
+            >
               {t("profile.usernameHint")}
             </p>
             {shortWallet ? (
-              <p className="font-mono text-xs text-[var(--board-path)]/55">
+              <p className="font-mono text-xs text-[var(--brand-cream)]/45">
                 {shortWallet}
               </p>
             ) : (
-              <p className="text-xs text-[var(--board-path)]/55">
+              <p
+                className={`${brandBodyFont.className} text-xs text-[var(--brand-cream)]/45`}
+              >
                 {t("profile.creatingWallet")}
               </p>
             )}
@@ -582,70 +627,82 @@ function ProfileAuthenticatedView() {
             onChange={(event) => setUsername(event.target.value)}
             placeholder={t("profile.usernamePlaceholder")}
             maxLength={20}
-            className="w-full rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-4 py-3 text-center text-[#173532] outline-none focus:brightness-95"
+            className={`${brandBodyFont.className} w-full rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[var(--brand-cream)] px-4 py-3.5 text-center text-base font-semibold text-[var(--brand-navy)] outline-none shadow-[4px_4px_0_rgba(20,23,77,0.85)] placeholder:text-[var(--brand-navy)]/35 focus:brightness-95`}
             autoComplete="username"
           />
           <button
             type="button"
             disabled={saving || !walletAddress}
             onClick={() => void saveProfile()}
-            className={retroPlayButtonClassName}
+            className={`${brandPlayButtonClassName} w-full min-w-0`}
           >
             {saving ? t("profile.saving") : t("profile.createProfile")}
           </button>
           <button
             type="button"
             onClick={() => void logout()}
-            className={`${retroActionFont.className} flex h-10 min-w-[7.5rem] items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 text-[0.5rem] uppercase tracking-normal text-[#173532] shadow-[3px_3px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532] sm:h-11 sm:min-w-[8.5rem] sm:px-6 sm:text-[0.55rem]`}
+            className={`${brandBackButtonClassName} w-full min-w-0 text-sm sm:text-base`}
           >
             {t("profile.signOut")}
           </button>
         </section>
       ) : (
-        <section className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+        <section className="relative mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-5 px-6 py-8 text-center">
           <ProfileAvatar />
+
           <div className="space-y-1.5">
-            <p className={`${retroActionFont.className} text-xs sm:text-sm`}>
+            <p
+              className={`${brandTitleFont.className} text-[1.75rem] font-extrabold leading-none tracking-wide text-[var(--brand-cream)] sm:text-[2rem]`}
+              style={{ textShadow: "0 3px 0 rgba(20,23,77,0.65)" }}
+            >
               @{profile?.username}
             </p>
             {email ? (
-              <p className="text-xs text-[var(--board-path)]/45 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]">
+              <p
+                className={`${brandBodyFont.className} text-sm font-semibold text-[var(--brand-cream)]/55`}
+              >
                 {email}
+              </p>
+            ) : shortWallet ? (
+              <p className="font-mono text-xs text-[var(--brand-cream)]/45">
+                {shortWallet}
               </p>
             ) : null}
           </div>
-          <div className="flex flex-col items-center gap-3 pt-2">
+
+          <div className="mt-1 flex w-[min(100%,16rem)] flex-col gap-3 sm:w-[17rem]">
+            <button
+              type="button"
+              onClick={() => setWalletOpen(true)}
+              className={`${brandSecondaryButtonClassName} w-full min-w-0 gap-2.5 px-3 text-base leading-none sm:px-5`}
+            >
+              <FaWallet className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">{t("profile.wallet")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className={`${brandPlayButtonClassName} w-full min-w-0 gap-2.5 px-3 text-base leading-none sm:px-5`}
+            >
+              <FaGear className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">{t("profile.settings")}</span>
+            </button>
             <button
               type="button"
               onClick={() => void logout()}
-              className={`${retroActionFont.className} flex h-10 min-w-[7.5rem] items-center justify-center rounded-xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 text-[0.5rem] uppercase tracking-normal text-[#173532] shadow-[3px_3px_0_#173532] transition-[transform,box-shadow,filter] duration-150 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#173532] sm:h-11 sm:min-w-[8.5rem] sm:px-6 sm:text-[0.55rem]`}
+              className={`${brandBackButtonClassName} w-full min-w-0 text-sm sm:text-base`}
             >
               {t("profile.signOut")}
             </button>
-            <div className="mt-4 flex w-[min(100%,15rem)] flex-col gap-3 sm:w-[16rem]">
-              <button
-                type="button"
-                onClick={() => setWalletOpen(true)}
-                className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.65rem] leading-none sm:gap-3 sm:px-5 sm:text-xs`}
-              >
-                <FaWallet className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden />
-                <span className="whitespace-nowrap">{t("profile.wallet")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(true)}
-                className={`${retroPlayButtonClassName} w-full min-w-0 gap-2 px-3 text-[0.65rem] leading-none sm:gap-3 sm:px-5 sm:text-xs`}
-              >
-                <FaGear className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden />
-                <span className="whitespace-nowrap">{t("profile.settings")}</span>
-              </button>
-            </div>
           </div>
         </section>
       )}
 
       {errorMessage ? (
-        <p className="mt-4 text-center text-sm text-[var(--board-red)]" role="alert">
+        <p
+          className={`${brandBodyFont.className} relative mt-2 px-6 pb-4 text-center text-sm font-semibold text-[var(--brand-coral)]`}
+          role="alert"
+        >
           {errorMessage}
         </p>
       ) : null}

@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 :root {
+  /* Partyk brand palette */
+  --brand-coral: #ff4b6e;
+  --brand-yellow: #ffc800;
+  --brand-mint: #2ecc71;
+  --brand-turquoise: #00c2ff;
+  --brand-purple: #6a3df3;
+  --brand-navy: #14174d;
+  --brand-cream: #fff8f0;
+
   --board-red: #e63946;
   --board-red-dark: #c1121f;
   --board-blue: #457b9d;
@@ -19,7 +28,7 @@
   --board-victory-ornament: #fefae0;
   --board-victory-ornament-muted: #d4c5a0;
   --board-victory-ornament-dark: #9a8468;
-  --board-bg: #1a1a2e;
+  --board-bg: #14174d;
 }
 
 html,
@@ -30,9 +39,54 @@ body {
 }
 
 body {
-  background: var(--board-bg);
-  color: #fefae0;
-  font-family: system-ui, -apple-system, sans-serif;
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      rgba(0, 194, 255, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 90% 60% at 100% 100%,
+      rgba(106, 61, 243, 0.18),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 0% 80%,
+      rgba(255, 75, 110, 0.1),
+      transparent 45%
+    ),
+    var(--board-bg);
+  color: #fff8f0;
+  font-family: var(--font-nunito), "Nunito", system-ui, sans-serif;
+}
+
+@keyframes mode-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes brand-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.mode-card-enter {
+  animation: mode-card-enter 0.45s ease-out both;
+}
+
+.brand-logo-float {
+  animation: brand-float 3.2s ease-in-out infinite;
 }
 
 @keyframes turn-announcement {

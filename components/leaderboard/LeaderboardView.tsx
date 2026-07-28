@@ -12,6 +12,7 @@ import type {
 } from "@/lib/leaderboard/service";
 import { formatWeekRangeLabel } from "@/lib/leaderboard/week";
 import {
+  brandTitleFont,
   retroActionFont,
   retroPlayButtonClassName,
 } from "@/lib/fonts";
@@ -69,7 +70,7 @@ function PodiumSlot({
         {entry ? (
           <>
             <p
-              className={`${retroActionFont.className} max-w-[6.5rem] truncate text-[0.55rem] leading-tight text-[var(--board-path)] sm:max-w-[7.5rem] sm:text-[0.62rem]`}
+              className={`${retroActionFont.className} max-w-[6.5rem] truncate text-sm leading-tight text-[var(--board-path)] sm:max-w-[7.5rem] sm:text-sm`}
               title={`@${entry.username}`}
             >
               @{entry.username}
@@ -83,7 +84,7 @@ function PodiumSlot({
             {t("leaderboard.emptySlot")}
           </p>
         )}
-        <p className="text-[0.65rem] font-semibold text-[#f5c518] sm:text-xs">
+        <p className="text-base font-semibold text-[#f5c518] sm:text-xs">
           {t("leaderboard.prizePayout", { amount: formatUsdc(prizeUsdc) })}
         </p>
       </div>
@@ -117,7 +118,7 @@ function YourRankCard({
         className="flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 py-5 text-center shadow-[4px_4px_0_#173532]"
       >
         <p
-          className={`${retroActionFont.className} text-[0.55rem] uppercase tracking-wide text-[#173532] sm:text-[0.62rem]`}
+          className={`${retroActionFont.className} text-sm uppercase tracking-wide text-[#173532] sm:text-sm`}
         >
           {t("leaderboard.yourRank")}
         </p>
@@ -139,7 +140,7 @@ function YourRankCard({
         className="flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 py-5 text-center shadow-[4px_4px_0_#173532]"
       >
         <p
-          className={`${retroActionFont.className} text-[0.55rem] uppercase tracking-wide text-[#173532] sm:text-[0.62rem]`}
+          className={`${retroActionFont.className} text-sm uppercase tracking-wide text-[#173532] sm:text-sm`}
         >
           {t("leaderboard.yourRank")}
         </p>
@@ -164,7 +165,7 @@ function YourRankCard({
       className="flex w-full max-w-sm flex-col items-center gap-2 rounded-2xl border-[3px] border-[#173532] bg-[var(--board-path)] px-5 py-5 text-center shadow-[4px_4px_0_#173532]"
     >
       <p
-        className={`${retroActionFont.className} text-[0.55rem] uppercase tracking-wide text-[#173532] sm:text-[0.62rem]`}
+        className={`${retroActionFont.className} text-sm uppercase tracking-wide text-[#173532] sm:text-sm`}
       >
         {t("leaderboard.yourRank")}
       </p>
@@ -259,7 +260,9 @@ export function LeaderboardView() {
         <header className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center gap-2 text-[var(--board-victory-gold)]">
             <FaTrophy className="h-7 w-7" aria-hidden />
-            <h1 className="text-3xl font-black tracking-tight text-[var(--board-path)] sm:text-4xl">
+            <h1
+              className={`${brandTitleFont.className} text-3xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-4xl`}
+            >
               {t("leaderboard.title")}
             </h1>
           </div>
@@ -268,7 +271,7 @@ export function LeaderboardView() {
           </p>
           {weekLabel ? (
             <p
-              className={`${retroActionFont.className} text-[0.5rem] uppercase tracking-wide text-[var(--board-path)]/70 sm:text-[0.55rem]`}
+              className={`${retroActionFont.className} text-xs uppercase tracking-wide text-[var(--board-path)]/70 sm:text-sm`}
             >
               {t("leaderboard.thisWeek", { range: weekLabel })}
             </p>

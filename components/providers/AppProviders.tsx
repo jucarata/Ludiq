@@ -23,7 +23,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         loginMethods: ["email", "wallet"],
         appearance: {
           theme: "light",
-          accentColor: "#2a9d8f",
+          accentColor: "#6A3DF3",
           logo: undefined,
           walletChainType: "ethereum-only",
         },

@@ -1,10 +1,10 @@
-import { GameModeCarousel } from "@/components/home/GameModeCarousel";
+import { GameModes } from "@/components/home/GameModes";
 import { AppFooter } from "@/components/nav/AppFooter";
 
 export default function Home() {
   return (
     <>
-      <GameModeCarousel />
+      <GameModes />
       <AppFooter />
     </>
   );

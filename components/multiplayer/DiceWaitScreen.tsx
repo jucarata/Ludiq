@@ -51,7 +51,7 @@ export function DiceWaitScreen({
 
       <div className="flex flex-col items-center gap-1.5 text-center">
         <p
-          className={`${retroActionFont.className} text-sm tracking-wide text-[var(--board-path)] sm:text-base`}
+          className={`${retroActionFont.className} text-lg font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-xl`}
         >
           {title}
         </p>
@@ -67,7 +67,7 @@ export function DiceWaitScreen({
   if (overlay) {
     return (
       <div
-        className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-[#1a1a2e]/92 px-6 backdrop-blur-[2px]"
+        className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-[var(--brand-navy)]/92 px-6 backdrop-blur-[2px]"
         aria-busy
         aria-live="polite"
         role="status"
