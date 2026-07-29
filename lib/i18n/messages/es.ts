@@ -231,11 +231,16 @@ export const es: Messages = {
     signInOr: "o",
     connectWalletHint: "Elige la extensión de billetera que ya usas.",
     connectingWallet: "Conectando…",
+    connectingMiniPay: "Conectando billetera MiniPay…",
+    miniPayReadyBlurb:
+      "Tu billetera MiniPay ya está conectada. Elige un nombre para terminar tu perfil.",
     noWalletsDetected:
       "No se detectó ninguna extensión. Instala Rabby, MetaMask, Rainbow u otra billetera y recarga.",
     closeWalletConnect: "Cerrar modal de conectar billetera",
     errorWalletConnect: "No se pudo conectar la billetera. Inténtalo de nuevo.",
     errorWalletRejected: "Conexión cancelada en tu billetera.",
+    errorMiniPayConnect:
+      "No se pudo conectar MiniPay. Cierra y vuelve a abrir la app.",
     loading: "Cargando…",
     loadingProfile: "Cargando perfil…",
     chooseUsername: "Elige un nombre",
@@ -260,7 +265,7 @@ export const es: Messages = {
     languageSpanish: "ESPAÑOL",
     missingPrivy:
       "Agrega {privyAppId} y {privySecret} a {envFile}, luego reinicia el servidor de desarrollo.",
-    errorSession: "No se pudo obtener la sesión de Privy.",
+    errorSession: "No se pudo obtener la sesión.",
     errorLoad: "No se pudo cargar el perfil",
     errorWalletPending:
       "La billetera aún se está creando. Inténtalo en un momento.",

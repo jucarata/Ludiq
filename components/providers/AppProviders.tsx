@@ -4,11 +4,19 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { celo, celoSepolia } from "viem/chains";
 import type { ReactNode } from "react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { MiniPayAuthProvider } from "@/components/providers/MiniPayAuthProvider";
+import { AppAuthProvider } from "@/lib/auth/useAppAuth";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 export function AppProviders({ children }: { children: ReactNode }) {
-  const content = <LocaleProvider>{children}</LocaleProvider>;
+  const content = (
+    <MiniPayAuthProvider>
+      <AppAuthProvider>
+        <LocaleProvider>{children}</LocaleProvider>
+      </AppAuthProvider>
+    </MiniPayAuthProvider>
+  );
 
   if (!appId) {
     return content;
@@ -20,6 +28,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       config={{
         // Wallet auth uses headless SIWE in ConnectWalletModal (avoids Privy
         // ConnectWalletView duplicate-key bug). Email still uses Privy UI.
+        // Inside MiniPay we never call Privy login — see MiniPayAuthProvider.
         loginMethods: ["email", "wallet"],
         appearance: {
           theme: "light",

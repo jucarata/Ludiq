@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useAppAuth } from "@/lib/auth/useAppAuth";
 import type { Hex } from "viem";
 import { ParquesBoard } from "@/components/board/ParquesBoard";
 import { BoardDiceZone } from "@/components/board/BoardDiceZone";
@@ -35,8 +35,8 @@ export function OnlineGameView({ code }: { code: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mode = parseRoomMode(searchParams.get("mode"));
-  const { ready, authenticated, getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready, authenticated, getAccessToken, competitiveWallets } =
+    useAppAuth();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [game, setGame] = useState<OnlineGameStateView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -202,7 +202,7 @@ export function OnlineGameView({ code }: { code: string }) {
             if (profileWallet) {
               const wallet = await resolveCompetitiveWallet({
                 profileWallet,
-                privyWallets: wallets,
+                privyWallets: competitiveWallets,
               });
               // Lock-failure cancel: full refund (pool + fee). Host pays gas.
               body.refundTxHash = await fullRefundParty({

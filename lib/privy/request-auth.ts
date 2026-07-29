@@ -1,3 +1,4 @@
+import { verifyMiniPaySessionToken } from "@/lib/minipay/session";
 import { verifyPrivyAuthToken } from "@/lib/privy/server";
 
 export function getBearerToken(request: Request): string | null {
@@ -6,12 +7,19 @@ export function getBearerToken(request: Request): string | null {
   return header.slice("Bearer ".length).trim() || null;
 }
 
-/** Returns Privy user id when a valid Bearer token is present; otherwise null. */
+/**
+ * Resolves the app user id from either a Privy access token or a MiniPay
+ * session token. MiniPay tokens use `minipay:0x…` (or an existing profile's
+ * privy_user_id when the wallet was already linked).
+ */
 export async function getOptionalPrivyUserId(
   request: Request,
 ): Promise<string | null> {
   const token = getBearerToken(request);
   if (!token) return null;
+
+  const miniPay = verifyMiniPaySessionToken(token);
+  if (miniPay) return miniPay.userId;
 
   try {
     const claims = await verifyPrivyAuthToken(token);
@@ -29,6 +37,9 @@ export async function requirePrivyUserId(request: Request): Promise<string> {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  const miniPay = verifyMiniPaySessionToken(token);
+  if (miniPay) return miniPay.userId;
 
   try {
     const claims = await verifyPrivyAuthToken(token);

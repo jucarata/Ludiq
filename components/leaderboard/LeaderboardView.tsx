@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAppAuth } from "@/lib/auth/useAppAuth";
 import { FaMedal, FaTrophy } from "react-icons/fa6";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type {
@@ -200,7 +200,7 @@ function YourRankCard({
 export function LeaderboardView() {
   const { t } = useTranslations();
   const { locale } = useLocale();
-  const { ready, authenticated, getAccessToken } = usePrivy();
+  const { ready, authenticated, getAccessToken } = useAppAuth();
   const [data, setData] = useState<WeeklyLeaderboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

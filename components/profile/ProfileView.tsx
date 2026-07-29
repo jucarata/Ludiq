@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { usePrivy } from "@privy-io/react-auth";
 import { FaCheck, FaCopy, FaGear, FaWallet } from "react-icons/fa6";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import { ConnectWalletModal } from "@/components/profile/ConnectWalletModal";
+import { useAppAuth } from "@/lib/auth/useAppAuth";
 import type { Profile } from "@/lib/profile/types";
 import {
   mapApiErrorToMessageKey,
@@ -283,8 +283,21 @@ function SettingsModal({
 
 function ProfileGate() {
   const { t } = useTranslations();
+  const { ready, isMiniPay } = useAppAuth();
 
-  if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
+  if (!ready) {
+    return (
+      <main className="flex flex-1 items-center justify-center px-6">
+        <p
+          className={`${brandTitleFont.className} text-sm font-extrabold uppercase tracking-wide text-[var(--brand-cream)]/70`}
+        >
+          {t("profile.loading")}
+        </p>
+      </main>
+    );
+  }
+
+  if (!isMiniPay && !process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <h1
@@ -329,8 +342,18 @@ function ProfileGate() {
 }
 
 function ProfileAuthenticatedView() {
-  const { ready, authenticated, user, login, logout, getAccessToken } =
-    usePrivy();
+  const {
+    ready,
+    authenticated,
+    walletAddress,
+    email,
+    logout,
+    getAccessToken,
+    isMiniPay,
+    miniPayError,
+    loginWithEmail,
+    refreshMiniPayProfile,
+  } = useAppAuth();
   const { t } = useTranslations();
   const { locale, setLocale } = useLocale();
 
@@ -364,33 +387,6 @@ function ProfileAuthenticatedView() {
     },
     [],
   );
-
-  const walletAddress = useMemo(() => {
-    const linkedWallets =
-      user?.linkedAccounts?.filter(
-        (account) => account.type === "wallet" && "address" in account,
-      ) ?? [];
-
-    const external = linkedWallets.find((account) => {
-      if (!("walletClientType" in account)) return false;
-      const clientType = account.walletClientType;
-      return clientType !== "privy" && clientType !== "privy-v2";
-    });
-    if (external && "address" in external) {
-      return external.address as string;
-    }
-
-    const embedded = user?.wallet?.address;
-    if (embedded) return embedded;
-
-    const anyLinked = linkedWallets[0];
-    if (anyLinked && "address" in anyLinked) {
-      return anyLinked.address as string;
-    }
-    return null;
-  }, [user]);
-
-  const email = user?.email?.address ?? user?.google?.email ?? null;
 
   const shortWallet = useMemo(() => {
     if (!walletAddress) return null;
@@ -490,6 +486,9 @@ function ProfileAuthenticatedView() {
       }
 
       setProfile(json.profile);
+      if (isMiniPay) {
+        await refreshMiniPayProfile();
+      }
     } catch {
       setErrorKey("profile.errorSave");
     } finally {
@@ -507,13 +506,63 @@ function ProfileAuthenticatedView() {
         <p
           className={`${brandTitleFont.className} text-sm font-extrabold uppercase tracking-wide text-[var(--brand-cream)]/70`}
         >
-          {t("profile.loading")}
+          {isMiniPay
+            ? t("profile.connectingMiniPay")
+            : t("profile.loading")}
         </p>
       </main>
     );
   }
 
   if (!authenticated) {
+    if (isMiniPay) {
+      return (
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-8 text-center">
+            <ProfileAvatar />
+            <div className="space-y-2">
+              <h1
+                className={`${brandTitleFont.className} text-[1.85rem] font-extrabold leading-none tracking-wide text-[var(--brand-cream)] sm:text-[2.1rem]`}
+                style={{ textShadow: "0 3px 0 rgba(20,23,77,0.65)" }}
+              >
+                {t("profile.title")}
+              </h1>
+              <p
+                className={`${brandBodyFont.className} mx-auto max-w-sm text-sm leading-relaxed font-semibold text-[var(--brand-cream)]/75`}
+              >
+                {miniPayError
+                  ? t("profile.errorMiniPayConnect")
+                  : t("profile.connectingMiniPay")}
+              </p>
+              {miniPayError ? (
+                <p
+                  className={`${brandBodyFont.className} text-sm font-semibold text-[var(--brand-coral)]`}
+                  role="alert"
+                >
+                  {miniPayError}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className={`${brandBackButtonClassName} w-[min(100%,16.5rem)] min-w-0 gap-2 px-3 text-sm leading-none sm:w-[17.5rem] sm:gap-2.5 sm:px-4 sm:text-base`}
+            >
+              <FaGear className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+              <span className="whitespace-nowrap">{t("profile.settings")}</span>
+            </button>
+          </div>
+          {settingsOpen ? (
+            <SettingsModal
+              language={language}
+              onLanguageChange={handleLanguageChange}
+              onClose={() => setSettingsOpen(false)}
+            />
+          ) : null}
+        </main>
+      );
+    }
+
     return (
       <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-8 text-center">
@@ -536,7 +585,7 @@ function ProfileAuthenticatedView() {
           <div className="flex w-[min(100%,16.5rem)] flex-col items-center gap-3 sm:w-[17.5rem]">
             <button
               type="button"
-              onClick={() => login({ loginMethods: ["email"] })}
+              onClick={() => loginWithEmail?.()}
               className={`${brandPlayButtonClassName} w-full min-w-0 px-3 text-sm leading-none sm:px-4 sm:text-base`}
             >
               <span className="whitespace-nowrap">{t("profile.signIn")}</span>
@@ -608,7 +657,9 @@ function ProfileAuthenticatedView() {
             <p
               className={`${brandBodyFont.className} text-sm font-semibold text-[var(--brand-cream)]/75`}
             >
-              {t("profile.usernameHint")}
+              {isMiniPay
+                ? t("profile.miniPayReadyBlurb")
+                : t("profile.usernameHint")}
             </p>
             {shortWallet ? (
               <p className="font-mono text-xs text-[var(--brand-cream)]/45">
@@ -638,13 +689,15 @@ function ProfileAuthenticatedView() {
           >
             {saving ? t("profile.saving") : t("profile.createProfile")}
           </button>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className={`${brandBackButtonClassName} w-full min-w-0 text-sm sm:text-base`}
-          >
-            {t("profile.signOut")}
-          </button>
+          {!isMiniPay ? (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className={`${brandBackButtonClassName} w-full min-w-0 text-sm sm:text-base`}
+            >
+              {t("profile.signOut")}
+            </button>
+          ) : null}
         </section>
       ) : (
         <section className="relative mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-5 px-6 py-8 text-center">
@@ -687,13 +740,15 @@ function ProfileAuthenticatedView() {
               <FaGear className="h-5 w-5 shrink-0" aria-hidden />
               <span className="whitespace-nowrap">{t("profile.settings")}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className={`${brandBackButtonClassName} w-full min-w-0 text-sm sm:text-base`}
-            >
-              {t("profile.signOut")}
-            </button>
+            {!isMiniPay ? (
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className={`${brandBackButtonClassName} w-full min-w-0 text-sm sm:text-base`}
+              >
+                {t("profile.signOut")}
+              </button>
+            ) : null}
           </div>
         </section>
       )}

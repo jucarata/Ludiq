@@ -112,9 +112,9 @@ function wrapInjectedWallet(
 }
 
 /**
- * Prefer the Privy-linked wallet that matches the profile.
+ * Prefer a already-resolved wallet (Privy / MiniPay) that matches the profile.
  * If missing (common with email login), fall back to an injected browser
- * wallet unlocked to that same address (MetaMask, Rabby, …).
+ * wallet unlocked to that same address (MetaMask, Rabby, MiniPay, …).
  */
 export async function resolveCompetitiveWallet(params: {
   profileWallet: string;
@@ -122,15 +122,27 @@ export async function resolveCompetitiveWallet(params: {
 }): Promise<CompetitiveWallet> {
   const profile = params.profileWallet.toLowerCase();
 
-  const fromPrivy = params.privyWallets.find(
+  const fromLinked = params.privyWallets.find(
     (wallet) => wallet.address.toLowerCase() === profile,
   );
-  if (fromPrivy) return fromPrivy;
+  if (fromLinked) return fromLinked;
 
   if (typeof window === "undefined") {
     throw new Error(
-      `Connect your profile wallet (${shortAddr(params.profileWallet)}) in Privy and try again.`,
+      `Connect your profile wallet (${shortAddr(params.profileWallet)}) and try again.`,
     );
+  }
+
+  const ethereum = (
+    window as Window & {
+      ethereum?: InjectedEthereumProvider & { isMiniPay?: boolean };
+    }
+  ).ethereum;
+
+  // MiniPay injects window.ethereum without EIP-6963 announcements.
+  if (ethereum?.isMiniPay) {
+    await unlockMatchingAccount(ethereum, params.profileWallet);
+    return wrapInjectedWallet(ethereum, params.profileWallet);
   }
 
   const injected = await listInjectedWallets();
@@ -149,6 +161,6 @@ export async function resolveCompetitiveWallet(params: {
 
   const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
   throw new Error(
-    `Unlock MetaMask (or your browser wallet) with ${shortAddr(params.profileWallet)} on ${network}, then try again.`,
+    `Unlock your wallet with ${shortAddr(params.profileWallet)} on ${network}, then try again.`,
   );
 }

@@ -35,16 +35,23 @@ function legacyInjectedWallet(): DiscoveredWallet | null {
   if (typeof window === "undefined") return null;
   const ethereum = (
     window as Window & {
-      ethereum?: InjectedEthereumProvider & { isMetaMask?: boolean };
+      ethereum?: InjectedEthereumProvider & {
+        isMetaMask?: boolean;
+        isMiniPay?: boolean;
+      };
     }
   ).ethereum;
   if (!ethereum) return null;
   return {
     info: {
       uuid: "legacy-injected",
-      name: ethereum.isMetaMask ? "MetaMask" : "Browser wallet",
+      name: ethereum.isMiniPay
+        ? "MiniPay"
+        : ethereum.isMetaMask
+          ? "MetaMask"
+          : "Browser wallet",
       icon: "",
-      rdns: "browser.injected",
+      rdns: ethereum.isMiniPay ? "com.opera.minipay" : "browser.injected",
     },
     provider: ethereum,
   };

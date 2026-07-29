@@ -227,11 +227,15 @@ export const en = {
     signInOr: "or",
     connectWalletHint: "Choose the wallet extension you already use.",
     connectingWallet: "Connecting…",
+    connectingMiniPay: "Connecting MiniPay wallet…",
+    miniPayReadyBlurb:
+      "Your MiniPay wallet is connected. Choose a username to finish your profile.",
     noWalletsDetected:
       "No wallet extension detected. Install Rabby, MetaMask, Rainbow, or another wallet and refresh.",
     closeWalletConnect: "Close wallet connect modal",
     errorWalletConnect: "Could not connect wallet. Try again.",
     errorWalletRejected: "Connection cancelled in your wallet.",
+    errorMiniPayConnect: "Could not connect MiniPay. Close and reopen the app.",
     loading: "Loading…",
     loadingProfile: "Loading profile…",
     chooseUsername: "Choose username",
@@ -256,7 +260,7 @@ export const en = {
     languageSpanish: "ESPAÑOL",
     missingPrivy:
       "Add {privyAppId} and {privySecret} to {envFile}, then restart the dev server.",
-    errorSession: "Could not get Privy session.",
+    errorSession: "Could not get session.",
     errorLoad: "Failed to load profile",
     errorWalletPending: "Wallet is still being created. Try again in a moment.",
     errorSave: "Failed to save profile",

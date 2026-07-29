@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useAppAuth } from "@/lib/auth/useAppAuth";
 import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -56,8 +56,8 @@ export function JoinRoomView() {
   const searchParams = useSearchParams();
   const mode = parseRoomMode(searchParams.get("mode"));
   const hubHref = "/friends";
-  const { ready, authenticated, getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready, authenticated, getAccessToken, competitiveWallets } =
+    useAppAuth();
   const [codeInput, setCodeInput] = useState("");
   const [room, setRoom] = useState<RoomView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -302,7 +302,7 @@ export function JoinRoomView() {
 
       const wallet = await resolveCompetitiveWallet({
         profileWallet,
-        privyWallets: wallets,
+        privyWallets: competitiveWallets,
       });
       const roomKey = current.escrowRoomKey as Hex;
       if (useFullRefund) {
@@ -365,7 +365,7 @@ export function JoinRoomView() {
           const profileWallet = await resolveProfileWalletAddress();
           const wallet = await resolveCompetitiveWallet({
             profileWallet,
-            privyWallets: wallets,
+            privyWallets: competitiveWallets,
           });
           body.withdrawTxHash = await withdrawPartyContribution({
             wallet,
@@ -497,7 +497,7 @@ export function JoinRoomView() {
         const profileWallet = await resolveProfileWalletAddress();
         const wallet = await resolveCompetitiveWallet({
           profileWallet,
-          privyWallets: wallets,
+          privyWallets: competitiveWallets,
         });
         body.kickRefundTxHash = await kickRefundParty({
           wallet,
@@ -563,7 +563,7 @@ export function JoinRoomView() {
 
       const wallet = await resolveCompetitiveWallet({
         profileWallet,
-        privyWallets: wallets,
+        privyWallets: competitiveWallets,
       });
       const { escrowRoomKey, openTxHash } = await openPartyRoom({
         wallet,
@@ -631,7 +631,7 @@ export function JoinRoomView() {
 
       const wallet = await resolveCompetitiveWallet({
         profileWallet,
-        privyWallets: wallets,
+        privyWallets: competitiveWallets,
       });
       const contributeTxHash = await contributeParty({
         wallet,

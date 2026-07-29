@@ -17,12 +17,14 @@ import {
   calcPartyTotalRaw,
   partyEscrowAbi,
   getCompetitiveChain,
+  getCompetitiveFeeCurrency,
   getCompetitiveRpcUrl,
   getEscrowAddress,
   isCeloSepoliaMode,
 } from "@/lib/celo/constants";
 import { generateEscrowRoomKey } from "@/lib/celo/competitive-key";
 import { formatCompetitiveTxError } from "@/lib/celo/wallet-errors";
+import { isMiniPay } from "@/lib/minipay/detect";
 
 export type CompetitiveWallet = {
   address: string;
@@ -68,27 +70,42 @@ async function waitForTx(hash: Hex): Promise<void> {
   }
 }
 
+function partyTxFeeFields(): { feeCurrency?: Address } {
+  // MiniPay: pay network fee in USDT via CIP-64 (no CELO in the wallet UI).
+  if (!isMiniPay()) return {};
+  const feeCurrency = getCompetitiveFeeCurrency();
+  return feeCurrency ? { feeCurrency } : {};
+}
+
+function usesStablecoinNetworkFee(): boolean {
+  return isMiniPay() && Boolean(getCompetitiveFeeCurrency());
+}
+
 async function assertCanPay(account: Address, totalRaw: bigint): Promise<void> {
   const client = publicClient();
-  const [usdtBalance, celoBalance] = await Promise.all([
-    client.readContract({
-      address: COMPETITIVE_TOKEN.address,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [account],
-    }),
-    client.getBalance({ address: account }),
-  ]);
+  const usdtBalance = await client.readContract({
+    address: COMPETITIVE_TOKEN.address,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [account],
+  });
 
   const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
 
   if (usdtBalance < totalRaw) {
     throw new Error(`Insufficient USDT on ${network}`);
   }
+
+  // MiniPay (mainnet) pays the network fee in USDT — skip native CELO check.
+  if (usesStablecoinNetworkFee() || isMiniPay()) {
+    return;
+  }
+
+  const celoBalance = await client.getBalance({ address: account });
   if (celoBalance < BigInt("100000000000000")) {
     throw new Error(
       isCeloSepoliaMode()
-        ? "Need CELO for gas on Celo Sepolia (USDT alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
+        ? "Need CELO for network fees on Celo Sepolia (USDT alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
         : "Need CELO for network fees on Celo (USDT alone is not enough).",
     );
   }
@@ -119,17 +136,20 @@ export async function openPartyRoom(params: {
     const { client, account } = await getWalletClient(params.wallet);
     assertWalletMatchesProfile(account, params.walletAddress);
 
-    const celoBalance = await publicClient().getBalance({ address: account });
-    if (celoBalance < BigInt("100000000000000")) {
-      throw new Error(
-        isCeloSepoliaMode()
-          ? "Need CELO for gas on Celo Sepolia"
-          : "Need CELO for network fees on Celo",
-      );
+    if (!usesStablecoinNetworkFee() && !isMiniPay()) {
+      const celoBalance = await publicClient().getBalance({ address: account });
+      if (celoBalance < BigInt("100000000000000")) {
+        throw new Error(
+          isCeloSepoliaMode()
+            ? "Need CELO for network fees on Celo Sepolia"
+            : "Need CELO for network fees on Celo",
+        );
+      }
     }
 
     const roomKey = generateEscrowRoomKey();
     const pub = publicClient();
+    const feeFields = partyTxFeeFields();
 
     // Fail fast if address is still the old CompetitiveEscrow (no open()).
     try {
@@ -139,6 +159,7 @@ export async function openPartyRoom(params: {
         functionName: "open",
         args: [roomKey],
         account,
+        ...feeFields,
       });
     } catch (simError) {
       const msg =
@@ -164,6 +185,7 @@ export async function openPartyRoom(params: {
       args: [roomKey],
       chain,
       account,
+      ...feeFields,
     });
 
     await waitForTx(openTxHash);
@@ -197,6 +219,7 @@ export async function contributeParty(params: {
 
     const totalRaw = calcPartyTotalRaw(poolAmountRaw);
     await assertCanPay(account, totalRaw);
+    const feeFields = partyTxFeeFields();
 
     const approveHash = await client.writeContract({
       address: COMPETITIVE_TOKEN.address,
@@ -205,6 +228,7 @@ export async function contributeParty(params: {
       args: [escrow, totalRaw],
       chain,
       account,
+      ...feeFields,
     });
     await waitForTx(approveHash);
 
@@ -215,6 +239,7 @@ export async function contributeParty(params: {
       args: [params.roomKey, poolAmountRaw],
       chain,
       account,
+      ...feeFields,
     });
     await waitForTx(contributeTxHash);
     return contributeTxHash;
@@ -232,6 +257,7 @@ export async function refundPartyPool(params: {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
   const { client, account } = await getWalletClient(params.wallet);
+  const feeFields = partyTxFeeFields();
 
   const refundTxHash = await client.writeContract({
     address: escrow,
@@ -240,6 +266,7 @@ export async function refundPartyPool(params: {
     args: [params.roomKey],
     chain,
     account,
+    ...feeFields,
   });
 
   await waitForTx(refundTxHash);
@@ -254,6 +281,7 @@ export async function fullRefundParty(params: {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
   const { client, account } = await getWalletClient(params.wallet);
+  const feeFields = partyTxFeeFields();
 
   const refundTxHash = await client.writeContract({
     address: escrow,
@@ -262,13 +290,14 @@ export async function fullRefundParty(params: {
     args: [params.roomKey],
     chain,
     account,
+    ...feeFields,
   });
 
   await waitForTx(refundTxHash);
   return refundTxHash;
 }
 
-/** Host returns pool + fee to one player (kick). Host pays gas. */
+/** Host returns pool + fee to one player (kick). Host pays network fee. */
 export async function kickRefundParty(params: {
   wallet: CompetitiveWallet;
   roomKey: Hex;
@@ -277,6 +306,7 @@ export async function kickRefundParty(params: {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
   const { client, account } = await getWalletClient(params.wallet);
+  const feeFields = partyTxFeeFields();
 
   try {
     const txHash = await client.writeContract({
@@ -286,6 +316,7 @@ export async function kickRefundParty(params: {
       args: [params.roomKey, params.player],
       chain,
       account,
+      ...feeFields,
     });
     await waitForTx(txHash);
     return txHash;
@@ -295,7 +326,7 @@ export async function kickRefundParty(params: {
   }
 }
 
-/** Contributor withdraws pool only (fee stays). Caller pays gas. */
+/** Contributor withdraws pool only (fee stays). Caller pays network fee. */
 export async function withdrawPartyContribution(params: {
   wallet: CompetitiveWallet;
   roomKey: Hex;
@@ -303,6 +334,7 @@ export async function withdrawPartyContribution(params: {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
   const { client, account } = await getWalletClient(params.wallet);
+  const feeFields = partyTxFeeFields();
 
   try {
     const txHash = await client.writeContract({
@@ -312,6 +344,7 @@ export async function withdrawPartyContribution(params: {
       args: [params.roomKey],
       chain,
       account,
+      ...feeFields,
     });
     await waitForTx(txHash);
     return txHash;
