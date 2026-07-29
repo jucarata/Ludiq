@@ -166,7 +166,6 @@ export function InGameTutorialOverlay() {
   if (!copy || copy.hidden) return null;
 
   const blockBoard = allowedAction === "continue";
-  const softAtBottom = !blockBoard;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[55]">
@@ -178,13 +177,12 @@ export function InGameTutorialOverlay() {
       ) : null}
 
       <div
-        className={`absolute inset-x-0 flex justify-center px-3 ${
+        className={
           blockBoard
-            ? "inset-y-0 items-center"
-            : softAtBottom
-              ? "bottom-3 items-end"
-              : "top-3 items-start"
-        }`}
+            ? "absolute inset-0 flex items-center justify-center px-3"
+            : /* Soft tips over empty yellow quadrant (bottom-left) — keep blue clear */
+              "absolute bottom-[22%] left-2 right-auto flex w-[min(100%-0.75rem,20rem)] justify-start px-0 sm:left-3"
+        }
       >
         <div
           className={`pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] text-[var(--brand-navy)] shadow-[0_10px_0_rgba(20,23,77,0.85)] ${

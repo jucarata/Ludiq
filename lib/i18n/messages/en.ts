@@ -52,14 +52,14 @@ export const en = {
     clickDiceTitle: "Grab the dice",
     clickDiceBody: "Tap the dice next to your red player to pick them up.",
     throwTitle: "Throw!",
-    throwBody: "Tap or swipe on the board to throw the dice.",
+    throwBody: "Tap the board to throw the dice.",
     needDoublesTitle: "You need doubles",
     needDoublesBody:
-      "While your pieces are still at home, you must roll doubles (same number on both dice) to leave. You have 2 tries left this turn.",
+      "While your pieces are at home, you get 3 throws to roll doubles (same number on both dice) and leave. Let's try again — you have 2 tries left.",
     clickDiceAgainTitle: "Try again",
     clickDiceAgainBody: "Tap your dice once more to aim.",
     throwDoublesTitle: "Throw again",
-    throwDoublesBody: "Throw on the board — look for doubles this time.",
+    throwDoublesBody: "Tap the board to throw — look for doubles this time.",
     explainMoveTitle: "You're out!",
     explainMoveBody:
       "Doubles got your pieces onto the board. Use both dice on the same piece — tap it, move, then tap it again.",
@@ -81,7 +81,7 @@ export const en = {
     safeClickDiceTitle: "Roll again",
     safeClickDiceBody: "Tap your dice for the next throw.",
     safeThrowTitle: "Throw!",
-    safeThrowBody: "Tap or swipe on the board to throw.",
+    safeThrowBody: "Tap the board to throw.",
     safeMoveTitle: "Keep advancing",
     safeMoveBody:
       "Move that same lead piece with both dice. If you land on SAFE, they can't capture you there.",
@@ -96,7 +96,7 @@ export const en = {
     captureClickDiceTitle: "Grab the dice",
     captureClickDiceBody: "Tap your dice to throw.",
     captureThrowTitle: "Throw!",
-    captureThrowBody: "Tap or swipe on the board to throw.",
+    captureThrowBody: "Tap the board to throw.",
     captureWith2Title: "A 2!",
     captureWith2Body:
       "With that 2 you can land on them from the exit. Tap that piece to capture — they'll return to the start square.",

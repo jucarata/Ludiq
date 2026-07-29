@@ -55,14 +55,14 @@ export const es: Messages = {
     clickDiceTitle: "Toma los dados",
     clickDiceBody: "Toca los dados junto a tu jugador rojo para tomarlos.",
     throwTitle: "¡Lanza!",
-    throwBody: "Toca o desliza en el tablero para lanzar los dados.",
+    throwBody: "Toca el tablero para lanzar los dados.",
     needDoublesTitle: "Necesitas un par",
     needDoublesBody:
-      "Mientras tus fichas estén en casa, debes sacar un par (el mismo número en ambos dados) para salir. Te quedan 2 intentos en este turno.",
+      "Mientras tus fichas estén en casa, tienes 3 tiros para sacar un par (el mismo número en ambos dados) y salir. Intentémoslo de nuevo — te quedan 2 intentos.",
     clickDiceAgainTitle: "Inténtalo de nuevo",
     clickDiceAgainBody: "Toca tus dados otra vez para apuntar.",
     throwDoublesTitle: "Lanza otra vez",
-    throwDoublesBody: "Lanza en el tablero — ahora busca un par.",
+    throwDoublesBody: "Toca el tablero para lanzar — ahora busca un par.",
     explainMoveTitle: "¡Ya saliste!",
     explainMoveBody:
       "El par sacó tus fichas al camino. Usa ambos dados en la misma ficha: tócala, muévela y vuelve a tocarla.",
@@ -84,7 +84,7 @@ export const es: Messages = {
     safeClickDiceTitle: "Lanza otra vez",
     safeClickDiceBody: "Toca tus dados para el siguiente lanzamiento.",
     safeThrowTitle: "¡Lanza!",
-    safeThrowBody: "Toca o desliza en el tablero para lanzar.",
+    safeThrowBody: "Toca el tablero para lanzar.",
     safeMoveTitle: "Sigue avanzando",
     safeMoveBody:
       "Mueve esa misma ficha líder con ambos dados. Si caes en SAFE, ahí no te pueden comer.",
@@ -99,7 +99,7 @@ export const es: Messages = {
     captureClickDiceTitle: "Toma los dados",
     captureClickDiceBody: "Toca tus dados para lanzar.",
     captureThrowTitle: "¡Lanza!",
-    captureThrowBody: "Toca o desliza en el tablero para lanzar.",
+    captureThrowBody: "Toca el tablero para lanzar.",
     captureWith2Title: "¡Un 2!",
     captureWith2Body:
       "Con ese 2 puedes caerle encima desde la salida. Toca esa ficha para comértelo — volverá a su casilla de inicio.",
