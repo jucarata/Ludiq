@@ -180,7 +180,7 @@ export function InGameTutorialOverlay() {
           blockBoard
             ? "absolute inset-x-3 top-[12%] flex justify-center sm:inset-0 sm:items-center sm:px-3"
             : /* Soft tips over yellow quadrant — compact on mobile so the board stays readable */
-              "absolute bottom-[28%] left-1.5 w-[min(42%,11.25rem)] sm:bottom-[22%] sm:left-3 sm:w-[min(100%-1.5rem,20rem)]"
+              "absolute bottom-[10%] left-1.5 w-[min(42%,11.25rem)] sm:bottom-[22%] sm:left-3 sm:w-[min(100%-1.5rem,20rem)]"
         }
       >
         <div
