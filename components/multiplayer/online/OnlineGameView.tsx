@@ -290,12 +290,7 @@ export function OnlineGameView({ code }: { code: string }) {
                                 ? room.potAmountUsdt
                                 : null
                             }
-                            trophiesAwarded={
-                              isPartyMode(room.mode) && game.winner
-                                ? (room.trophiesAwarded ??
-                                  room.players.length)
-                                : null
-                            }
+                            trophiesAwarded={room.trophiesAwarded}
                           />
                         </BoardDiceZone>
                       </div>

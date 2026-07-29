@@ -323,7 +323,8 @@ async function settleCompetitivePotIfNeeded(
 }
 
 /**
- * Party: winner earns 1 trophy × number of seated participants (when pot settled / party room).
+ * Competitive only: winner earns 1 trophy × number of seated participants.
+ * Party / friends rooms never award trophies.
  * Idempotent via game_rooms.trophies_awarded (claim room row before profile bump).
  */
 async function awardCompetitiveTrophiesIfNeeded(
@@ -338,7 +339,8 @@ async function awardCompetitiveTrophiesIfNeeded(
     .maybeSingle();
 
   if (roomError) throw new Error(roomError.message);
-  if (!room || !isPartyMode(room.mode)) return {};
+  // Party mode must never award trophies — reserved for competitive.
+  if (!room || room.mode !== "competitive") return {};
   // Only award when there was a real pot involved.
   if (Number(room.pot_amount_usdt ?? 0) <= 0 && room.pot_status !== "settled") {
     return {};

@@ -27,6 +27,6 @@ export type RoomView = {
   potAmountUsdt: number;
   potStatus: PotStatus;
   escrowRoomKey: string | null;
-  /** Party: trophies granted to the winner (1 × participant count). */
+  /** Competitive: trophies granted to the winner (1 × participant count). Null in party. */
   trophiesAwarded: number | null;
 };

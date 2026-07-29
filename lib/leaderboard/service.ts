@@ -147,7 +147,7 @@ async function loadWeeklyStandings(
   const { data: rooms, error: roomsError } = await supabase
     .from("game_rooms")
     .select("id, winner, trophies_awarded")
-    .in("mode", ["party", "competitive"])
+    .in("mode", ["competitive"])
     .not("trophies_awarded", "is", null)
     .not("winner", "is", null)
     .gte("finished_at", weekStart.toISOString())
