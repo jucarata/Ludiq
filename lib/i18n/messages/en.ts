@@ -62,7 +62,7 @@ export const en = {
     throwDoublesBody: "Throw on the board — look for doubles this time.",
     explainMoveTitle: "You're out!",
     explainMoveBody:
-      "Doubles got your pieces onto the board. Use both dice on the same piece — tap it, move, then tap it again. The other one stays on the exit.",
+      "Doubles got your pieces onto the board. Use both dice on the same piece — tap it, move, then tap it again.",
     doMoveTitle: "Make a move",
     doMoveBody: "Tap one of your red pieces on the path and pick a die to move it.",
     doMoveAgainTitle: "Same piece again!",
@@ -72,38 +72,37 @@ export const en = {
     awaitRivalBody: "Watch what your rival does…",
     rivalExitedTitle: "Your rival is out too!",
     rivalExitedBody:
-      "They rolled double 6s and left home. Now they'll move the same piece — stay sharp.",
+      "Doubles let them leave home as well. Now it's their turn to move — watch the board.",
     botMovingTitle: "Rival is moving",
     botMovingBody: "Watch their piece advance across the board.",
     rivalMovedTitle: "Don't get eaten!",
     rivalMovedBody:
       "Your rival is on the board now. Keep your pieces safe — if they land on you, you're sent home.",
     safeClickDiceTitle: "Roll again",
-    safeClickDiceBody: "Grab your dice — this next throw will teach you about SAFE spaces.",
+    safeClickDiceBody: "Tap your dice for the next throw.",
     safeThrowTitle: "Throw!",
-    safeThrowBody: "Throw on the board and watch where you can land.",
-    safeMoveTitle: "Aim for SAFE",
+    safeThrowBody: "Tap or swipe on the board to throw.",
+    safeMoveTitle: "Keep advancing",
     safeMoveBody:
-      "Move that same lead piece with both dice. You're heading for a SAFE square.",
+      "Move that same lead piece with both dice. If you land on SAFE, they can't capture you there.",
     safeLandedTitle: "SAFE zone!",
     safeLandedBody:
-      "Look — you landed on SAFE. On these squares your rival cannot capture you. Use them wisely.",
+      "You landed on SAFE. On these squares your rival cannot capture you. Use them wisely.",
     botMoving2Title: "Rival's turn",
-    botMoving2Body:
-      "They roll double 6s again and advance the same piece — watch where it lands.",
-    captureIntroTitle: "Right in front!",
+    botMoving2Body: "Their turn again. Watch where the pieces end up.",
+    captureIntroTitle: "They're close!",
     captureIntroBody:
-      "The rival's piece is two squares ahead of yours on the exit. You'll roll exactly what you need to capture it.",
+      "The rival is next to your piece on the exit. If you land on their square, you capture them and they go home.",
     captureClickDiceTitle: "Grab the dice",
-    captureClickDiceBody: "Tap your dice — this throw teaches you how to capture.",
+    captureClickDiceBody: "Tap your dice to throw.",
     captureThrowTitle: "Throw!",
-    captureThrowBody: "Throw on the board and watch what comes up.",
-    captureWith2Title: "You got a 2!",
+    captureThrowBody: "Tap or swipe on the board to throw.",
+    captureWith2Title: "A 2!",
     captureWith2Body:
-      "That 2 is exactly what you needed. Tap your piece on the exit to land on the rival and capture them — they go back to the start square.",
+      "With that 2 you can land on them from the exit. Tap that piece to capture — they'll return to the start square.",
     captureRemaining3Title: "You still have a 3",
     captureRemaining3Body:
-      "Move it with whichever piece you want. After that, the match is yours!",
+      "Move it with whichever piece you want.",
     finaleTitle: "You're ready to party!",
     finaleBody:
       "Race every piece home, dodge captures, and own the board. The fun never ends — now go win it.",

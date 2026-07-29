@@ -65,7 +65,7 @@ export const es: Messages = {
     throwDoublesBody: "Lanza en el tablero — ahora busca un par.",
     explainMoveTitle: "¡Ya saliste!",
     explainMoveBody:
-      "El par sacó tus fichas al camino. Usa ambos dados en la misma ficha: tócala, muévela y vuelve a tocarla. La otra se queda en la salida.",
+      "El par sacó tus fichas al camino. Usa ambos dados en la misma ficha: tócala, muévela y vuelve a tocarla.",
     doMoveTitle: "Haz un movimiento",
     doMoveBody: "Toca una ficha roja en el camino y elige un dado para moverla.",
     doMoveAgainTitle: "¡La misma ficha otra vez!",
@@ -75,38 +75,37 @@ export const es: Messages = {
     awaitRivalBody: "Mira qué hace tu rival…",
     rivalExitedTitle: "¡Tu rival también salió!",
     rivalExitedBody:
-      "Sacó un par de 6 y dejó la casa. Ahora moverá la misma ficha — presta atención.",
+      "Con un par también puede dejar la casa. Ahora le toca mover — observa el tablero.",
     botMovingTitle: "El rival se mueve",
     botMovingBody: "Observa cómo avanza su ficha por el tablero.",
     rivalMovedTitle: "¡Que no te coman!",
     rivalMovedBody:
       "Tu rival ya está en el tablero. Cuida tus fichas: si cae sobre ti, vuelves a casa.",
     safeClickDiceTitle: "Lanza otra vez",
-    safeClickDiceBody: "Toma tus dados — este tiro te enseñará las casillas SAFE.",
+    safeClickDiceBody: "Toca tus dados para el siguiente lanzamiento.",
     safeThrowTitle: "¡Lanza!",
-    safeThrowBody: "Lanza en el tablero y mira dónde puedes caer.",
-    safeMoveTitle: "Apunta al SAFE",
+    safeThrowBody: "Toca o desliza en el tablero para lanzar.",
+    safeMoveTitle: "Sigue avanzando",
     safeMoveBody:
-      "Mueve esa misma ficha líder con ambos dados. Vas hacia una casilla SAFE.",
+      "Mueve esa misma ficha líder con ambos dados. Si caes en SAFE, ahí no te pueden comer.",
     safeLandedTitle: "¡Zona SAFE!",
     safeLandedBody:
-      "Mira: caíste en SAFE. En estas casillas tu rival no puede comerte. Úsalas con cabeza.",
+      "Caíste en SAFE. En estas casillas tu rival no puede comerte. Úsalas con cabeza.",
     botMoving2Title: "Turno del rival",
-    botMoving2Body:
-      "Otra vez saca un par de 6 y avanza la misma ficha — mira dónde queda.",
-    captureIntroTitle: "¡Justo delante!",
+    botMoving2Body: "Otra vez le toca. Fíjate en dónde quedan las fichas.",
+    captureIntroTitle: "¡Está cerca!",
     captureIntroBody:
-      "La ficha del rival quedó a dos casillas de la tuya en la salida. Vas a sacar exactamente lo que necesitas para comértela.",
+      "El rival quedó junto a tu ficha de la salida. Si caes en su casilla, te lo comes y vuelve a casa.",
     captureClickDiceTitle: "Toma los dados",
-    captureClickDiceBody: "Toca tus dados — este tiro enseña a capturar.",
+    captureClickDiceBody: "Toca tus dados para lanzar.",
     captureThrowTitle: "¡Lanza!",
-    captureThrowBody: "Lanza en el tablero y mira qué sale.",
-    captureWith2Title: "¡Salió un 2!",
+    captureThrowBody: "Toca o desliza en el tablero para lanzar.",
+    captureWith2Title: "¡Un 2!",
     captureWith2Body:
-      "Ese 2 es justo lo que necesitabas. Toca tu ficha en la salida para caerle encima al rival y comértela — vuelve a su casilla de inicio.",
+      "Con ese 2 puedes caerle encima desde la salida. Toca esa ficha para comértelo — volverá a su casilla de inicio.",
     captureRemaining3Title: "Aún te queda un 3",
     captureRemaining3Body:
-      "Muévelo con la ficha que quieras. Después de eso, ¡la partida es tuya!",
+      "Muévelo con la ficha que quieras.",
     finaleTitle: "¡Ya estás listo para la fiesta!",
     finaleBody:
       "Lleva todas tus fichas a la meta, esquiva que te coman y domina el tablero. La diversión no para — ahora a ganar.",
