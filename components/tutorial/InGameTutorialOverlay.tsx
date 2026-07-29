@@ -85,30 +85,41 @@ const STEP_COPY: Partial<
     body: "gameTutorial.botMovingBody",
     showContinue: false,
   },
-  rival_moved: {
-    title: "gameTutorial.rivalMovedTitle",
-    body: "gameTutorial.rivalMovedBody",
+  bot_second: {
+    title: "gameTutorial.botMovingTitle",
+    body: "gameTutorial.botMovingBody",
+    showContinue: false,
+    hidden: true,
+  },
+  bot_moving_2: {
+    title: "gameTutorial.botMoving2Title",
+    body: "gameTutorial.botMoving2Body",
+    showContinue: false,
+  },
+  capture_intro: {
+    title: "gameTutorial.captureIntroTitle",
+    body: "gameTutorial.captureIntroBody",
     showContinue: true,
   },
-  safe_click_dice: {
-    title: "gameTutorial.safeClickDiceTitle",
-    body: "gameTutorial.safeClickDiceBody",
+  capture_click_dice: {
+    title: "gameTutorial.captureClickDiceTitle",
+    body: "gameTutorial.captureClickDiceBody",
     showContinue: false,
   },
-  safe_throw: {
-    title: "gameTutorial.safeThrowTitle",
-    body: "gameTutorial.safeThrowBody",
+  capture_throw: {
+    title: "gameTutorial.captureThrowTitle",
+    body: "gameTutorial.captureThrowBody",
     showContinue: false,
   },
-  safe_move: {
-    title: "gameTutorial.safeMoveTitle",
-    body: "gameTutorial.safeMoveBody",
+  capture_with_2: {
+    title: "gameTutorial.captureWith2Title",
+    body: "gameTutorial.captureWith2Body",
     showContinue: false,
   },
-  safe_landed: {
-    title: "gameTutorial.safeLandedTitle",
-    body: "gameTutorial.safeLandedBody",
-    showContinue: true,
+  capture_remaining_3: {
+    title: "gameTutorial.captureRemaining3Title",
+    body: "gameTutorial.captureRemaining3Body",
+    showContinue: false,
   },
   finale: {
     title: "gameTutorial.finaleTitle",

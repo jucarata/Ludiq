@@ -167,6 +167,7 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
         extendDecisionTime,
         advanceTurn,
         endGame,
+        setTimerFrozen: () => {},
       }}
     >
       {children}

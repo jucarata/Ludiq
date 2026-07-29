@@ -356,6 +356,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const forced = tutorial?.forcedDieValue;
+      if (forced != null && remainingDice?.includes(forced)) {
+        if (movePiece(piece, { value: forced })) return;
+      }
+
       /* Queda un solo valor por mover: se aplica directo, sin menú */
       if (remainingDice?.length === 1) {
         if (movePiece(piece, { value: remainingDice[0] })) return;
@@ -381,10 +386,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
     if (!piece) return [];
 
-    return getMoveOptions(remainingDice).filter((option) =>
+    const forced = tutorial?.forcedDieValue;
+    const dice =
+      forced != null && remainingDice.includes(forced)
+        ? [forced]
+        : remainingDice;
+
+    return getMoveOptions(dice).filter((option) =>
       canMovePiece(pieces, piece, option.choice.value),
     );
-  }, [selectedPiece, remainingDice, pieces]);
+  }, [selectedPiece, remainingDice, pieces, tutorial?.forcedDieValue]);
 
   const applyMove = useCallback(
     (choice: DieMoveChoice): boolean => {
