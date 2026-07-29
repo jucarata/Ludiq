@@ -244,6 +244,8 @@ export const en = {
     turn: "Turn",
     panel: "Turn panel",
     cpu: "CPU",
+    you: "You",
+    bot: "Bot",
     auto: "Auto",
     autoMode: "Auto mode",
     autoFor: "Auto — {label}",

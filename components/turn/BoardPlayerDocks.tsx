@@ -8,6 +8,7 @@ import { useIsBot, useActivePlayers } from "@/components/game/PlayersContext";
 import { useTurn } from "@/components/game/TurnContext";
 import { AutoModeToggles } from "@/components/turn/AutoModeToggles";
 import { PlayerIcon } from "@/components/turn/PlayerIcon";
+import { useOptionalOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
@@ -77,11 +78,13 @@ function PlayerDock({
   isActive,
   timeLeft,
   isBot,
+  nameTag,
 }: {
   color: PlayerColor;
   isActive: boolean;
   timeLeft: number;
   isBot: boolean;
+  nameTag: string;
 }) {
   const corner = CORNER_BY_COLOR[color];
   const { fill, dark } = PLAYER_COLORS[color];
@@ -189,9 +192,10 @@ function PlayerDock({
           color={color}
           isActive={isActive}
           label={isBot ? `${label} (${t("turn.cpu")})` : label}
+          nameTag={nameTag}
           badge={
             isActive ? (
-              <span className="absolute -right-1 -top-1 rounded-md bg-[#fcd34d] px-1 py-0.5 font-mono text-[10px] font-bold tabular-nums text-[#1a1a2e] shadow-[0_0_8px_rgba(252,211,77,0.45)] sm:text-xs">
+              <span className="absolute -right-1 -top-1 z-20 rounded-md bg-[#fcd34d] px-1 py-0.5 font-mono text-[10px] font-bold tabular-nums text-[#1a1a2e] shadow-[0_0_8px_rgba(252,211,77,0.45)] sm:text-xs">
                 {timeLeft}s
               </span>
             ) : null
@@ -232,6 +236,16 @@ export function BoardPlayerDocks({ children }: BoardPlayerDocksProps) {
   const activePlayers = useActivePlayers();
   const isBot = useIsBot();
   const { t } = useTranslations();
+  const online = useOptionalOnlineSession();
+
+  const nameFor = (color: PlayerColor) => {
+    if (online) {
+      const player = online.room.players.find((entry) => entry.color === color);
+      const username = player?.username?.trim();
+      if (username) return username;
+    }
+    return isBot(color) ? t("turn.bot") : t("turn.you");
+  };
 
   return (
     <div
@@ -246,6 +260,7 @@ export function BoardPlayerDocks({ children }: BoardPlayerDocksProps) {
             isActive={color === currentPlayer}
             timeLeft={timeLeft}
             isBot={isBot(color)}
+            nameTag={nameFor(color)}
           />
         ))}
         <div className="relative z-10 flex max-h-full max-w-full items-center justify-center">

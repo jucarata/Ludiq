@@ -249,6 +249,8 @@ export const es: Messages = {
     turn: "Turno",
     panel: "Panel de turnos",
     cpu: "CPU",
+    you: "You",
+    bot: "Bot",
     auto: "Auto",
     autoMode: "Modo auto",
     autoFor: "Auto — {label}",
