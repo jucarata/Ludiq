@@ -176,6 +176,7 @@ export function DiceProvider({ children }: { children: ReactNode }) {
 
       setIsAiming(false);
       setIsRolling(true);
+      setTurnRoll(values);
       pauseForDiceRoll();
       playDiceRollSound();
       settledDiceRef.current.clear();

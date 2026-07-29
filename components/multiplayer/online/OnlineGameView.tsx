@@ -16,7 +16,7 @@ import { OnlineGameStateProvider } from "@/components/multiplayer/online/OnlineG
 import { OnlineSessionProvider } from "@/components/multiplayer/online/OnlineSessionContext";
 import { OnlineTurnProvider } from "@/components/multiplayer/online/OnlineTurnProvider";
 import { TurnAnnouncement } from "@/components/turn/TurnAnnouncement";
-import { TurnPanel } from "@/components/turn/TurnPanel";
+import { BoardPlayerDocks } from "@/components/turn/BoardPlayerDocks";
 import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { WinnerAnnouncement } from "@/components/turn/WinnerAnnouncement";
 import type { OnlineGameStateView } from "@/lib/game/online-types";
@@ -277,24 +277,25 @@ export function OnlineGameView({ code }: { code: string }) {
                 <OnlineDiceProvider>
                   <BotController />
                   <main className="flex min-h-0 flex-1 w-full max-w-full flex-col overflow-hidden py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:py-4 sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))] md:items-center md:justify-center">
-                    <div className="flex min-h-0 w-full max-w-full flex-1 flex-col gap-2 md:w-auto md:flex-none md:flex-row md:items-stretch md:gap-4 md:[--board-size:min(calc(100dvw-2rem-var(--turn-panel-width)-1rem),calc(100dvh-2rem))] md:[--turn-panel-width:17rem]">
+                    <div className="flex min-h-0 w-full max-w-full flex-1 flex-col items-center justify-center md:w-auto md:flex-none md:[--board-size:min(calc(100dvw-2rem),calc(100dvh-2rem-9.5rem))]">
                       <div className="relative flex min-h-0 min-w-0 w-full max-w-full flex-1 items-center justify-center overflow-hidden [container-type:size] md:w-auto md:flex-none md:shrink-0 md:overflow-visible md:[container-type:normal]">
-                        <BoardDiceZone>
-                          <ParquesBoard className="[--board-dim:min(100cqw,100cqh)] md:[--board-dim:var(--board-size)]" />
-                          <TurnAnnouncement />
-                          <WinnerAnnouncement
-                            onBackToMenu={backToMenu}
-                            prizeUsdt={
-                              isPartyMode(room.mode) &&
-                              room.potAmountUsdt > 0
-                                ? room.potAmountUsdt
-                                : null
-                            }
-                            trophiesAwarded={room.trophiesAwarded}
-                          />
-                        </BoardDiceZone>
+                        <BoardPlayerDocks>
+                          <BoardDiceZone>
+                            <ParquesBoard className="[--board-dim:min(100cqw,calc(100cqh-7.5rem))] md:[--board-dim:var(--board-size)]" />
+                            <TurnAnnouncement />
+                            <WinnerAnnouncement
+                              onBackToMenu={backToMenu}
+                              prizeUsdt={
+                                isPartyMode(room.mode) &&
+                                room.potAmountUsdt > 0
+                                  ? room.potAmountUsdt
+                                  : null
+                              }
+                              trophiesAwarded={room.trophiesAwarded}
+                            />
+                          </BoardDiceZone>
+                        </BoardPlayerDocks>
                       </div>
-                      <TurnPanel />
                     </div>
                   </main>
                   <DiceCursor />
