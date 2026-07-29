@@ -1,8 +1,15 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FaHouse, FaRankingStar, FaUser } from "react-icons/fa6";
+import {
+  FaCircleQuestion,
+  FaHouse,
+  FaRankingStar,
+  FaStore,
+  FaUser,
+} from "react-icons/fa6";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { brandTitleFont } from "@/lib/fonts";
 
@@ -13,6 +20,8 @@ const PATH_COLORS = [
   "var(--brand-mint)",
   "var(--brand-turquoise)",
 ] as const;
+
+type NavAccent = "yellow" | "coral" | "mint" | "turquoise" | "purple";
 
 function BrandPathStrip() {
   return (
@@ -33,38 +42,88 @@ function BrandPathStrip() {
   );
 }
 
-function navButtonClassName(
-  active: boolean,
-  accent: "yellow" | "mint" | "turquoise",
-) {
-  const activeBg =
-    accent === "yellow"
-      ? "bg-[var(--brand-yellow)] text-[var(--brand-navy)]"
-      : accent === "mint"
-        ? "bg-[var(--brand-mint)] text-white"
-        : "bg-[var(--brand-turquoise)] text-white";
-
-  const base =
-    "flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-[3px] border-[var(--brand-navy)] shadow-[0_5px_0_#0a0c2e] transition-[filter,background-color,color] duration-150 sm:h-[4.25rem] sm:w-[4.25rem] hover:brightness-105 active:brightness-95";
-
-  if (active) {
-    return `${base} ${activeBg}`;
+function accentActiveBg(accent: NavAccent) {
+  switch (accent) {
+    case "yellow":
+      return "bg-[var(--brand-yellow)] text-[var(--brand-navy)]";
+    case "coral":
+      return "bg-[var(--brand-coral)] text-white";
+    case "mint":
+      return "bg-[var(--brand-mint)] text-white";
+    case "turquoise":
+      return "bg-[var(--brand-turquoise)] text-white";
+    case "purple":
+      return "bg-[var(--brand-purple)] text-white";
   }
-
-  return `${base} bg-[var(--brand-cream)] text-[var(--brand-navy)]`;
 }
 
-function labelClassName(active: boolean, accent: "yellow" | "mint" | "turquoise") {
-  const activeColor =
-    accent === "yellow"
-      ? "text-[var(--brand-yellow)]"
-      : accent === "mint"
-        ? "text-[var(--brand-mint)]"
-        : "text-[var(--brand-turquoise)]";
+function accentActiveText(accent: NavAccent) {
+  switch (accent) {
+    case "yellow":
+      return "text-[var(--brand-yellow)]";
+    case "coral":
+      return "text-[var(--brand-coral)]";
+    case "mint":
+      return "text-[var(--brand-mint)]";
+    case "turquoise":
+      return "text-[var(--brand-turquoise)]";
+    case "purple":
+      return "text-[var(--brand-purple)]";
+  }
+}
 
-  return `${brandTitleFont.className} text-sm font-extrabold uppercase tracking-wide ${
-    active ? activeColor : "text-[var(--brand-cream)]/55"
+function navButtonClassName(active: boolean, accent: NavAccent, disabled = false) {
+  const base =
+    "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-[3px] border-[var(--brand-navy)] shadow-[0_4px_0_#0a0c2e] transition-[filter,background-color,color] duration-150 sm:h-14 sm:w-14";
+
+  if (disabled) {
+    return `${base} cursor-not-allowed bg-[var(--brand-cream)] text-[var(--brand-navy)] opacity-45`;
+  }
+
+  const interactive =
+    "hover:brightness-105 active:brightness-95";
+
+  if (active) {
+    return `${base} ${interactive} ${accentActiveBg(accent)}`;
+  }
+
+  return `${base} ${interactive} bg-[var(--brand-cream)] text-[var(--brand-navy)]`;
+}
+
+function labelClassName(active: boolean, accent: NavAccent, disabled = false) {
+  return `${brandTitleFont.className} text-[0.65rem] font-extrabold uppercase tracking-wide sm:text-xs ${
+    disabled
+      ? "text-[var(--brand-cream)]/35"
+      : active
+        ? accentActiveText(accent)
+        : "text-[var(--brand-cream)]/55"
   }`;
+}
+
+function DisabledNavItem({
+  accent,
+  label,
+  ariaLabel,
+  children,
+}: {
+  accent: NavAccent;
+  label: string;
+  ariaLabel: string;
+  children: ReactNode;
+}) {
+  const { t } = useTranslations();
+
+  return (
+    <span
+      role="link"
+      aria-disabled="true"
+      aria-label={`${ariaLabel}. ${t("nav.comingSoon")}`}
+      className="flex flex-col items-center gap-1"
+    >
+      <span className={navButtonClassName(false, accent, true)}>{children}</span>
+      <span className={labelClassName(false, accent, true)}>{label}</span>
+    </span>
+  );
 }
 
 export function AppFooter() {
@@ -72,7 +131,7 @@ export function AppFooter() {
   const { t } = useTranslations();
   const isHome = pathname === "/" || pathname === "";
   const isProfile = pathname.startsWith("/profile");
-  const isLeaderboard = pathname.startsWith("/leaderboard");
+  const isHelp = pathname.startsWith("/help");
 
   return (
     <footer
@@ -88,20 +147,22 @@ export function AppFooter() {
         aria-hidden
       />
 
-      <nav className="relative mx-auto flex h-[5.75rem] w-full max-w-sm items-center justify-center gap-3 px-4 sm:h-[6rem] sm:max-w-md sm:gap-4 sm:px-6">
-        <Link
-          href="/leaderboard"
-          aria-label={t("nav.leaderboard")}
-          aria-current={isLeaderboard ? "page" : undefined}
-          className="flex flex-col items-center gap-1"
+      <nav className="relative mx-auto flex h-[5.75rem] w-full max-w-md items-center justify-center gap-1.5 px-3 sm:h-[6rem] sm:max-w-lg sm:gap-2.5 sm:px-5">
+        <DisabledNavItem
+          accent="yellow"
+          label={t("nav.leaderboardShort")}
+          ariaLabel={t("nav.leaderboard")}
         >
-          <span className={navButtonClassName(isLeaderboard, "yellow")}>
-            <FaRankingStar className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
-          </span>
-          <span className={labelClassName(isLeaderboard, "yellow")}>
-            {t("nav.leaderboardShort")}
-          </span>
-        </Link>
+          <FaRankingStar className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+        </DisabledNavItem>
+
+        <DisabledNavItem
+          accent="coral"
+          label={t("nav.shop")}
+          ariaLabel={t("nav.shop")}
+        >
+          <FaStore className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+        </DisabledNavItem>
 
         <Link
           href="/"
@@ -110,7 +171,7 @@ export function AppFooter() {
           className="flex flex-col items-center gap-1"
         >
           <span className={navButtonClassName(isHome, "mint")}>
-            <FaHouse className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
+            <FaHouse className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
           </span>
           <span className={labelClassName(isHome, "mint")}>{t("nav.home")}</span>
         </Link>
@@ -122,10 +183,24 @@ export function AppFooter() {
           className="flex flex-col items-center gap-1"
         >
           <span className={navButtonClassName(isProfile, "turquoise")}>
-            <FaUser className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
+            <FaUser className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
           </span>
           <span className={labelClassName(isProfile, "turquoise")}>
             {t("nav.profile")}
+          </span>
+        </Link>
+
+        <Link
+          href="/help"
+          aria-label={t("nav.help")}
+          aria-current={isHelp ? "page" : undefined}
+          className="flex flex-col items-center gap-1"
+        >
+          <span className={navButtonClassName(isHelp, "purple")}>
+            <FaCircleQuestion className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+          </span>
+          <span className={labelClassName(isHelp, "purple")}>
+            {t("nav.help")}
           </span>
         </Link>
       </nav>

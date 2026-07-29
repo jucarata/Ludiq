@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { FriendsAuthGate } from "@/components/multiplayer/FriendsAuthGate";
 import { OnlineGameView } from "@/components/multiplayer/online/OnlineGameView";
 
 type PlayPageProps = {
@@ -10,7 +11,9 @@ export default async function FriendsPlayPage({ params }: PlayPageProps) {
 
   return (
     <Suspense fallback={null}>
-      <OnlineGameView code={code.toUpperCase()} />
+      <FriendsAuthGate>
+        <OnlineGameView code={code.toUpperCase()} />
+      </FriendsAuthGate>
     </Suspense>
   );
 }

@@ -45,6 +45,8 @@ function mapJoinError(error: string | undefined): MessageKey {
       return "room.invalidCode";
     case "You were removed from this room":
       return "room.bannedFromRoom";
+    case "Connect a wallet and create your profile to play with friends":
+      return "multiplayer.authRequired";
     default:
       return "room.joinError";
   }
@@ -160,35 +162,15 @@ export function JoinRoomView() {
 
     try {
       const headers = await authHeaders();
-      const guest = getGuestIdentity();
 
-      let hasProfileUsername = false;
-      if (authenticated) {
-        const profileRes = await fetch("/api/profile", { headers });
-        if (profileRes.ok) {
-          const profileData = (await profileRes.json()) as {
-            profile: Profile | null;
-          };
-          hasProfileUsername = Boolean(profileData.profile?.username);
-        }
-      }
-
-      const joinBody: {
-        code: string;
-        mode: typeof mode;
-        guestSessionId?: string;
-        guestName?: string;
-      } = { code, mode };
-
-      if (!hasProfileUsername) {
-        joinBody.guestSessionId = guest.guestSessionId;
-        joinBody.guestName = guest.guestName;
+      if (!authenticated) {
+        throw new Error(t("multiplayer.authRequired"));
       }
 
       const res = await fetch("/api/rooms/join", {
         method: "POST",
         headers,
-        body: JSON.stringify(joinBody),
+        body: JSON.stringify({ code, mode }),
       });
 
       if (!res.ok) {

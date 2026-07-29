@@ -949,11 +949,12 @@ export async function resolveRoomIdentity(params: {
     const supabase = getSupabaseAdminClient();
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, username, display_name")
+      .select("id, username, display_name, wallet_address")
       .eq("privy_user_id", params.privyUserId)
       .maybeSingle();
 
-    if (profile?.username) {
+    // Friends / party rooms need a wallet so pot payouts can always settle.
+    if (profile?.username && profile.wallet_address) {
       return {
         kind: "profile",
         profileId: profile.id,
@@ -1072,6 +1073,20 @@ export async function enablePartyMode(params: {
       JSON.stringify({ error: "Only the host can enable party mode" }),
       {
         status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  // Guests cannot receive pot payouts — block Party until everyone has a profile.
+  if (players.some((player) => !player.user_id)) {
+    throw new Response(
+      JSON.stringify({
+        error:
+          "All players need a connected wallet profile before enabling Party mode",
+      }),
+      {
+        status: 409,
         headers: { "Content-Type": "application/json" },
       },
     );

@@ -131,7 +131,6 @@ export function CreateRoomView() {
 
     try {
       const headers = await authHeaders();
-      const guest = getGuestIdentity();
       const stored = getStoredHostRoom();
 
       if (stored) {
@@ -139,8 +138,6 @@ export function CreateRoomView() {
           code: stored.code,
           mode: stored.mode,
         });
-        params.set("guestSessionId", guest.guestSessionId);
-        params.set("guestName", guest.guestName);
 
         const existingRes = await fetch(`/api/rooms?${params.toString()}`, {
           headers,
@@ -167,32 +164,14 @@ export function CreateRoomView() {
         }
       }
 
-      let hasProfileUsername = false;
-      if (authenticated) {
-        const profileRes = await fetch("/api/profile", { headers });
-        if (profileRes.ok) {
-          const profileData = (await profileRes.json()) as {
-            profile: Profile | null;
-          };
-          hasProfileUsername = Boolean(profileData.profile?.username);
-        }
-      }
-
-      const createBody: {
-        mode: typeof mode;
-        guestSessionId?: string;
-        guestName?: string;
-      } = { mode };
-
-      if (!hasProfileUsername) {
-        createBody.guestSessionId = guest.guestSessionId;
-        createBody.guestName = guest.guestName;
+      if (!authenticated) {
+        throw new Error(t("multiplayer.authRequired"));
       }
 
       const createRes = await fetch("/api/rooms", {
         method: "POST",
         headers,
-        body: JSON.stringify(createBody),
+        body: JSON.stringify({ mode }),
       });
 
       if (!createRes.ok) {

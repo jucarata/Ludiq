@@ -25,10 +25,13 @@ export async function POST(request: Request) {
       guestName: body.guestName,
     });
 
-    if (!identity) {
+    if (!identity || identity.kind !== "profile") {
       return NextResponse.json(
-        { error: "Guest session is required" },
-        { status: 400 },
+        {
+          error:
+            "Connect a wallet and create your profile to play with friends",
+        },
+        { status: 401 },
       );
     }
 

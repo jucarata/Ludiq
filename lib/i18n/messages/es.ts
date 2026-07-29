@@ -9,7 +9,42 @@ export const es: Messages = {
     playMode: "Jugar {title}",
     leaderboard: "Clasificación",
     leaderboardShort: "Ranking",
+    shop: "Tienda",
     profile: "Perfil",
+    help: "Ayuda",
+  },
+  help: {
+    title: "Ayuda",
+    subtitle: "¿Necesitas una mano? Contáctanos o aprende a jugar.",
+    support: "Soporte",
+    howToPlay: "¿Cómo jugar?",
+  },
+  tutorial: {
+    step: "Paso {current} de {total}",
+    skip: "Saltar",
+    next: "Siguiente",
+    finish: "Entendido",
+    welcomeTitle: "¿Qué es Partyk?",
+    welcomeBody:
+      "Partyk es un hub de party games: tira los dados, juega con amigos y que no pare la fiesta.",
+    welcomeHint:
+      "Por ahora puedes entrar a Ludo. Pronto llegarán más juegos party.",
+    modesTitle: "Modos de juego",
+    modeFriends:
+      "Crea una sala o únete con un código para jugar con amigos en línea.",
+    modePractice:
+      "Entrena solo a tu ritmo — ideal para aprender el tablero.",
+    modeVersus: "Emparejamiento competitivo 1 vs 1. Próximamente.",
+    partyTitle: "Modo Fiesta",
+    partyBody:
+      "En Juega con amigos, crea o únete a una sala y juega gratis — o activa el Modo Fiesta y abre un bote compartido.",
+    partyHint:
+      "Aportar es opcional. Cualquiera puede sumar USDT; el ganador se lleva el bote.",
+    practiceTitle: "¡A jugar!",
+    practiceBody:
+      "Entra a una partida de entrenamiento y siente el tablero.",
+    practiceHint: "Jugarás con la ficha roja contra la azul. Pulsa Jugar cuando estés listo.",
+    play: "Jugar",
   },
   leaderboard: {
     title: "Clasificación",
@@ -61,7 +96,7 @@ export const es: Messages = {
     roomKicked: "El anfitrión te expulsó de la sala.",
     checkingAuth: "Preparando tu mesa…",
     authRequired:
-      "Debes estar autenticado con una wallet para jugar el modo Competitivo.",
+      "Conecta una wallet y crea tu perfil para jugar con amigos.",
     goToProfile: "Ir al perfil",
   },
   room: {

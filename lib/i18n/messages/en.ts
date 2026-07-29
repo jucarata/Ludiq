@@ -7,7 +7,41 @@ export const en = {
     playMode: "Play {title}",
     leaderboard: "Leaderboard",
     leaderboardShort: "Ranks",
+    shop: "Shop",
     profile: "Profile",
+    help: "Help",
+  },
+  help: {
+    title: "Help",
+    subtitle: "Need a hand? Reach out or learn how to play.",
+    support: "Support",
+    howToPlay: "How to play?",
+  },
+  tutorial: {
+    step: "Step {current} of {total}",
+    skip: "Skip",
+    next: "Next",
+    finish: "Got it",
+    welcomeTitle: "What is Partyk?",
+    welcomeBody:
+      "Partyk is a party-game hub — roll the dice, play with friends, and keep the fun going.",
+    welcomeHint:
+      "Right now you can jump into Ludo. More party games are on the way.",
+    modesTitle: "Game modes",
+    modeFriends:
+      "Create a room or join with a code to play with friends online.",
+    modePractice: "Train solo at your own pace — perfect to learn the board.",
+    modeVersus: "Competitive 1 vs 1 matchmaking. Coming soon.",
+    partyTitle: "Party mode",
+    partyBody:
+      "In Play with friends, create or join a room and play for free — or turn on Party mode and open a shared pot.",
+    partyHint:
+      "Chipping in is optional. Anyone can add USDT; the winner takes the pot.",
+    practiceTitle: "Let's play!",
+    practiceBody:
+      "Jump into a practice match and get a feel for the board.",
+    practiceHint: "You'll play as red against blue. Tap Play when you're ready.",
+    play: "Play",
   },
   leaderboard: {
     title: "Leaderboard",
@@ -58,7 +92,7 @@ export const en = {
     roomKicked: "You were removed from the room by the host.",
     checkingAuth: "Setting up your table…",
     authRequired:
-      "You must be signed in with a wallet to play Competitive mode.",
+      "Connect a wallet and create your profile to play with friends.",
     goToProfile: "Go to profile",
   },
   room: {
