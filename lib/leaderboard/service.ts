@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { RoomMode } from "@/lib/supabase/database.types";
 import {
   commissionFromPaidPlayers,
   getWeeklyPrizeBreakdown,
@@ -144,10 +145,14 @@ async function loadWeeklyStandings(
 ): Promise<LeaderboardEntry[]> {
   const supabase = getSupabaseAdminClient();
 
+  // Trophy leaderboard is for future 1vs1 only. Empty until that mode exists in room_mode.
+  const trophyModes: RoomMode[] = [];
+  if (trophyModes.length === 0) return [];
+
   const { data: rooms, error: roomsError } = await supabase
     .from("game_rooms")
     .select("id, winner, trophies_awarded")
-    .in("mode", ["competitive"])
+    .in("mode", trophyModes)
     .not("trophies_awarded", "is", null)
     .not("winner", "is", null)
     .gte("finished_at", weekStart.toISOString())

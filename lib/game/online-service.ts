@@ -323,11 +323,13 @@ async function settleCompetitivePotIfNeeded(
 }
 
 /**
- * Competitive only: winner earns 1 trophy × number of seated participants.
- * Party / friends rooms never award trophies.
+ * Future 1vs1 mode only: winner earns 1 trophy × seated participants.
+ * No current mode (free / party) awards trophies — keep this ready until 1vs1 ships.
  * Idempotent via game_rooms.trophies_awarded (claim room row before profile bump).
  */
-async function awardCompetitiveTrophiesIfNeeded(
+const TROPHY_AWARD_MODES: readonly string[] = ["1vs1"];
+
+async function awardTrophiesIfNeeded(
   roomId: string,
   winner: PlayerColor,
 ): Promise<{ trophies_awarded?: number }> {
@@ -339,8 +341,8 @@ async function awardCompetitiveTrophiesIfNeeded(
     .maybeSingle();
 
   if (roomError) throw new Error(roomError.message);
-  // Party mode must never award trophies — reserved for competitive.
-  if (!room || room.mode !== "competitive") return {};
+  // Only the future 1vs1 mode awards trophies. Party / free never do.
+  if (!room || !TROPHY_AWARD_MODES.includes(room.mode)) return {};
   // Only award when there was a real pot involved.
   if (Number(room.pot_amount_usdt ?? 0) <= 0 && room.pot_status !== "settled") {
     return {};
@@ -417,9 +419,9 @@ async function finishGame(
 
   let trophyFields: { trophies_awarded?: number } = {};
   try {
-    trophyFields = await awardCompetitiveTrophiesIfNeeded(roomId, winner);
+    trophyFields = await awardTrophiesIfNeeded(roomId, winner);
   } catch (error) {
-    console.error("Competitive trophy award failed:", error);
+    console.error("Trophy award failed:", error);
   }
 
   const { error: roomError } = await supabase
