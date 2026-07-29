@@ -8,7 +8,6 @@ import {
 import type { MessageKey } from "@/lib/i18n";
 import {
   brandBodyFont,
-  brandPlayButtonClassName,
   brandTitleFont,
 } from "@/lib/fonts";
 
@@ -179,30 +178,30 @@ export function InGameTutorialOverlay() {
       <div
         className={
           blockBoard
-            ? "absolute inset-0 flex items-center justify-center px-3"
-            : /* Soft tips over empty yellow quadrant (bottom-left) — keep blue clear */
-              "absolute bottom-[22%] left-2 right-auto flex w-[min(100%-0.75rem,20rem)] justify-start px-0 sm:left-3"
+            ? "absolute inset-x-3 top-[12%] flex justify-center sm:inset-0 sm:items-center sm:px-3"
+            : /* Soft tips over yellow quadrant — compact on mobile so the board stays readable */
+              "absolute bottom-[28%] left-1.5 w-[min(42%,11.25rem)] sm:bottom-[22%] sm:left-3 sm:w-[min(100%-1.5rem,20rem)]"
         }
       >
         <div
-          className={`pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] text-[var(--brand-navy)] shadow-[0_10px_0_rgba(20,23,77,0.85)] ${
+          className={`pointer-events-auto w-full overflow-hidden rounded-xl border-2 border-[var(--brand-navy)] text-[var(--brand-navy)] shadow-[0_6px_0_rgba(20,23,77,0.85)] sm:rounded-2xl sm:border-[3px] sm:shadow-[0_10px_0_rgba(20,23,77,0.85)] ${
             copy.finale
               ? "bg-[linear-gradient(165deg,var(--brand-yellow)_0%,#fff8f0_45%,var(--brand-cream)_100%)]"
               : "bg-[var(--brand-cream)]"
-          }`}
+          } ${blockBoard ? "max-w-[16.5rem] sm:max-w-sm" : ""}`}
           role="dialog"
           aria-label={t(copy.title)}
           aria-live="polite"
         >
           {copy.finale ? (
             <div
-              className="h-2 w-full bg-[linear-gradient(90deg,var(--brand-coral),var(--brand-yellow),var(--brand-mint),var(--brand-turquoise),var(--brand-purple))]"
+              className="h-1.5 w-full bg-[linear-gradient(90deg,var(--brand-coral),var(--brand-yellow),var(--brand-mint),var(--brand-turquoise),var(--brand-purple))] sm:h-2"
               aria-hidden
             />
           ) : null}
-          <div className="px-4 py-3.5">
+          <div className="px-2.5 py-2 sm:px-4 sm:py-3.5">
             <p
-              className={`${brandBodyFont.className} text-[0.65rem] font-extrabold uppercase tracking-wide ${
+              className={`${brandBodyFont.className} text-[0.55rem] font-extrabold uppercase tracking-wide sm:text-[0.65rem] ${
                 copy.finale
                   ? "text-[var(--brand-coral)]"
                   : "text-[var(--brand-purple)]"
@@ -211,8 +210,10 @@ export function InGameTutorialOverlay() {
               {t("gameTutorial.badge")}
             </p>
             <h2
-              className={`${brandTitleFont.className} mt-0.5 font-extrabold uppercase tracking-wide ${
-                copy.finale ? "text-2xl" : "text-lg"
+              className={`${brandTitleFont.className} mt-0.5 font-extrabold uppercase leading-tight tracking-wide ${
+                copy.finale
+                  ? "text-base sm:text-2xl"
+                  : "text-sm sm:text-lg"
               }`}
               style={
                 copy.finale
@@ -223,7 +224,7 @@ export function InGameTutorialOverlay() {
               {t(copy.title)}
             </h2>
             <p
-              className={`${brandBodyFont.className} mt-1.5 text-sm leading-relaxed ${
+              className={`${brandBodyFont.className} mt-1 text-[0.7rem] leading-snug sm:mt-1.5 sm:text-sm sm:leading-relaxed ${
                 copy.finale ? "font-semibold" : ""
               }`}
             >
@@ -233,7 +234,7 @@ export function InGameTutorialOverlay() {
               <button
                 type="button"
                 onClick={advanceFromContinue}
-                className={`${brandPlayButtonClassName} mt-3 w-full min-w-0`}
+                className={`${brandTitleFont.className} mt-2 flex h-9 w-full min-w-0 items-center justify-center rounded-lg border-2 border-[var(--brand-navy)] bg-[var(--brand-mint)] px-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-[3px_3px_0_var(--brand-navy)] transition-[transform,box-shadow,filter] duration-150 hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--brand-navy)] sm:mt-3 sm:h-14 sm:rounded-xl sm:border-[3px] sm:px-10 sm:text-lg sm:shadow-[4px_4px_0_var(--brand-navy)]`}
               >
                 {t(copy.continueKey ?? "gameTutorial.continue")}
               </button>
