@@ -80,12 +80,14 @@ function PlayerDock({
   timeLeft,
   isBot,
   nameTag,
+  isSelf,
 }: {
   color: PlayerColor;
   isActive: boolean;
   timeLeft: number;
   isBot: boolean;
   nameTag: string;
+  isSelf: boolean;
 }) {
   const corner = CORNER_BY_COLOR[color];
   const { fill, dark } = PLAYER_COLORS[color];
@@ -114,10 +116,15 @@ function PlayerDock({
     !currentIsAutoHuman &&
     !tutorialBlocksArm;
 
-  const showRollResult = isActive && turnRoll !== null;
+  /* While the 3-D dice are tumbling show "?" placeholders on the mini dice. */
+  const rolling = isActive && isRolling;
+  const showRollResult = isActive && turnRoll !== null && !isRolling;
 
-  const faces: [number, number] =
-    showRollResult && turnRoll ? turnRoll : IDLE_FACES;
+  const faces: [number | null, number | null] = rolling
+    ? [null, null]
+    : showRollResult && turnRoll
+      ? turnRoll
+      : IDLE_FACES;
 
   const handleDiceClick = () => {
     if (!interactive) return;
@@ -198,6 +205,7 @@ function PlayerDock({
           isActive={isActive}
           label={isBot ? `${label} (${t("turn.cpu")})` : label}
           nameTag={nameTag}
+          isSelf={isSelf}
           badge={
             isActive ? (
               <span className="absolute -right-1 -top-1 z-20 rounded-md bg-[#fcd34d] px-1 py-0.5 font-mono text-[10px] font-bold tabular-nums text-[#1a1a2e] shadow-[0_0_8px_rgba(252,211,77,0.45)] sm:text-xs">
@@ -252,6 +260,15 @@ export function BoardPlayerDocks({ children }: BoardPlayerDocksProps) {
     return isBot(color) ? t("turn.bot") : t("turn.you");
   };
 
+  const isSelfFor = (color: PlayerColor) => {
+    if (online) {
+      return online.room.players.some(
+        (entry) => entry.color === color && entry.isSelf,
+      );
+    }
+    return !isBot(color);
+  };
+
   return (
     <div
       className="relative flex h-full w-full min-h-0 min-w-0 flex-col items-center justify-center px-1 py-[3.75rem] sm:px-2 sm:py-[4.25rem] md:py-[4.75rem]"
@@ -266,6 +283,7 @@ export function BoardPlayerDocks({ children }: BoardPlayerDocksProps) {
             timeLeft={timeLeft}
             isBot={isBot(color)}
             nameTag={nameFor(color)}
+            isSelf={isSelfFor(color)}
           />
         ))}
         <div className="relative z-10 flex max-h-full max-w-full items-center justify-center">
