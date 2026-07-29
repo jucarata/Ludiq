@@ -80,7 +80,6 @@ export interface Database {
           escrow_room_key: string | null;
           pot_amount_usdt: number;
           pot_status: PotStatus;
-          deposit_tx_hash: string | null;
           open_tx_hash: string | null;
           refund_tx_hash: string | null;
           payout_tx_hash: string | null;
@@ -100,7 +99,6 @@ export interface Database {
           escrow_room_key?: string | null;
           pot_amount_usdt?: number;
           pot_status?: PotStatus;
-          deposit_tx_hash?: string | null;
           open_tx_hash?: string | null;
           refund_tx_hash?: string | null;
           payout_tx_hash?: string | null;
@@ -120,7 +118,6 @@ export interface Database {
           escrow_room_key?: string | null;
           pot_amount_usdt?: number;
           pot_status?: PotStatus;
-          deposit_tx_hash?: string | null;
           open_tx_hash?: string | null;
           refund_tx_hash?: string | null;
           payout_tx_hash?: string | null;
@@ -287,33 +284,6 @@ export interface Database {
           afk_takeover?: boolean;
           version?: number;
           updated_at?: string;
-        };
-        Relationships: [];
-      };
-      game_moves: {
-        Row: {
-          id: string;
-          room_id: string;
-          user_id: string | null;
-          move_type: string;
-          payload: Json;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          room_id: string;
-          user_id?: string | null;
-          move_type: string;
-          payload?: Json;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          room_id?: string;
-          user_id?: string | null;
-          move_type?: string;
-          payload?: Json;
-          created_at?: string;
         };
         Relationships: [];
       };

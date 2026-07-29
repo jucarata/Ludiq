@@ -303,9 +303,6 @@ export const partyEscrowAbi = [
   },
 ] as const;
 
-/** @deprecated Use partyEscrowAbi */
-export const competitiveEscrowAbi = partyEscrowAbi;
-
 export function getEscrowAddress(): Address {
   const address = process.env.NEXT_PUBLIC_ESCROW_ADDRESS;
   if (!address) {

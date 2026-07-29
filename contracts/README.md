@@ -42,6 +42,18 @@ Constructor args:
 
 Legacy `CompetitiveEscrow.sol` (fixed 0.20 entry) is superseded by PartyEscrow.
 
+## Deprecated: CompetitiveEscrow
+
+Kept in the repo for historical reference (on-chain deployments may still exist). **Do not deploy or wire into the app.**
+
+| File | Role |
+|------|------|
+| `src/CompetitiveEscrow.sol` | Fixed 0.20 USDT entry escrow |
+| `script/DeployCompetitiveEscrow.s.sol` | Deploy script |
+| `test/CompetitiveEscrow.t.sol` | Unit tests |
+
+Active source of truth: `src/PartyEscrow.sol` (see above).
+
 ## Token addresses
 
 | Network | Token | Address |

@@ -2,7 +2,6 @@ import {
   createPublicClient,
   createWalletClient,
   decodeEventLog,
-  formatUnits,
   http,
   type Address,
   type Hash,
@@ -10,7 +9,6 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
-  COMPETITIVE_TOKEN,
   ROOM_STATUS_ONCHAIN,
   partyEscrowAbi,
   getCompetitiveChain,
@@ -38,7 +36,6 @@ export {
   ROOM_STATUS_ONCHAIN,
   calcPartyFeeRaw,
   calcPartyTotalRaw,
-  competitiveEscrowAbi,
   partyEscrowAbi,
   getCompetitiveChain,
   getCompetitiveRpcUrl,
@@ -55,17 +52,6 @@ export function getCompetitivePublicClient() {
     chain: getCompetitiveChain(),
     transport: http(getCompetitiveRpcUrl()),
   });
-}
-
-export function formatUsdtAmount(raw: bigint): string {
-  const asNumber = Number(formatUnits(raw, COMPETITIVE_TOKEN.decimals));
-  if (!Number.isFinite(asNumber)) {
-    return formatUnits(raw, COMPETITIVE_TOKEN.decimals);
-  }
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(asNumber);
 }
 
 export { generateEscrowRoomKey } from "@/lib/celo/competitive-key";

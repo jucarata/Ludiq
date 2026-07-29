@@ -14,5 +14,3 @@ export function getGridCoord(
   const index = gridNumber - 1;
   return [Math.floor(index / BOARD_SIZE), index % BOARD_SIZE];
 }
-
-export const GRID_CELL_TOTAL = BOARD_SIZE * BOARD_SIZE;

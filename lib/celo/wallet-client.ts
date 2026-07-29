@@ -320,6 +320,3 @@ export async function withdrawPartyContribution(params: {
     throw new Error(formatCompetitiveTxError(error));
   }
 }
-
-/** @deprecated Use refundPartyPool */
-export const refundCompetitiveEntry = refundPartyPool;
