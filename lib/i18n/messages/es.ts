@@ -78,9 +78,22 @@ export const es: Messages = {
       "Sacó un par de 6 y dejó la casa. Ahora moverá la misma ficha — presta atención.",
     botMovingTitle: "El rival se mueve",
     botMovingBody: "Observa cómo avanza su ficha por el tablero.",
-    botMoving2Title: "Otro par de 6",
+    rivalMovedTitle: "¡Que no te coman!",
+    rivalMovedBody:
+      "Tu rival ya está en el tablero. Cuida tus fichas: si cae sobre ti, vuelves a casa.",
+    safeClickDiceTitle: "Lanza otra vez",
+    safeClickDiceBody: "Toma tus dados — este tiro te enseñará las casillas SAFE.",
+    safeThrowTitle: "¡Lanza!",
+    safeThrowBody: "Lanza en el tablero y mira dónde puedes caer.",
+    safeMoveTitle: "Apunta al SAFE",
+    safeMoveBody:
+      "Mueve esa misma ficha líder con ambos dados. Vas hacia una casilla SAFE.",
+    safeLandedTitle: "¡Zona SAFE!",
+    safeLandedBody:
+      "Mira: caíste en SAFE. En estas casillas tu rival no puede comerte. Úsalas con cabeza.",
+    botMoving2Title: "Turno del rival",
     botMoving2Body:
-      "Otra vez 6 y 6: el rival sigue con la misma ficha y se acerca a la tuya.",
+      "Otra vez saca un par de 6 y avanza la misma ficha — mira dónde queda.",
     captureIntroTitle: "¡Justo delante!",
     captureIntroBody:
       "La ficha del rival quedó a dos casillas de la tuya en la salida. Vas a sacar exactamente lo que necesitas para comértela.",

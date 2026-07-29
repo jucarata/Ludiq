@@ -85,9 +85,34 @@ const STEP_COPY: Partial<
     body: "gameTutorial.botMovingBody",
     showContinue: false,
   },
-  bot_second: {
-    title: "gameTutorial.botMovingTitle",
-    body: "gameTutorial.botMovingBody",
+  rival_moved: {
+    title: "gameTutorial.rivalMovedTitle",
+    body: "gameTutorial.rivalMovedBody",
+    showContinue: true,
+  },
+  safe_click_dice: {
+    title: "gameTutorial.safeClickDiceTitle",
+    body: "gameTutorial.safeClickDiceBody",
+    showContinue: false,
+  },
+  safe_throw: {
+    title: "gameTutorial.safeThrowTitle",
+    body: "gameTutorial.safeThrowBody",
+    showContinue: false,
+  },
+  safe_move: {
+    title: "gameTutorial.safeMoveTitle",
+    body: "gameTutorial.safeMoveBody",
+    showContinue: false,
+  },
+  safe_landed: {
+    title: "gameTutorial.safeLandedTitle",
+    body: "gameTutorial.safeLandedBody",
+    showContinue: true,
+  },
+  await_bot_second: {
+    title: "gameTutorial.botMoving2Title",
+    body: "gameTutorial.botMoving2Body",
     showContinue: false,
     hidden: true,
   },

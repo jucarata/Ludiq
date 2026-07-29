@@ -75,9 +75,22 @@ export const en = {
       "They rolled double 6s and left home. Now they'll move the same piece — stay sharp.",
     botMovingTitle: "Rival is moving",
     botMovingBody: "Watch their piece advance across the board.",
-    botMoving2Title: "Double 6s again",
+    rivalMovedTitle: "Don't get eaten!",
+    rivalMovedBody:
+      "Your rival is on the board now. Keep your pieces safe — if they land on you, you're sent home.",
+    safeClickDiceTitle: "Roll again",
+    safeClickDiceBody: "Grab your dice — this next throw will teach you about SAFE spaces.",
+    safeThrowTitle: "Throw!",
+    safeThrowBody: "Throw on the board and watch where you can land.",
+    safeMoveTitle: "Aim for SAFE",
+    safeMoveBody:
+      "Move that same lead piece with both dice. You're heading for a SAFE square.",
+    safeLandedTitle: "SAFE zone!",
+    safeLandedBody:
+      "Look — you landed on SAFE. On these squares your rival cannot capture you. Use them wisely.",
+    botMoving2Title: "Rival's turn",
     botMoving2Body:
-      "Another 6 and 6: the rival keeps the same piece and closes in on yours.",
+      "They roll double 6s again and advance the same piece — watch where it lands.",
     captureIntroTitle: "Right in front!",
     captureIntroBody:
       "The rival's piece is two squares ahead of yours on the exit. You'll roll exactly what you need to capture it.",

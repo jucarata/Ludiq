@@ -12,7 +12,12 @@ import {
 import { useDice } from "@/components/dice/DiceContext";
 import { useGameState } from "@/components/game/GameStateContext";
 import { useTurn } from "@/components/game/TurnContext";
-import { isDiceDoubles, type PieceIndex } from "@/lib/game/pieces";
+import { isProtectedAnchor } from "@/lib/board/cell-placements";
+import {
+  getPieceRouteCell,
+  isDiceDoubles,
+  type PieceIndex,
+} from "@/lib/game/pieces";
 import type { PlayerColor } from "@/lib/board/types";
 
 export type TutorialAction = "continue" | "arm" | "throw" | "move";
@@ -35,7 +40,12 @@ export type InGameTutorialStep =
   | "await_rival_exit"
   | "rival_exited"
   | "bot_moving"
-  | "bot_second"
+  | "rival_moved"
+  | "safe_click_dice"
+  | "safe_throw"
+  | "safe_move"
+  | "safe_landed"
+  | "await_bot_second"
   | "bot_moving_2"
   | "capture_intro"
   | "capture_click_dice"
@@ -80,25 +90,30 @@ function allowedActionForStep(step: InGameTutorialStep): TutorialAction | null {
     case "need_doubles":
     case "explain_move":
     case "rival_exited":
+    case "rival_moved":
+    case "safe_landed":
     case "capture_intro":
     case "finale":
       return "continue";
     case "click_dice":
     case "click_dice_again":
+    case "safe_click_dice":
     case "capture_click_dice":
       return "arm";
     case "throw_board":
     case "throw_doubles":
+    case "safe_throw":
     case "capture_throw":
       return "throw";
     case "do_move":
     case "do_move_again":
+    case "safe_move":
     case "capture_with_2":
     case "capture_remaining_3":
       return "move";
     case "await_rival_exit":
     case "bot_moving":
-    case "bot_second":
+    case "await_bot_second":
     case "bot_moving_2":
     case "done":
       return null;
@@ -110,7 +125,7 @@ function freezeBotsForStep(step: InGameTutorialStep): boolean {
     step !== "done" &&
     step !== "await_rival_exit" &&
     step !== "bot_moving" &&
-    step !== "bot_second" &&
+    step !== "await_bot_second" &&
     step !== "bot_moving_2"
   );
 }
@@ -130,7 +145,13 @@ export function InGameTutorialProvider({ children }: { children: ReactNode }) {
   const canSelectPiece = useCallback(
     (player: PlayerColor, index: number) => {
       if (!focusedPiece) return true;
-      if (step !== "do_move_again" && step !== "capture_with_2") return true;
+      if (
+        step !== "do_move_again" &&
+        step !== "safe_move" &&
+        step !== "capture_with_2"
+      ) {
+        return true;
+      }
       return focusedPiece.player === player && focusedPiece.index === index;
     },
     [focusedPiece, step],
@@ -142,6 +163,8 @@ export function InGameTutorialProvider({ children }: { children: ReactNode }) {
       if (current === "need_doubles") return "click_dice_again";
       if (current === "explain_move") return "do_move";
       if (current === "rival_exited") return "bot_moving";
+      if (current === "rival_moved") return "safe_click_dice";
+      if (current === "safe_landed") return "await_bot_second";
       if (current === "capture_intro") return "capture_click_dice";
       if (current === "finale") return "done";
       return current;
@@ -188,7 +211,7 @@ export function InGameTutorialEffects() {
     focusedPiece,
     setFocusedPiece,
   } = useInGameTutorial();
-  const { setTimerFrozen, currentPlayer, advanceTurn } = useTurn();
+  const { setTimerFrozen, currentPlayer } = useTurn();
   const { isAiming, isRolling, turnRoll, exitRollAttempts } = useDice();
   const { pieces, remainingDice } = useGameState();
   const [wasRolling, setWasRolling] = useState(false);
@@ -213,6 +236,11 @@ export function InGameTutorialEffects() {
   }, [step, isAiming, setStep]);
 
   useEffect(() => {
+    if (step !== "safe_click_dice") return;
+    if (isAiming) setStep("safe_throw");
+  }, [step, isAiming, setStep]);
+
+  useEffect(() => {
     if (step !== "capture_click_dice") return;
     if (isAiming) setStep("capture_throw");
   }, [step, isAiming, setStep]);
@@ -221,6 +249,7 @@ export function InGameTutorialEffects() {
     if (
       step !== "throw_board" &&
       step !== "throw_doubles" &&
+      step !== "safe_throw" &&
       step !== "capture_throw"
     ) {
       return;
@@ -228,6 +257,7 @@ export function InGameTutorialEffects() {
     if (isAiming || isRolling || wasRolling) return;
     if (step === "throw_board") setStep("click_dice");
     else if (step === "throw_doubles") setStep("click_dice_again");
+    else if (step === "safe_throw") setStep("safe_click_dice");
     else setStep("capture_click_dice");
   }, [step, isAiming, isRolling, wasRolling, setStep]);
 
@@ -251,6 +281,20 @@ export function InGameTutorialEffects() {
     setWasRolling(false);
     setStep("explain_move");
   }, [step, wasRolling, isRolling, turnRoll, pieces, setStep]);
+
+  useEffect(() => {
+    if (step !== "safe_throw") return;
+    if (!wasRolling || isRolling) return;
+    if (!turnRoll) return;
+    setWasRolling(false);
+    const lead = pieces
+      .filter((p) => p.player === "red" && p.location === "route")
+      .sort((a, b) => (b.routeIndex ?? 0) - (a.routeIndex ?? 0))[0];
+    if (lead) {
+      setFocusedPiece({ player: lead.player, index: lead.index });
+    }
+    setStep("safe_move");
+  }, [step, wasRolling, isRolling, turnRoll, pieces, setStep, setFocusedPiece]);
 
   useEffect(() => {
     if (step !== "capture_throw") return;
@@ -307,16 +351,46 @@ export function InGameTutorialEffects() {
     setStep("rival_exited");
   }, [step, currentPlayer, pieces, remainingDice, setStep]);
 
-  // First bot turn done → immediately grant a second bot turn.
+  // First bot turn done → player SAFE lesson.
   useEffect(() => {
     if (step !== "bot_moving") return;
     if (currentPlayer !== "red") return;
-    setStep("bot_second");
-    advanceTurn();
-  }, [step, currentPlayer, setStep, advanceTurn]);
+    setFocusedPiece(null);
+    setStep("rival_moved");
+  }, [step, currentPlayer, setStep, setFocusedPiece]);
 
+  // Landed on protected/safe after [3,1] moves.
   useEffect(() => {
-    if (step !== "bot_second") return;
+    if (step !== "safe_move") return;
+    const onSafe = pieces.some((p) => {
+      if (p.player !== "red" || p.location !== "route") return false;
+      if (focusedPiece && p.index !== focusedPiece.index) return false;
+      const cell = getPieceRouteCell(p);
+      return (
+        !!cell && isProtectedAnchor(cell.anchor) && (p.routeIndex ?? 0) >= 8
+      );
+    });
+    if (onSafe) {
+      setStep("safe_landed");
+      return;
+    }
+    if (remainingDice !== null && remainingDice.length === 0) {
+      const lead = pieces.find(
+        (p) =>
+          p.player === "red" &&
+          p.location === "route" &&
+          (focusedPiece ? p.index === focusedPiece.index : true),
+      );
+      const cell = lead ? getPieceRouteCell(lead) : null;
+      if (cell && isProtectedAnchor(cell.anchor)) {
+        setStep("safe_landed");
+      }
+    }
+  }, [step, pieces, remainingDice, focusedPiece, setStep]);
+
+  // After SAFE, wait for the bot's real second turn (not back-to-back).
+  useEffect(() => {
+    if (step !== "await_bot_second") return;
     if (currentPlayer !== "blue") return;
     setStep("bot_moving_2");
   }, [step, currentPlayer, setStep]);
@@ -339,7 +413,6 @@ export function InGameTutorialEffects() {
       (p) =>
         p.player === focusedPiece.player && p.index === focusedPiece.index,
     );
-    // Wait until the capture step animation reaches the rival's cell.
     if (!mover || mover.routeIndex !== 2) return;
     setFocusedPiece(null);
     setStep("capture_remaining_3");
