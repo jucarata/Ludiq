@@ -8,6 +8,16 @@ import { RoomLobby } from "@/components/multiplayer/RoomLobby";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { AppFooter } from "@/components/nav/AppFooter";
 import type { PlayerColor } from "@/lib/board/types";
+import { isPotOpenStatus } from "@/lib/celo/constants";
+import {
+  contributeParty,
+  fullRefundParty,
+  kickRefundParty,
+  openPartyRoom,
+  refundPartyPool,
+  withdrawPartyContribution,
+} from "@/lib/celo/wallet-client";
+import { resolveCompetitiveWallet } from "@/lib/celo/resolve-competitive-wallet";
 import type { Profile } from "@/lib/profile/types";
 import { brandTitleFont, retroPlayButtonClassName } from "@/lib/fonts";
 import type { MessageKey } from "@/lib/i18n";
@@ -16,17 +26,12 @@ import {
   normalizeRoomCode,
   ROOM_CODE_LENGTH,
 } from "@/lib/room/code";
-import {
-  joinCompetitiveEntry,
-  refundCompetitiveEntry,
-} from "@/lib/celo/wallet-client";
-import { resolveCompetitiveWallet } from "@/lib/celo/resolve-competitive-wallet";
-import { clearStoredHostRoomCode, getGuestIdentity } from "@/lib/room/guest";
-import { parseRoomMode } from "@/lib/room/mode";
+import { clearStoredHostRoomCode, getGuestIdentity, setStoredHostRoomCode } from "@/lib/room/guest";
+import { isPartyMode, parseRoomMode, type RoomMode } from "@/lib/room/mode";
 import { withOptimisticColor } from "@/lib/room/optimistic";
 import type { RoomView } from "@/lib/room/types";
 import { useRoomRealtime } from "@/lib/room/use-room-realtime";
-import type { Hex } from "viem";
+import type { Address, Hex } from "viem";
 
 function mapJoinError(error: string | undefined): MessageKey {
   switch (error) {
@@ -40,8 +45,6 @@ function mapJoinError(error: string | undefined): MessageKey {
       return "room.invalidCode";
     case "You were removed from this room":
       return "room.bannedFromRoom";
-    case "Competitive mode requires authentication":
-      return "multiplayer.authRequired";
     default:
       return "room.joinError";
   }
@@ -52,7 +55,7 @@ export function JoinRoomView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mode = parseRoomMode(searchParams.get("mode"));
-  const hubHref = `/multiplayer?mode=${mode}`;
+  const hubHref = "/friends";
   const { ready, authenticated, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
   const [codeInput, setCodeInput] = useState("");
@@ -64,12 +67,14 @@ export function JoinRoomView() {
   const [leaving, setLeaving] = useState(false);
   const [kicking, setKicking] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [confirmingEntry, setConfirmingEntry] = useState(false);
+  const [enablingParty, setEnablingParty] = useState(false);
+  const [contributing, setContributing] = useState(false);
   const closingRef = useRef(false);
   const leavingRef = useRef(false);
   const kickingRef = useRef(false);
   const startingRef = useRef(false);
-  const confirmingEntryRef = useRef(false);
+  const enablingPartyRef = useRef(false);
+  const contributingRef = useRef(false);
   const pendingColorRef = useRef<PlayerColor | null>(null);
 
   const authHeaders = useCallback(async () => {
@@ -94,7 +99,8 @@ export function JoinRoomView() {
   }, []);
 
   const playHref = useCallback(
-    (code: string) => `/multiplayer/play/${code}?mode=${mode}`,
+    (code: string, roomMode: RoomMode = mode) =>
+      `/friends/play/${code}?mode=${roomMode}`,
     [mode],
   );
 
@@ -107,25 +113,33 @@ export function JoinRoomView() {
         closingRef.current ||
         leavingRef.current ||
         kickingRef.current ||
-        startingRef.current
+        startingRef.current ||
+        enablingPartyRef.current ||
+        contributingRef.current
       ) {
         return;
       }
-      clearStoredHostRoomCode(mode);
+      clearStoredHostRoomCode(room?.mode ?? mode);
       setRoom(null);
-      router.replace(`${hubHref}&closed=1`);
+      router.replace(`${hubHref}?closed=1`);
     },
     onKicked: () => {
-      if (closingRef.current || leavingRef.current || startingRef.current) {
+      if (
+        closingRef.current ||
+        leavingRef.current ||
+        startingRef.current ||
+        enablingPartyRef.current ||
+        contributingRef.current
+      ) {
         return;
       }
-      clearStoredHostRoomCode(mode);
+      clearStoredHostRoomCode(room?.mode ?? mode);
       setRoom(null);
-      router.replace(`${hubHref}&kicked=1`);
+      router.replace(`${hubHref}?kicked=1`);
     },
     onGameStarted: (next) => {
-      clearStoredHostRoomCode(mode);
-      router.replace(playHref(next.code));
+      clearStoredHostRoomCode(next.mode);
+      router.replace(playHref(next.code, next.mode));
     },
   });
 
@@ -204,6 +218,7 @@ export function JoinRoomView() {
     if (taken) return;
 
     const previousRoom = room;
+    const roomMode = previousRoom.mode;
     pendingColorRef.current = color;
     setRoom(withOptimisticColor(room, color));
     setChangingColor(true);
@@ -214,13 +229,13 @@ export function JoinRoomView() {
       const selfPlayer = previousRoom.players.find((player) => player.isSelf);
       const body: {
         code: string;
-        mode: typeof mode;
+        mode: RoomMode;
         color: PlayerColor;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: previousRoom.code,
-        mode,
+        mode: roomMode,
         color,
       };
 
@@ -257,16 +272,22 @@ export function JoinRoomView() {
 
   const refundIfNeeded = async (
     current: RoomView,
+    options?: { full?: boolean },
   ): Promise<string | undefined> => {
     const selfPlayer = current.players.find((player) => player.isSelf);
     if (
-      current.mode !== "competitive" ||
-      current.potStatus !== "funded" ||
+      !isPartyMode(current.mode) ||
+      !isPotOpenStatus(current.potStatus) ||
       !current.escrowRoomKey ||
       !selfPlayer?.isHost
     ) {
       return undefined;
     }
+
+    // Full refund after pot lock failure / cancelled game with open pot.
+    const useFullRefund =
+      options?.full === true || current.status === "finished";
+
     try {
       const headers = await authHeaders();
       const profileRes = await fetch("/api/profile", { headers });
@@ -283,13 +304,28 @@ export function JoinRoomView() {
         profileWallet,
         privyWallets: wallets,
       });
-      return await refundCompetitiveEntry({
-        wallet,
-        roomKey: current.escrowRoomKey as Hex,
-      });
+      const roomKey = current.escrowRoomKey as Hex;
+      if (useFullRefund) {
+        return await fullRefundParty({ wallet, roomKey });
+      }
+      return await refundPartyPool({ wallet, roomKey });
     } catch {
       throw new Error(t("room.refundError"));
     }
+  };
+
+  const resolveProfileWalletAddress = async (): Promise<string> => {
+    const headers = await authHeaders();
+    const profileRes = await fetch("/api/profile", { headers });
+    let profileWallet: string | null = null;
+    if (profileRes.ok) {
+      const profileData = (await profileRes.json()) as {
+        profile: Profile | null;
+      };
+      profileWallet = profileData.profile?.wallet_address ?? null;
+    }
+    if (!profileWallet) throw new Error(t("room.depositWalletRequired"));
+    return profileWallet;
   };
 
   const handleLeaveRoom = async () => {
@@ -300,21 +336,47 @@ export function JoinRoomView() {
     setError(null);
 
     try {
-      const refundTxHash = await refundIfNeeded(room);
+      const roomMode = room.mode;
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
-        mode: typeof mode;
+        mode: RoomMode;
         guestSessionId?: string;
         guestName?: string;
         refundTxHash?: string;
+        withdrawTxHash?: string;
       } = {
         code: room.code,
-        mode,
+        mode: roomMode,
       };
 
-      if (refundTxHash) body.refundTxHash = refundTxHash;
+      if (selfPlayer?.isHost) {
+        const refundTxHash = await refundIfNeeded(room);
+        if (refundTxHash) body.refundTxHash = refundTxHash;
+      } else if (
+        isPartyMode(room.mode) &&
+        isPotOpenStatus(room.potStatus) &&
+        room.escrowRoomKey &&
+        selfPlayer &&
+        selfPlayer.contributedPoolUsdt > 0
+      ) {
+        try {
+          const profileWallet = await resolveProfileWalletAddress();
+          const wallet = await resolveCompetitiveWallet({
+            profileWallet,
+            privyWallets: wallets,
+          });
+          body.withdrawTxHash = await withdrawPartyContribution({
+            wallet,
+            roomKey: room.escrowRoomKey as Hex,
+          });
+        } catch (err) {
+          throw new Error(
+            err instanceof Error ? err.message : t("room.leaveWithdrawError"),
+          );
+        }
+      }
 
       if (selfPlayer?.isGuest) {
         const guest = getGuestIdentity();
@@ -335,7 +397,7 @@ export function JoinRoomView() {
         throw new Error(data?.error ?? t("room.leaveError"));
       }
 
-      clearStoredHostRoomCode(mode);
+      clearStoredHostRoomCode(roomMode);
       setRoom(null);
       router.replace(hubHref);
     } catch (err) {
@@ -353,18 +415,19 @@ export function JoinRoomView() {
     setError(null);
 
     try {
+      const roomMode = room.mode;
       const refundTxHash = await refundIfNeeded(room);
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
-        mode: typeof mode;
+        mode: RoomMode;
         guestSessionId?: string;
         guestName?: string;
         refundTxHash?: string;
       } = {
         code: room.code,
-        mode,
+        mode: roomMode,
       };
 
       if (refundTxHash) body.refundTxHash = refundTxHash;
@@ -388,7 +451,7 @@ export function JoinRoomView() {
         throw new Error(data?.error ?? t("room.closeError"));
       }
 
-      clearStoredHostRoomCode(mode);
+      clearStoredHostRoomCode(roomMode);
       router.push(hubHref);
     } catch (err) {
       closingRef.current = false;
@@ -407,17 +470,41 @@ export function JoinRoomView() {
     try {
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
+      const target = room.players.find((player) => player.id === targetPlayerId);
       const body: {
         code: string;
-        mode: typeof mode;
+        mode: RoomMode;
         targetPlayerId: string;
+        kickRefundTxHash?: string;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
-        mode,
+        mode: room.mode,
         targetPlayerId,
       };
+
+      if (
+        isPartyMode(room.mode) &&
+        isPotOpenStatus(room.potStatus) &&
+        room.escrowRoomKey &&
+        target &&
+        target.contributedPoolUsdt > 0
+      ) {
+        if (!target.walletAddress) {
+          throw new Error(t("room.kickError"));
+        }
+        const profileWallet = await resolveProfileWalletAddress();
+        const wallet = await resolveCompetitiveWallet({
+          profileWallet,
+          privyWallets: wallets,
+        });
+        body.kickRefundTxHash = await kickRefundParty({
+          wallet,
+          roomKey: room.escrowRoomKey as Hex,
+          player: target.walletAddress as Address,
+        });
+      }
 
       if (selfPlayer?.isGuest) {
         const guest = getGuestIdentity();
@@ -448,6 +535,141 @@ export function JoinRoomView() {
     }
   };
 
+  const handleEnableParty = async () => {
+    if (!room || enablingParty || closing || leaving || contributing) return;
+
+    if (!authenticated) {
+      setError(t("room.enablePartyAuth"));
+      return;
+    }
+
+    enablingPartyRef.current = true;
+    setEnablingParty(true);
+    setError(null);
+
+    try {
+      const headers = await authHeaders();
+      const profileRes = await fetch("/api/profile", { headers });
+      let profileWallet: string | null = null;
+      if (profileRes.ok) {
+        const profileData = (await profileRes.json()) as {
+          profile: Profile | null;
+        };
+        profileWallet = profileData.profile?.wallet_address ?? null;
+      }
+      if (!profileWallet) {
+        throw new Error(t("room.depositWalletRequired"));
+      }
+
+      const wallet = await resolveCompetitiveWallet({
+        profileWallet,
+        privyWallets: wallets,
+      });
+      const { escrowRoomKey, openTxHash } = await openPartyRoom({
+        wallet,
+        walletAddress: profileWallet,
+      });
+
+      const previousMode = room.mode;
+      const res = await fetch("/api/rooms/enable-party", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          code: room.code,
+          mode: previousMode,
+          escrowRoomKey,
+          openTxHash,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? t("room.enablePartyError"));
+      }
+
+      const data = (await res.json()) as { room: RoomView };
+      setStoredHostRoomCode(data.room.code, data.room.mode);
+      setRoom(data.room);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t("room.enablePartyError"),
+      );
+    } finally {
+      enablingPartyRef.current = false;
+      setEnablingParty(false);
+    }
+  };
+
+  const handleContribute = async (poolAmountUsdt: string) => {
+    if (!room || contributing || closing || leaving || enablingParty) return;
+    if (!isPartyMode(room.mode) || !room.escrowRoomKey) return;
+
+    if (!authenticated) {
+      setError(t("room.enablePartyAuth"));
+      return;
+    }
+
+    contributingRef.current = true;
+    setContributing(true);
+    setError(null);
+
+    try {
+      const headers = await authHeaders();
+      const profileRes = await fetch("/api/profile", { headers });
+      let profileWallet: string | null = null;
+      if (profileRes.ok) {
+        const profileData = (await profileRes.json()) as {
+          profile: Profile | null;
+        };
+        profileWallet = profileData.profile?.wallet_address ?? null;
+      }
+      if (!profileWallet) {
+        throw new Error(t("room.depositWalletRequired"));
+      }
+
+      const wallet = await resolveCompetitiveWallet({
+        profileWallet,
+        privyWallets: wallets,
+      });
+      const contributeTxHash = await contributeParty({
+        wallet,
+        roomKey: room.escrowRoomKey as Hex,
+        poolAmountUsdt,
+        walletAddress: profileWallet,
+      });
+
+      const res = await fetch("/api/rooms/contribute", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          code: room.code,
+          mode: room.mode,
+          contributeTxHash,
+          poolAmountUsdt,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? t("room.contributeError"));
+      }
+
+      const data = (await res.json()) as { room: RoomView };
+      setRoom(data.room);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t("room.contributeError"),
+      );
+    } finally {
+      contributingRef.current = false;
+      setContributing(false);
+    }
+  };
+
   const handleStartGame = async () => {
     if (!room || starting || closing || leaving) return;
     if (room.players.length < 2) return;
@@ -457,16 +679,17 @@ export function JoinRoomView() {
     setError(null);
 
     try {
+      const roomMode = room.mode;
       const headers = await authHeaders();
       const selfPlayer = room.players.find((player) => player.isSelf);
       const body: {
         code: string;
-        mode: typeof mode;
+        mode: RoomMode;
         guestSessionId?: string;
         guestName?: string;
       } = {
         code: room.code,
-        mode,
+        mode: roomMode,
       };
 
       if (selfPlayer?.isGuest) {
@@ -488,79 +711,12 @@ export function JoinRoomView() {
         throw new Error(data?.error ?? t("room.startError"));
       }
 
-      clearStoredHostRoomCode(mode);
-      router.replace(playHref(room.code));
+      clearStoredHostRoomCode(roomMode);
+      router.replace(playHref(room.code, roomMode));
     } catch (err) {
       startingRef.current = false;
       setError(err instanceof Error ? err.message : t("room.startError"));
       setStarting(false);
-    }
-  };
-
-  const handleConfirmEntry = async () => {
-    if (!room || confirmingEntry || closing || leaving) return;
-    const selfPlayer = room.players.find((player) => player.isSelf);
-    if (!selfPlayer || selfPlayer.isHost || selfPlayer.entryPaid) return;
-    if (!room.escrowRoomKey) {
-      setError(t("room.confirmEntryError"));
-      return;
-    }
-
-    confirmingEntryRef.current = true;
-    setConfirmingEntry(true);
-    setError(null);
-
-    try {
-      const headers = await authHeaders();
-      const profileRes = await fetch("/api/profile", { headers });
-      let profileWallet: string | null = null;
-      if (profileRes.ok) {
-        const profileData = (await profileRes.json()) as {
-          profile: Profile | null;
-        };
-        profileWallet = profileData.profile?.wallet_address ?? null;
-      }
-      if (!profileWallet) {
-        throw new Error(t("room.depositWalletRequired"));
-      }
-
-      const competitiveWallet = await resolveCompetitiveWallet({
-        profileWallet,
-        privyWallets: wallets,
-      });
-
-      const entryTxHash = await joinCompetitiveEntry({
-        wallet: competitiveWallet,
-        roomKey: room.escrowRoomKey as Hex,
-        walletAddress: profileWallet,
-      });
-
-      const res = await fetch("/api/rooms/confirm-entry", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          code: room.code,
-          mode,
-          ...(entryTxHash ? { entryTxHash } : {}),
-        }),
-      });
-
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? t("room.confirmEntryError"));
-      }
-
-      const data = (await res.json()) as { room: RoomView };
-      setRoom(data.room);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("room.confirmEntryError"),
-      );
-    } finally {
-      confirmingEntryRef.current = false;
-      setConfirmingEntry(false);
     }
   };
 
@@ -577,14 +733,16 @@ export function JoinRoomView() {
         leaving={leaving}
         kicking={kicking}
         starting={starting}
-        confirmingEntry={confirmingEntry}
+        enablingParty={enablingParty}
+        contributing={contributing}
         error={error}
         onSelectColor={(color) => void handleSelectColor(color)}
         onLeave={() => void handleLeaveRoom()}
         onCloseRoom={() => void handleCloseRoom()}
         onKickPlayer={(playerId) => void handleKickPlayer(playerId)}
         onStartGame={() => void handleStartGame()}
-        onConfirmEntry={() => void handleConfirmEntry()}
+        onEnableParty={() => void handleEnableParty()}
+        onContribute={(amount) => void handleContribute(amount)}
       />
     );
   }

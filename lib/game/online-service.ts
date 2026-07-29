@@ -30,7 +30,8 @@ import {
 import type { RoomIdentity } from "@/lib/room/service";
 import { getRoomByCode } from "@/lib/room/service";
 import type { RoomMode } from "@/lib/room/mode";
-import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
+import { DEFAULT_ROOM_MODE, isPartyMode } from "@/lib/room/mode";
+import { isPotOpenStatus } from "@/lib/celo/constants";
 import type { RoomView } from "@/lib/room/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -190,7 +191,7 @@ function advanceToNextTurn(
 }
 
 /**
- * Background job after competitive start: lock pot on-chain.
+ * Background job after party start: lock pot on-chain when pool > 0.
  * If lock fails, the game is cancelled — without lock the host could refund mid-game.
  */
 export async function lockCompetitivePotInBackground(params: {
@@ -207,11 +208,11 @@ export async function lockCompetitivePotInBackground(params: {
       .update({ pot_status: "locked" })
       .eq("id", params.roomId)
       .eq("status", "playing")
-      .eq("pot_status", "funded");
+      .in("pot_status", ["open", "funded"]);
 
     if (error) throw new Error(error.message);
   } catch (error) {
-    console.error("Competitive lock failed; cancelling game:", error);
+    console.error("Party lock failed; cancelling game:", error);
     await cancelGameForEscrowLockFailure(params.roomId);
   }
 }
@@ -229,7 +230,7 @@ async function cancelGameForEscrowLockFailure(roomId: string): Promise<void> {
     })
     .eq("id", roomId)
     .eq("status", "playing")
-    .eq("pot_status", "funded");
+    .in("pot_status", ["open", "funded"]);
 
   if (roomError) throw new Error(roomError.message);
 
@@ -256,13 +257,13 @@ async function settleCompetitivePotIfNeeded(
   const { data: room, error: roomError } = await supabase
     .from("game_rooms")
     .select(
-      "mode, pot_status, escrow_room_key, payout_tx_hash",
+      "mode, pot_status, escrow_room_key, payout_tx_hash, pot_amount_usdt",
     )
     .eq("id", roomId)
     .maybeSingle();
 
   if (roomError) throw new Error(roomError.message);
-  if (!room || room.mode !== "competitive") return {};
+  if (!room || !isPartyMode(room.mode)) return {};
   if (room.pot_status === "settled" && room.payout_tx_hash) {
     return {
       payout_tx_hash: room.payout_tx_hash,
@@ -270,16 +271,17 @@ async function settleCompetitivePotIfNeeded(
     };
   }
   if (!room.escrow_room_key) return {};
+  if (Number(room.pot_amount_usdt ?? 0) <= 0) return {};
 
   // Start may still be locking in the background — lock now if needed.
-  if (room.pot_status === "funded") {
+  if (isPotOpenStatus(room.pot_status)) {
     const { lockEscrowRoom } = await import("@/lib/celo/competitive");
     await lockEscrowRoom(room.escrow_room_key);
     const { error: lockUpdateError } = await supabase
       .from("game_rooms")
       .update({ pot_status: "locked" })
       .eq("id", roomId)
-      .eq("pot_status", "funded");
+      .in("pot_status", ["open", "funded"]);
     if (lockUpdateError) throw new Error(lockUpdateError.message);
   } else if (room.pot_status !== "locked") {
     return {};
@@ -321,7 +323,7 @@ async function settleCompetitivePotIfNeeded(
 }
 
 /**
- * Competitive: winner earns 1 trophy × number of paid participants.
+ * Party: winner earns 1 trophy × number of seated participants (when pot settled / party room).
  * Idempotent via game_rooms.trophies_awarded (claim room row before profile bump).
  */
 async function awardCompetitiveTrophiesIfNeeded(
@@ -331,28 +333,33 @@ async function awardCompetitiveTrophiesIfNeeded(
   const supabase = getSupabaseAdminClient();
   const { data: room, error: roomError } = await supabase
     .from("game_rooms")
-    .select("mode, trophies_awarded")
+    .select("mode, trophies_awarded, pot_amount_usdt, pot_status")
     .eq("id", roomId)
     .maybeSingle();
 
   if (roomError) throw new Error(roomError.message);
-  if (!room || room.mode !== "competitive") return {};
+  if (!room || !isPartyMode(room.mode)) return {};
+  // Only award when there was a real pot involved.
+  if (Number(room.pot_amount_usdt ?? 0) <= 0 && room.pot_status !== "settled") {
+    return {};
+  }
   if (typeof room.trophies_awarded === "number") {
     return { trophies_awarded: room.trophies_awarded };
   }
 
   const { data: players, error: playersError } = await supabase
     .from("game_room_players")
-    .select("user_id, color, entry_paid")
+    .select("user_id, color")
     .eq("room_id", roomId);
 
   if (playersError) throw new Error(playersError.message);
 
-  const participants = (players ?? []).filter((p) => p.entry_paid === true);
+  const participants = players ?? [];
   const trophies = Math.max(1, participants.length);
   const winnerPlayer = participants.find((p) => p.color === winner);
   if (!winnerPlayer?.user_id) {
-    throw new Error("Winner profile not found for trophies");
+    // Guest winners cannot receive trophies.
+    return {};
   }
 
   const { data: claimed, error: claimError } = await supabase
@@ -489,29 +496,18 @@ export async function startRoomGame(params: {
     );
   }
 
-  if (roomRow.mode === "competitive") {
-    const unpaid = players.filter((player) => !player.entry_paid);
-    if (unpaid.length > 0) {
-      throw new Response(
-        JSON.stringify({
-          error: "All players must confirm payment before starting",
-        }),
-        {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-  }
-
   let pendingLock:
     | { roomId: string; escrowRoomKey: string }
     | undefined;
 
-  if (roomRow.mode === "competitive") {
-    if (roomRow.pot_status !== "funded" || !roomRow.escrow_room_key) {
+  if (
+    isPartyMode(roomRow.mode) &&
+    roomRow.escrow_room_key &&
+    Number(roomRow.pot_amount_usdt ?? 0) > 0
+  ) {
+    if (!isPotOpenStatus(roomRow.pot_status)) {
       throw new Response(
-        JSON.stringify({ error: "Competitive room pot is not funded" }),
+        JSON.stringify({ error: "Party room pot is not open" }),
         {
           status: 409,
           headers: { "Content-Type": "application/json" },

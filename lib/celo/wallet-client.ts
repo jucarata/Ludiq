@@ -6,14 +6,16 @@ import {
   custom,
   erc20Abi,
   http,
+  parseUnits,
   type Address,
   type Hex,
   type WalletClient,
 } from "viem";
 import {
   COMPETITIVE_TOKEN,
-  ENTRY_FEE_RAW,
-  competitiveEscrowAbi,
+  PARTY_MIN_POOL_RAW,
+  calcPartyTotalRaw,
+  partyEscrowAbi,
   getCompetitiveChain,
   getCompetitiveRpcUrl,
   getEscrowAddress,
@@ -60,12 +62,13 @@ function publicClient() {
 async function waitForTx(hash: Hex): Promise<void> {
   const receipt = await publicClient().waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") {
-    throw new Error("Transaction failed");
+    throw new Error(
+      "On-chain transaction reverted. If you just switched to Party mode, deploy PartyEscrow and update NEXT_PUBLIC_ESCROW_ADDRESS.",
+    );
   }
 }
 
-/** Fails early with a clear message when USDT / gas is missing. */
-async function assertCanPayEntry(account: Address): Promise<void> {
+async function assertCanPay(account: Address, totalRaw: bigint): Promise<void> {
   const client = publicClient();
   const [usdtBalance, celoBalance] = await Promise.all([
     client.readContract({
@@ -79,10 +82,9 @@ async function assertCanPayEntry(account: Address): Promise<void> {
 
   const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
 
-  if (usdtBalance < ENTRY_FEE_RAW) {
-    throw new Error(`Insufficient USDT on ${network} (need 0.20)`);
+  if (usdtBalance < totalRaw) {
+    throw new Error(`Insufficient USDT on ${network}`);
   }
-  // ~0.0001 CELO is enough for approve + deposit; keep a small buffer.
   if (celoBalance < BigInt("100000000000000")) {
     throw new Error(
       isCeloSepoliaMode()
@@ -106,106 +108,124 @@ function assertWalletMatchesProfile(
   }
 }
 
-/**
- * Approve + deposit ENTRY_FEE into the competitive escrow.
- * Returns roomKey and deposit tx hash for the create-room API.
- */
-export async function depositCompetitiveEntry(params: {
+/** Host opens a party escrow room (no deposit required). */
+export async function openPartyRoom(params: {
   wallet: CompetitiveWallet;
   walletAddress?: string | null;
-}): Promise<{ escrowRoomKey: Hex; depositTxHash: Hex }> {
+}): Promise<{ escrowRoomKey: Hex; openTxHash: Hex }> {
   try {
     const escrow = getEscrowAddress();
     const chain = getCompetitiveChain();
     const { client, account } = await getWalletClient(params.wallet);
     assertWalletMatchesProfile(account, params.walletAddress);
-    await assertCanPayEntry(account);
+
+    const celoBalance = await publicClient().getBalance({ address: account });
+    if (celoBalance < BigInt("100000000000000")) {
+      throw new Error(
+        isCeloSepoliaMode()
+          ? "Need CELO for gas on Celo Sepolia"
+          : "Need CELO for network fees on Celo",
+      );
+    }
 
     const roomKey = generateEscrowRoomKey();
+    const pub = publicClient();
 
-    const approveHash = await client.writeContract({
-      address: COMPETITIVE_TOKEN.address,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [escrow, ENTRY_FEE_RAW],
-      chain,
-      account,
-    });
+    // Fail fast if address is still the old CompetitiveEscrow (no open()).
+    try {
+      await pub.simulateContract({
+        address: escrow,
+        abi: partyEscrowAbi,
+        functionName: "open",
+        args: [roomKey],
+        account,
+      });
+    } catch (simError) {
+      const msg =
+        simError instanceof Error ? simError.message.toLowerCase() : "";
+      if (
+        msg.includes("does not match any existing") ||
+        msg.includes("encoded function data") ||
+        msg.includes("function returned an unexpected") ||
+        msg.includes("execution reverted") ||
+        msg.includes("returned no data")
+      ) {
+        throw new Error(
+          "PartyEscrow is not deployed at NEXT_PUBLIC_ESCROW_ADDRESS (still the old competitive contract?). Deploy PartyEscrow and update the address, then restart the app.",
+        );
+      }
+      throw simError;
+    }
 
-    await waitForTx(approveHash);
-
-    const depositTxHash = await client.writeContract({
+    const openTxHash = await client.writeContract({
       address: escrow,
-      abi: competitiveEscrowAbi,
-      functionName: "deposit",
+      abi: partyEscrowAbi,
+      functionName: "open",
       args: [roomKey],
       chain,
       account,
     });
 
-    await waitForTx(depositTxHash);
-
-    return { escrowRoomKey: roomKey, depositTxHash };
+    await waitForTx(openTxHash);
+    return { escrowRoomKey: roomKey, openTxHash };
   } catch (error) {
-    console.error("[depositCompetitiveEntry]", error);
+    console.error("[openPartyRoom]", error);
     throw new Error(formatCompetitiveTxError(error));
   }
 }
 
-/**
- * Approve + joinDeposit ENTRY_FEE into an existing competitive room.
- * If this wallet already paid on-chain, returns null (no new tx).
- */
-export async function joinCompetitiveEntry(params: {
+/** Approve + contribute poolAmount (plus fee) into an open party room. */
+export async function contributeParty(params: {
   wallet: CompetitiveWallet;
   roomKey: Hex;
+  poolAmountUsdt: string;
   walletAddress?: string | null;
-}): Promise<Hex | null> {
+}): Promise<Hex> {
   try {
     const escrow = getEscrowAddress();
     const chain = getCompetitiveChain();
     const { client, account } = await getWalletClient(params.wallet);
     assertWalletMatchesProfile(account, params.walletAddress);
 
-    const alreadyPaid = await publicClient().readContract({
-      address: escrow,
-      abi: competitiveEscrowAbi,
-      functionName: "hasPaid",
-      args: [params.roomKey, account],
-    });
-    if (alreadyPaid) return null;
+    const poolAmountRaw = parseUnits(
+      params.poolAmountUsdt,
+      COMPETITIVE_TOKEN.decimals,
+    );
+    if (poolAmountRaw < PARTY_MIN_POOL_RAW) {
+      throw new Error("Minimum contribution is 0.01 USDT");
+    }
 
-    await assertCanPayEntry(account);
+    const totalRaw = calcPartyTotalRaw(poolAmountRaw);
+    await assertCanPay(account, totalRaw);
 
     const approveHash = await client.writeContract({
       address: COMPETITIVE_TOKEN.address,
       abi: erc20Abi,
       functionName: "approve",
-      args: [escrow, ENTRY_FEE_RAW],
+      args: [escrow, totalRaw],
       chain,
       account,
     });
-
     await waitForTx(approveHash);
 
-    const depositTxHash = await client.writeContract({
+    const contributeTxHash = await client.writeContract({
       address: escrow,
-      abi: competitiveEscrowAbi,
-      functionName: "joinDeposit",
-      args: [params.roomKey],
+      abi: partyEscrowAbi,
+      functionName: "contribute",
+      args: [params.roomKey, poolAmountRaw],
       chain,
       account,
     });
-
-    await waitForTx(depositTxHash);
-    return depositTxHash;
+    await waitForTx(contributeTxHash);
+    return contributeTxHash;
   } catch (error) {
-    console.error("[joinCompetitiveEntry]", error);
+    console.error("[contributeParty]", error);
     throw new Error(formatCompetitiveTxError(error));
   }
 }
 
-export async function refundCompetitiveEntry(params: {
+/** Host refunds pool only (keeps commission). */
+export async function refundPartyPool(params: {
   wallet: CompetitiveWallet;
   roomKey: Hex;
 }): Promise<Hex> {
@@ -215,7 +235,7 @@ export async function refundCompetitiveEntry(params: {
 
   const refundTxHash = await client.writeContract({
     address: escrow,
-    abi: competitiveEscrowAbi,
+    abi: partyEscrowAbi,
     functionName: "refund",
     args: [params.roomKey],
     chain,
@@ -225,3 +245,81 @@ export async function refundCompetitiveEntry(params: {
   await waitForTx(refundTxHash);
   return refundTxHash;
 }
+
+/** Host full refund (pool + fee) on error path. */
+export async function fullRefundParty(params: {
+  wallet: CompetitiveWallet;
+  roomKey: Hex;
+}): Promise<Hex> {
+  const escrow = getEscrowAddress();
+  const chain = getCompetitiveChain();
+  const { client, account } = await getWalletClient(params.wallet);
+
+  const refundTxHash = await client.writeContract({
+    address: escrow,
+    abi: partyEscrowAbi,
+    functionName: "fullRefund",
+    args: [params.roomKey],
+    chain,
+    account,
+  });
+
+  await waitForTx(refundTxHash);
+  return refundTxHash;
+}
+
+/** Host returns pool + fee to one player (kick). Host pays gas. */
+export async function kickRefundParty(params: {
+  wallet: CompetitiveWallet;
+  roomKey: Hex;
+  player: Address;
+}): Promise<Hex> {
+  const escrow = getEscrowAddress();
+  const chain = getCompetitiveChain();
+  const { client, account } = await getWalletClient(params.wallet);
+
+  try {
+    const txHash = await client.writeContract({
+      address: escrow,
+      abi: partyEscrowAbi,
+      functionName: "kickRefund",
+      args: [params.roomKey, params.player],
+      chain,
+      account,
+    });
+    await waitForTx(txHash);
+    return txHash;
+  } catch (error) {
+    console.error("[kickRefundParty]", error);
+    throw new Error(formatCompetitiveTxError(error));
+  }
+}
+
+/** Contributor withdraws pool only (fee stays). Caller pays gas. */
+export async function withdrawPartyContribution(params: {
+  wallet: CompetitiveWallet;
+  roomKey: Hex;
+}): Promise<Hex> {
+  const escrow = getEscrowAddress();
+  const chain = getCompetitiveChain();
+  const { client, account } = await getWalletClient(params.wallet);
+
+  try {
+    const txHash = await client.writeContract({
+      address: escrow,
+      abi: partyEscrowAbi,
+      functionName: "withdrawContribution",
+      args: [params.roomKey],
+      chain,
+      account,
+    });
+    await waitForTx(txHash);
+    return txHash;
+  } catch (error) {
+    console.error("[withdrawPartyContribution]", error);
+    throw new Error(formatCompetitiveTxError(error));
+  }
+}
+
+/** @deprecated Use refundPartyPool */
+export const refundCompetitiveEntry = refundPartyPool;

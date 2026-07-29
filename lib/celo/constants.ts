@@ -36,7 +36,7 @@ export function isCeloSepoliaMode(): boolean {
   );
 }
 
-/** Active chain for competitive escrow (Sepolia vs Mainnet). */
+/** Active chain for party escrow (Sepolia vs Mainnet). */
 export function getCompetitiveChain(): Chain {
   return isCeloSepoliaMode() ? celoSepolia : celo;
 }
@@ -56,15 +56,16 @@ export function getCompetitiveRpcUrl(): string {
   );
 }
 
-/** Stake token for competitive rooms — USDT on the configured chain. */
+/** Stake token for party rooms — USDT on the configured chain. */
 export const COMPETITIVE_TOKEN = isCeloSepoliaMode()
   ? CELO_SEPOLIA_USDT
   : CELO_MAINNET_USDT;
 
+/** @deprecated Fixed entry removed — party uses variable contributions. */
 export const ENTRY_FEE_USDT = "0.20";
-/** Pool contribution per paying player (90% of entry). */
+/** @deprecated */
 export const POOL_SHARE_USDT = "0.18";
-/** Commission per paying player (10% of entry), held in escrow until withdraw. */
+/** @deprecated */
 export const COMMISSION_SHARE_USDT = "0.02";
 
 export const ENTRY_FEE_RAW = parseUnits(
@@ -80,34 +81,64 @@ export const COMMISSION_SHARE_RAW = parseUnits(
   COMPETITIVE_TOKEN.decimals,
 );
 
+/** Party fee: 10% of pool contribution, capped at $10. */
+export const PARTY_FEE_BPS = 1000;
+export const PARTY_FEE_CAP_USDT = "10.00";
+export const PARTY_MIN_POOL_USDT = "0.01";
+
+export const PARTY_FEE_CAP_RAW = parseUnits(
+  PARTY_FEE_CAP_USDT,
+  COMPETITIVE_TOKEN.decimals,
+);
+export const PARTY_MIN_POOL_RAW = parseUnits(
+  PARTY_MIN_POOL_USDT,
+  COMPETITIVE_TOKEN.decimals,
+);
+
+export function calcPartyFeeRaw(poolAmountRaw: bigint): bigint {
+  const fee = (poolAmountRaw * BigInt(PARTY_FEE_BPS)) / BigInt(10_000);
+  return fee > PARTY_FEE_CAP_RAW ? PARTY_FEE_CAP_RAW : fee;
+}
+
+export function calcPartyTotalRaw(poolAmountRaw: bigint): bigint {
+  return poolAmountRaw + calcPartyFeeRaw(poolAmountRaw);
+}
+
 export type PotStatus =
   | "none"
+  | "open"
   | "funded"
   | "locked"
   | "settled"
   | "refunded";
 
+/** On-chain PartyEscrow RoomStatus. */
 export const ROOM_STATUS_ONCHAIN = {
   None: 0,
-  Funded: 1,
+  Open: 1,
   Locked: 2,
   Settled: 3,
   Refunded: 4,
+  /** @deprecated alias for Open (old CompetitiveEscrow Funded) */
+  Funded: 1,
 } as const;
 
-export const competitiveEscrowAbi = [
+export const partyEscrowAbi = [
   {
     type: "function",
-    name: "deposit",
+    name: "open",
     stateMutability: "nonpayable",
     inputs: [{ name: "roomKey", type: "bytes32" }],
     outputs: [],
   },
   {
     type: "function",
-    name: "joinDeposit",
+    name: "contribute",
     stateMutability: "nonpayable",
-    inputs: [{ name: "roomKey", type: "bytes32" }],
+    inputs: [
+      { name: "roomKey", type: "bytes32" },
+      { name: "poolAmount", type: "uint256" },
+    ],
     outputs: [],
   },
   {
@@ -115,6 +146,30 @@ export const competitiveEscrowAbi = [
     name: "refund",
     stateMutability: "nonpayable",
     inputs: [{ name: "roomKey", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "fullRefund",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "roomKey", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "withdrawContribution",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "roomKey", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "kickRefund",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roomKey", type: "bytes32" },
+      { name: "player", type: "address" },
+    ],
     outputs: [],
   },
   {
@@ -143,13 +198,33 @@ export const competitiveEscrowAbi = [
   },
   {
     type: "function",
-    name: "hasPaid",
+    name: "quoteFee",
+    stateMutability: "pure",
+    inputs: [{ name: "poolAmount", type: "uint256" }],
+    outputs: [
+      { name: "fee", type: "uint256" },
+      { name: "total", type: "uint256" },
+    ],
+  },
+  {
+    type: "function",
+    name: "poolContributed",
     stateMutability: "view",
     inputs: [
       { name: "roomKey", type: "bytes32" },
       { name: "player", type: "address" },
     ],
-    outputs: [{ type: "bool" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "feeContributed",
+    stateMutability: "view",
+    inputs: [
+      { name: "roomKey", type: "bytes32" },
+      { name: "player", type: "address" },
+    ],
+    outputs: [{ type: "uint256" }],
   },
   {
     type: "function",
@@ -159,25 +234,27 @@ export const competitiveEscrowAbi = [
     outputs: [
       { name: "host", type: "address" },
       { name: "status", type: "uint8" },
-      { name: "playerCount", type: "uint8" },
       { name: "poolTotal", type: "uint256" },
       { name: "commissionTotal", type: "uint256" },
     ],
   },
   {
-    type: "function",
-    name: "ENTRY_FEE",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "uint256" }],
+    type: "event",
+    name: "Opened",
+    inputs: [
+      { name: "roomKey", type: "bytes32", indexed: true },
+      { name: "host", type: "address", indexed: true },
+    ],
   },
   {
     type: "event",
-    name: "Deposited",
+    name: "Contributed",
     inputs: [
       { name: "roomKey", type: "bytes32", indexed: true },
       { name: "player", type: "address", indexed: true },
-      { name: "amount", type: "uint256", indexed: false },
+      { name: "poolAmount", type: "uint256", indexed: false },
+      { name: "feeAmount", type: "uint256", indexed: false },
+      { name: "totalPaid", type: "uint256", indexed: false },
     ],
   },
   {
@@ -187,6 +264,26 @@ export const competitiveEscrowAbi = [
       { name: "roomKey", type: "bytes32", indexed: true },
       { name: "player", type: "address", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "KickRefunded",
+    inputs: [
+      { name: "roomKey", type: "bytes32", indexed: true },
+      { name: "player", type: "address", indexed: true },
+      { name: "poolAmount", type: "uint256", indexed: false },
+      { name: "feeAmount", type: "uint256", indexed: false },
+      { name: "total", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "Withdrawn",
+    inputs: [
+      { name: "roomKey", type: "bytes32", indexed: true },
+      { name: "player", type: "address", indexed: true },
+      { name: "poolAmount", type: "uint256", indexed: false },
     ],
   },
   {
@@ -206,10 +303,18 @@ export const competitiveEscrowAbi = [
   },
 ] as const;
 
+/** @deprecated Use partyEscrowAbi */
+export const competitiveEscrowAbi = partyEscrowAbi;
+
 export function getEscrowAddress(): Address {
   const address = process.env.NEXT_PUBLIC_ESCROW_ADDRESS;
   if (!address) {
     throw new Error("NEXT_PUBLIC_ESCROW_ADDRESS is not configured");
   }
   return address as Address;
+}
+
+/** True when pot can still accept contributions / pool-only refund. */
+export function isPotOpenStatus(status: PotStatus | string | null | undefined): boolean {
+  return status === "open" || status === "funded";
 }

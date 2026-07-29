@@ -7,9 +7,10 @@ export type Json =
   | Json[];
 
 export type RoomStatus = "waiting" | "playing" | "finished";
-export type RoomMode = "free" | "competitive";
+export type RoomMode = "free" | "party" | "competitive";
 export type PotStatus =
   | "none"
+  | "open"
   | "funded"
   | "locked"
   | "settled"
@@ -80,6 +81,7 @@ export interface Database {
           pot_amount_usdt: number;
           pot_status: PotStatus;
           deposit_tx_hash: string | null;
+          open_tx_hash: string | null;
           refund_tx_hash: string | null;
           payout_tx_hash: string | null;
           trophies_awarded: number | null;
@@ -99,6 +101,7 @@ export interface Database {
           pot_amount_usdt?: number;
           pot_status?: PotStatus;
           deposit_tx_hash?: string | null;
+          open_tx_hash?: string | null;
           refund_tx_hash?: string | null;
           payout_tx_hash?: string | null;
           trophies_awarded?: number | null;
@@ -118,6 +121,7 @@ export interface Database {
           pot_amount_usdt?: number;
           pot_status?: PotStatus;
           deposit_tx_hash?: string | null;
+          open_tx_hash?: string | null;
           refund_tx_hash?: string | null;
           payout_tx_hash?: string | null;
           trophies_awarded?: number | null;
@@ -138,6 +142,7 @@ export interface Database {
           joined_at: string;
           entry_paid: boolean;
           entry_tx_hash: string | null;
+          contributed_pool_usdt: number;
         };
         Insert: {
           id?: string;
@@ -152,6 +157,7 @@ export interface Database {
           joined_at?: string;
           entry_paid?: boolean;
           entry_tx_hash?: string | null;
+          contributed_pool_usdt?: number;
         };
         Update: {
           id?: string;
@@ -166,6 +172,40 @@ export interface Database {
           joined_at?: string;
           entry_paid?: boolean;
           entry_tx_hash?: string | null;
+          contributed_pool_usdt?: number;
+        };
+        Relationships: [];
+      };
+      game_room_contributions: {
+        Row: {
+          id: string;
+          room_id: string;
+          player_id: string | null;
+          wallet_address: string;
+          pool_amount_usdt: number;
+          fee_amount_usdt: number;
+          tx_hash: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          room_id: string;
+          player_id?: string | null;
+          wallet_address: string;
+          pool_amount_usdt: number;
+          fee_amount_usdt: number;
+          tx_hash: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          room_id?: string;
+          player_id?: string | null;
+          wallet_address?: string;
+          pool_amount_usdt?: number;
+          fee_amount_usdt?: number;
+          tx_hash?: string;
+          created_at?: string;
         };
         Relationships: [];
       };

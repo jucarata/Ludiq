@@ -11,9 +11,8 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import {
   COMPETITIVE_TOKEN,
-  ENTRY_FEE_RAW,
   ROOM_STATUS_ONCHAIN,
-  competitiveEscrowAbi,
+  partyEscrowAbi,
   getCompetitiveChain,
   getCompetitiveRpcUrl,
   getEscrowAddress,
@@ -29,14 +28,23 @@ export {
   COMPETITIVE_TOKEN,
   ENTRY_FEE_RAW,
   ENTRY_FEE_USDT,
+  PARTY_FEE_BPS,
+  PARTY_FEE_CAP_RAW,
+  PARTY_FEE_CAP_USDT,
+  PARTY_MIN_POOL_RAW,
+  PARTY_MIN_POOL_USDT,
   POOL_SHARE_RAW,
   POOL_SHARE_USDT,
   ROOM_STATUS_ONCHAIN,
+  calcPartyFeeRaw,
+  calcPartyTotalRaw,
   competitiveEscrowAbi,
+  partyEscrowAbi,
   getCompetitiveChain,
   getCompetitiveRpcUrl,
   getEscrowAddress,
   isCeloSepoliaMode,
+  isPotOpenStatus,
 } from "@/lib/celo/constants";
 export type { PotStatus } from "@/lib/celo/constants";
 
@@ -86,39 +94,11 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** On-chain check: whether this wallet already deposited into the room. */
-export async function hasPlayerPaidEntry(params: {
-  roomKey: string;
-  player: string;
-  /** Retry briefly — receipt can land before some RPCs expose state. */
-  retries?: number;
-}): Promise<boolean> {
-  const client = getCompetitivePublicClient();
-  const escrow = getEscrowAddress();
-  const roomKey = normalizeHex32(params.roomKey);
-  const player = params.player as Address;
-  const retries = params.retries ?? 4;
-
-  for (let attempt = 0; attempt < retries; attempt++) {
-    const paid = await client.readContract({
-      address: escrow,
-      abi: competitiveEscrowAbi,
-      functionName: "hasPaid",
-      args: [roomKey, player],
-    });
-    if (paid) return true;
-    if (attempt < retries - 1) await sleep(800 * (attempt + 1));
-  }
-  return false;
-}
-
-export async function verifyDepositTransaction(params: {
+export async function verifyOpenTransaction(params: {
   txHash: string;
   roomKey: string;
-  expectedPlayer: string;
-  /** When true, also require that expectedPlayer is the on-chain host. */
-  requireHost?: boolean;
-}): Promise<{ roomKey: Hex; player: Address; amount: bigint }> {
+  expectedHost: string;
+}): Promise<{ roomKey: Hex; host: Address }> {
   const client = getCompetitivePublicClient();
   const escrow = getEscrowAddress();
   const txHash = normalizeTxHash(params.txHash);
@@ -126,27 +106,25 @@ export async function verifyDepositTransaction(params: {
 
   const receipt = await client.getTransactionReceipt({ hash: txHash });
   if (receipt.status !== "success") {
-    throw new Error("Deposit transaction failed");
+    throw new Error("Open transaction failed");
   }
 
-  let deposited: { roomKey: Hex; player: Address; amount: bigint } | null =
-    null;
+  let opened: { roomKey: Hex; host: Address } | null = null;
 
   for (const log of receipt.logs) {
     if (!addressesEqual(log.address, escrow)) continue;
     try {
       const decoded = decodeEventLog({
-        abi: competitiveEscrowAbi,
+        abi: partyEscrowAbi,
         data: log.data,
         topics: log.topics,
       });
-      if (decoded.eventName !== "Deposited") continue;
-      const player = decoded.args.player as Address;
-      if (!addressesEqual(player, params.expectedPlayer)) continue;
-      deposited = {
+      if (decoded.eventName !== "Opened") continue;
+      const host = decoded.args.host as Address;
+      if (!addressesEqual(host, params.expectedHost)) continue;
+      opened = {
         roomKey: decoded.args.roomKey as Hex,
-        player,
-        amount: decoded.args.amount as bigint,
+        host,
       };
       break;
     } catch {
@@ -154,43 +132,124 @@ export async function verifyDepositTransaction(params: {
     }
   }
 
-  if (!deposited) {
-    throw new Error("Deposit event not found in transaction");
+  if (!opened) {
+    throw new Error("Open event not found in transaction");
   }
-  if (deposited.roomKey.toLowerCase() !== roomKey.toLowerCase()) {
-    throw new Error("Deposit room key mismatch");
-  }
-  if (deposited.amount !== ENTRY_FEE_RAW) {
-    throw new Error("Deposit amount mismatch");
+  if (opened.roomKey.toLowerCase() !== roomKey.toLowerCase()) {
+    throw new Error("Open room key mismatch");
   }
 
-  // Prefer the address from the event (the actual payer).
-  const paid = await hasPlayerPaidEntry({
-    roomKey,
-    player: deposited.player,
-  });
-  if (!paid) {
-    throw new Error("Escrow does not record this player as paid");
+  // Receipt can land before some RPCs expose contract state — retry briefly.
+  let lastStatus: number | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const onchain = await client.readContract({
+      address: escrow,
+      abi: partyEscrowAbi,
+      functionName: "rooms",
+      args: [roomKey],
+    });
+    lastStatus = Number(onchain[1]);
+    if (lastStatus === ROOM_STATUS_ONCHAIN.Open) {
+      if (!addressesEqual(onchain[0], params.expectedHost)) {
+        throw new Error("Open host wallet mismatch");
+      }
+      return opened;
+    }
+    if (attempt < 4) await sleep(700 * (attempt + 1));
+  }
+
+  // Opened event is proof enough if state is still catching up.
+  if (lastStatus === ROOM_STATUS_ONCHAIN.None || lastStatus === null) {
+    throw new Error(
+      "Escrow room is not open. Confirm NEXT_PUBLIC_ESCROW_ADDRESS is the PartyEscrow contract and restart the server.",
+    );
+  }
+
+  return opened;
+}
+
+export async function verifyContributeTransaction(params: {
+  txHash: string;
+  roomKey: string;
+  expectedPlayer: string;
+  expectedPoolAmount?: bigint;
+}): Promise<{
+  roomKey: Hex;
+  player: Address;
+  poolAmount: bigint;
+  feeAmount: bigint;
+  totalPaid: bigint;
+}> {
+  const client = getCompetitivePublicClient();
+  const escrow = getEscrowAddress();
+  const txHash = normalizeTxHash(params.txHash);
+  const roomKey = normalizeHex32(params.roomKey);
+
+  const receipt = await client.getTransactionReceipt({ hash: txHash });
+  if (receipt.status !== "success") {
+    throw new Error("Contribute transaction failed");
+  }
+
+  let contributed: {
+    roomKey: Hex;
+    player: Address;
+    poolAmount: bigint;
+    feeAmount: bigint;
+    totalPaid: bigint;
+  } | null = null;
+
+  for (const log of receipt.logs) {
+    if (!addressesEqual(log.address, escrow)) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: partyEscrowAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      if (decoded.eventName !== "Contributed") continue;
+      const player = decoded.args.player as Address;
+      if (!addressesEqual(player, params.expectedPlayer)) continue;
+      contributed = {
+        roomKey: decoded.args.roomKey as Hex,
+        player,
+        poolAmount: decoded.args.poolAmount as bigint,
+        feeAmount: decoded.args.feeAmount as bigint,
+        totalPaid: decoded.args.totalPaid as bigint,
+      };
+      break;
+    } catch {
+      // not our event
+    }
+  }
+
+  if (!contributed) {
+    throw new Error("Contribute event not found in transaction");
+  }
+  if (contributed.roomKey.toLowerCase() !== roomKey.toLowerCase()) {
+    throw new Error("Contribute room key mismatch");
+  }
+  if (
+    params.expectedPoolAmount != null &&
+    contributed.poolAmount !== params.expectedPoolAmount
+  ) {
+    throw new Error("Contribute pool amount mismatch");
   }
 
   const onchain = await client.readContract({
     address: escrow,
-    abi: competitiveEscrowAbi,
+    abi: partyEscrowAbi,
     functionName: "rooms",
     args: [roomKey],
   });
 
-  if (onchain[1] !== ROOM_STATUS_ONCHAIN.Funded) {
-    throw new Error("Escrow room is not funded");
-  }
   if (
-    params.requireHost &&
-    !addressesEqual(onchain[0], params.expectedPlayer)
+    onchain[1] !== ROOM_STATUS_ONCHAIN.Open &&
+    onchain[1] !== ROOM_STATUS_ONCHAIN.Locked
   ) {
-    throw new Error("Deposit host wallet mismatch");
+    throw new Error("Escrow room is not open");
   }
 
-  return deposited;
+  return contributed;
 }
 
 export async function verifyRefundTransaction(params: {
@@ -213,7 +272,7 @@ export async function verifyRefundTransaction(params: {
     if (!addressesEqual(log.address, escrow)) continue;
     try {
       const decoded = decodeEventLog({
-        abi: competitiveEscrowAbi,
+        abi: partyEscrowAbi,
         data: log.data,
         topics: log.topics,
       });
@@ -223,7 +282,6 @@ export async function verifyRefundTransaction(params: {
       ) {
         throw new Error("Refund room key mismatch");
       }
-      // Host refunds everyone; at least one Refunded for this room is enough.
       found = true;
       break;
     } catch (error) {
@@ -233,11 +291,118 @@ export async function verifyRefundTransaction(params: {
     }
   }
 
+  // Empty pot: refund/fullRefund still succeeds with no Refunded events.
   if (!found) {
-    throw new Error("Refund event not found in transaction");
+    const onchain = await client.readContract({
+      address: escrow,
+      abi: partyEscrowAbi,
+      functionName: "rooms",
+      args: [roomKey],
+    });
+    if (onchain[1] !== ROOM_STATUS_ONCHAIN.Refunded) {
+      throw new Error("Refund event not found in transaction");
+    }
   }
 
   void params.expectedHost;
+}
+
+export async function verifyKickRefundTransaction(params: {
+  txHash: string;
+  roomKey: string;
+  expectedPlayer: string;
+}): Promise<{ poolAmount: bigint; feeAmount: bigint; total: bigint }> {
+  const client = getCompetitivePublicClient();
+  const escrow = getEscrowAddress();
+  const txHash = normalizeTxHash(params.txHash);
+  const roomKey = normalizeHex32(params.roomKey);
+
+  const receipt = await client.getTransactionReceipt({ hash: txHash });
+  if (receipt.status !== "success") {
+    throw new Error("Kick refund transaction failed");
+  }
+
+  for (const log of receipt.logs) {
+    if (!addressesEqual(log.address, escrow)) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: partyEscrowAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      if (decoded.eventName !== "KickRefunded") continue;
+      if (
+        (decoded.args.roomKey as string).toLowerCase() !== roomKey.toLowerCase()
+      ) {
+        throw new Error("Kick refund room key mismatch");
+      }
+      if (!addressesEqual(decoded.args.player as string, params.expectedPlayer)) {
+        throw new Error("Kick refund player mismatch");
+      }
+      return {
+        poolAmount: decoded.args.poolAmount as bigint,
+        feeAmount: decoded.args.feeAmount as bigint,
+        total: decoded.args.total as bigint,
+      };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("mismatch") ||
+          error.message.includes("Kick refund"))
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Kick refund event not found in transaction");
+}
+
+export async function verifyWithdrawTransaction(params: {
+  txHash: string;
+  roomKey: string;
+  expectedPlayer: string;
+}): Promise<{ poolAmount: bigint }> {
+  const client = getCompetitivePublicClient();
+  const escrow = getEscrowAddress();
+  const txHash = normalizeTxHash(params.txHash);
+  const roomKey = normalizeHex32(params.roomKey);
+
+  const receipt = await client.getTransactionReceipt({ hash: txHash });
+  if (receipt.status !== "success") {
+    throw new Error("Withdraw transaction failed");
+  }
+
+  for (const log of receipt.logs) {
+    if (!addressesEqual(log.address, escrow)) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: partyEscrowAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      if (decoded.eventName !== "Withdrawn") continue;
+      if (
+        (decoded.args.roomKey as string).toLowerCase() !== roomKey.toLowerCase()
+      ) {
+        throw new Error("Withdraw room key mismatch");
+      }
+      if (!addressesEqual(decoded.args.player as string, params.expectedPlayer)) {
+        throw new Error("Withdraw player mismatch");
+      }
+      return { poolAmount: decoded.args.poolAmount as bigint };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("mismatch") ||
+          error.message.includes("Withdraw"))
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Withdraw event not found in transaction");
 }
 
 function getOwnerAccount() {
@@ -263,7 +428,7 @@ export async function lockEscrowRoom(roomKey: string): Promise<Hash> {
 
   const hash = await wallet.writeContract({
     address: escrow,
-    abi: competitiveEscrowAbi,
+    abi: partyEscrowAbi,
     functionName: "lock",
     args: [key],
     chain,
@@ -295,7 +460,7 @@ export async function settleEscrowRoom(params: {
 
   const hash = await wallet.writeContract({
     address: escrow,
-    abi: competitiveEscrowAbi,
+    abi: partyEscrowAbi,
     functionName: "settle",
     args: [key, winner],
     chain,

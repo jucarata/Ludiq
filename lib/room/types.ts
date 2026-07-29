@@ -10,7 +10,11 @@ export type RoomPlayerView = {
   isSelf: boolean;
   isGuest: boolean;
   autoEnabled: boolean;
+  /** Legacy flag; party uses contributedPoolUsdt instead. */
   entryPaid: boolean;
+  contributedPoolUsdt: number;
+  /** Profile wallet (party kick/leave refunds). Null for guests. */
+  walletAddress: string | null;
 };
 
 export type RoomView = {
@@ -23,6 +27,6 @@ export type RoomView = {
   potAmountUsdt: number;
   potStatus: PotStatus;
   escrowRoomKey: string | null;
-  /** Competitive: trophies granted to the winner (1 × participant count). */
+  /** Party: trophies granted to the winner (1 × participant count). */
   trophiesAwarded: number | null;
 };

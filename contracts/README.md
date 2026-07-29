@@ -1,34 +1,46 @@
-# Ludiq Competitive Escrow
+# Party Escrow
 
-Escrow for competitive rooms on **Celo** (Mainnet or Sepolia).
+Escrow for **Party mode** rooms on **Celo** (Mainnet or Sepolia).
 
 ## Economics
 
-Each player pays **0.20 USDT**:
+Anyone may contribute any pool amount (min **0.01 USDT**) while the room is Open. Multiple contributions per wallet are allowed.
 
-| Share | Amount | Destination |
-|-------|--------|-------------|
-| Pool | 0.18 (90%) | Accumulates; paid to winner on `settle` |
-| Commission | 0.02 (10%) | Held in contract; owner `withdrawCommission` later |
+| Piece | Formula | Destination |
+|-------|---------|-------------|
+| Pool | User-chosen `X` | Accumulates; paid to winner on `settle` |
+| Fee | `min(X × 10%, $10)` | Held in contract; owner `withdrawCommission` later |
 
-Of weekly accrued commission, **40%** is reserved for the trophy leaderboard (1st 50% / 2nd 30% / 3rd 20% of that slice). Leaderboard payouts are app-side; this contract only holds commission.
+Examples: contribute $1 → pay $1.10; contribute $100 → pay $110 (fee capped at $10); contribute $200 → pay $210 (still $10 fee).
+
+| Action | Who pays gas | What is returned |
+|--------|--------------|------------------|
+| `withdrawContribution` (leave) | Leaving player | **Pool only**; fee stays |
+| `kickRefund` (host kick) | Host | **Pool + fee** (100%) |
+| `refund` (host closes room) | Host | Pool only to everyone; fee stays |
+| `fullRefund` (error / failed start) | Host | Pool + fee to everyone |
+
+Playing does **not** require contributing.
+
+Of weekly accrued commission, **40%** is reserved for the trophy leaderboard (app-side).
 
 ## Contract (source of truth)
 
-`src/CompetitiveEscrow.sol`
+`src/PartyEscrow.sol`
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
-| `ENTRY_FEE` | `200_000` | 0.20 USDC (6 decimals) |
-| `POOL_SHARE_PER_PLAYER` | `180_000` | 0.18 (90%) |
-| `COMMISSION_SHARE_PER_PLAYER` | `20_000` | 0.02 (10%) |
-| `MAX_PLAYERS` | `4` | Cap per room |
+| `FEE_BPS` | `1000` | 10% |
+| `FEE_CAP` | `10_000_000` | $10 USDT (6 decimals) |
+| `MIN_POOL_AMOUNT` | `10_000` | $0.01 USDT |
 
 Constructor args:
 
-1. `usdt_` — ERC-20 stake token (use **USDC** address; name is historical)
+1. `usdt_` — ERC-20 stake token (USDT)
 2. `commissionWallet_` — receives `withdrawCommission`
 3. `owner_` — backend that calls `lock` / `settle` / `withdrawCommission`
+
+Legacy `CompetitiveEscrow.sol` (fixed 0.20 entry) is superseded by PartyEscrow.
 
 ## Token addresses
 
@@ -39,76 +51,36 @@ Constructor args:
 
 ## Flow
 
-1. **Host** `approve`s USDC, then calls `deposit(roomKey)` with **0.20 USDC**.
-2. Lobby pool starts at **0.18 USDC**.
-3. **Joiners** `approve` + `joinDeposit(roomKey)` (**0.20** each). Pool grows by **0.18** per joiner.
-4. Host can start only when every lobby player has paid.
-5. On room close (before start): host `refund(roomKey)` → full **0.20** back to each depositor.
-6. On game start: backend `lock(roomKey)`.
-7. On win: backend `settle(roomKey, winner)` → pool to winner; commission stays in the contract.
-8. Later: owner `withdrawCommission(amount)` → commission wallet.
+1. Host creates a free lobby in the app, then enables Party mode → `open(roomKey)`
+2. Anyone calls `contribute(roomKey, poolAmount)` (approve USDT first)
+3. Optional leave → `withdrawContribution` (pool only); optional kick → host `kickRefund`
+4. Host starts game (payments optional) → backend `lock(roomKey)` if pot &gt; 0
+5. On win → backend `settle(roomKey, winner)`
 
-## Test
+## Deploy
 
 ```bash
-forge test --root contracts
+# Celo Sepolia
+forge script script/DeployPartyEscrow.s.sol:DeployPartyEscrow \
+  --rpc-url $CELO_SEPOLIA_RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY
+
+# Celo Mainnet
+STAKE_TOKEN=0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e \
+COMMISSION_WALLET=$COMMISSION_WALLET \
+ESCROW_OWNER=$ESCROW_OWNER \
+forge script script/DeployPartyEscrow.s.sol:DeployPartyEscrow \
+  --rpc-url https://forno.celo.org --broadcast --private-key $DEPLOYER_PRIVATE_KEY
 ```
 
-## Deploy — Celo Mainnet (Proof of Ship)
+Env: `COMMISSION_WALLET`, optional `ESCROW_OWNER`, optional `STAKE_TOKEN`.
 
-Constants are immutable — after changing pool/commission shares, **redeploy** and update `NEXT_PUBLIC_ESCROW_ADDRESS`.
+After deploy, set `NEXT_PUBLIC_ESCROW_ADDRESS` to the new PartyEscrow address.
 
-```bash
-# From repo root (or cd contracts)
-export STAKE_TOKEN=0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e
-export COMMISSION_WALLET=0xYourCommissionWallet
-export ESCROW_OWNER=0xYourBackendOwnerWallet   # optional; defaults to deployer
-export DEPLOYER_PRIVATE_KEY=0x...
+## Current Mainnet deployment
 
-forge script script/DeployCompetitiveEscrow.s.sol:DeployCompetitiveEscrow \
-    --rpc-url https://forno.celo.org \
-    --broadcast \
-    --private-key $DEPLOYER_PRIVATE_KEY \
-    --root contracts
-```
-
-Then verify on Celoscan (replace ADDRESS):
-
-```bash
-forge verify-contract ADDRESS \
-    src/CompetitiveEscrow.sol:CompetitiveEscrow \
-    --chain-id 42220 \
-    --watch \
-    --constructor-args $(cast abi-encode "constructor(address,address,address)" \
-      0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e \
-      $COMMISSION_WALLET \
-      $ESCROW_OWNER) \
-    --root contracts
-```
-
-App env after deploy:
-
-```
-NEXT_PUBLIC_CELO_CHAIN=mainnet
-NEXT_PUBLIC_CELO_RPC_URL=https://forno.celo.org
-CELO_RPC_URL=https://forno.celo.org
-NEXT_PUBLIC_ESCROW_ADDRESS=0xDeployedAddress
-NEXT_PUBLIC_COMMISSION_WALLET=0xYourCommissionWallet
-ESCROW_OWNER_PRIVATE_KEY=0x...   # must match ESCROW_OWNER
-```
-
-## Deploy — Celo Sepolia
-
-```bash
-export CELO_SEPOLIA_RPC_URL=https://forno.celo-sepolia.celo-testnet.org
-export COMMISSION_WALLET=0xYourCommissionWallet
-export ESCROW_OWNER=0xYourBackendOwnerWallet
-export DEPLOYER_PRIVATE_KEY=0x...
-# STAKE_TOKEN defaults to Sepolia USDC
-
-forge script script/DeployCompetitiveEscrow.s.sol:DeployCompetitiveEscrow \
-    --rpc-url $CELO_SEPOLIA_RPC_URL \
-    --broadcast \
-    --private-key $DEPLOYER_PRIVATE_KEY \
-    --root contracts
-```
+| Field | Value |
+|-------|-------|
+| PartyEscrow | `0x5831BA4ca0BA0f21CF4BDdb62E191144Ebd4C6fe` |
+| Owner | `0xE5E783dF136E3325E48f5FE1d02a3a77Fc701238` |
+| Commission | `0xBFa6a995aCf4E26783502e49611689b043B3F991` |
+| USDT | `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e` |

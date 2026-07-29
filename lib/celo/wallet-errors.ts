@@ -50,6 +50,18 @@ export function formatCompetitiveTxError(error: unknown): string {
   }
 
   if (
+    lower.includes("partyescrow is not deployed") ||
+    lower.includes("next_public_escrow_address") ||
+    lower.includes("old competitive") ||
+    (lower.includes("on-chain transaction reverted") &&
+      lower.includes("party"))
+  ) {
+    return raw.length < 280
+      ? raw
+      : "Deploy PartyEscrow and set NEXT_PUBLIC_ESCROW_ADDRESS, then restart the app.";
+  }
+
+  if (
     lower.includes("next_public_escrow_address") ||
     lower.includes("escrow address")
   ) {
@@ -68,9 +80,9 @@ export function formatCompetitiveTxError(error: unknown): string {
     return "Entry fee already paid on-chain. Tap Confirm again to sync the lobby.";
   }
 
-  if (raw.length > 0 && raw.length < 160 && !lower.includes("internal")) {
+  if (raw.length > 0 && raw.length < 280 && !lower.includes("internal")) {
     return raw;
   }
 
-  return `Could not deposit entry fee. Check USDT and network fees on ${network}.`;
+  return `Could not complete the transaction. Check network fees on ${network}.`;
 }

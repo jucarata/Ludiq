@@ -11,8 +11,6 @@ type CreateRoomBody = {
   mode?: string;
   guestSessionId?: string;
   guestName?: string;
-  escrowRoomKey?: string;
-  depositTxHash?: string;
 };
 
 export async function POST(request: Request) {
@@ -34,15 +32,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const competitiveDeposit =
-      mode === "competitive" && body.escrowRoomKey && body.depositTxHash
-        ? {
-            escrowRoomKey: body.escrowRoomKey,
-            depositTxHash: body.depositTxHash,
-          }
-        : undefined;
-
-    const room = await createRoomWithHost(identity, mode, competitiveDeposit);
+    // Rooms always start as free; party escrow is enabled via enablePartyMode.
+    const room = await createRoomWithHost(identity, mode);
     return NextResponse.json({ room }, { status: 201 });
   } catch (error) {
     if (error instanceof Response) return error;

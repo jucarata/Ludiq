@@ -5,7 +5,7 @@ type PlayPageProps = {
   params: Promise<{ code: string }>;
 };
 
-export default async function MultiplayerPlayPage({ params }: PlayPageProps) {
+export default async function FriendsPlayPage({ params }: PlayPageProps) {
   const { code } = await params;
 
   return (

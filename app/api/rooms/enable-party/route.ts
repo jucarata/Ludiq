@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { getOptionalPrivyUserId } from "@/lib/privy/request-auth";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/room/code";
 import { parseRoomMode } from "@/lib/room/mode";
-import { kickPlayer, resolveRoomIdentity } from "@/lib/room/service";
+import { enablePartyMode, resolveRoomIdentity } from "@/lib/room/service";
 
-type KickBody = {
+type EnablePartyBody = {
   code?: string;
   mode?: string;
-  targetPlayerId?: string;
-  kickRefundTxHash?: string;
+  escrowRoomKey?: string;
+  openTxHash?: string;
   guestSessionId?: string;
   guestName?: string;
 };
@@ -16,10 +16,9 @@ type KickBody = {
 export async function POST(request: Request) {
   try {
     const privyUserId = await getOptionalPrivyUserId(request);
-    const body = (await request.json()) as KickBody;
+    const body = (await request.json()) as EnablePartyBody;
     const code = normalizeRoomCode(body.code ?? "");
     const mode = parseRoomMode(body.mode);
-    const targetPlayerId = body.targetPlayerId?.trim() ?? "";
 
     if (!isValidRoomCode(code)) {
       return NextResponse.json(
@@ -27,10 +26,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-
-    if (!targetPlayerId) {
+    if (!body.escrowRoomKey || !body.openTxHash) {
       return NextResponse.json(
-        { error: "Player id is required" },
+        { error: "escrowRoomKey and openTxHash are required" },
         { status: 400 },
       );
     }
@@ -41,20 +39,21 @@ export async function POST(request: Request) {
       guestName: body.guestName,
     });
 
-    if (!identity) {
+    if (!identity || identity.kind !== "profile") {
       return NextResponse.json(
-        { error: "Guest session is required" },
-        { status: 400 },
+        { error: "Authentication is required to enable Party mode" },
+        { status: 401 },
       );
     }
 
-    const room = await kickPlayer({
+    const room = await enablePartyMode({
       code,
-      targetPlayerId,
       identity,
       mode,
-      kickRefundTxHash: body.kickRefundTxHash,
+      escrowRoomKey: body.escrowRoomKey,
+      openTxHash: body.openTxHash,
     });
+
     return NextResponse.json({ room });
   } catch (error) {
     if (error instanceof Response) return error;

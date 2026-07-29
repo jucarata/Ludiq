@@ -40,7 +40,7 @@ const GAME_MODES: GameMode[] = [
     id: "friends",
     titleKey: "home.friends",
     subtitleKey: "home.friendsSubtitle",
-    href: "/multiplayer",
+    href: "/friends",
     accent: "#2ECC71",
   },
   {

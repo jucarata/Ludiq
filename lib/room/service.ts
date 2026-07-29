@@ -1,15 +1,17 @@
+import { formatUnits, parseUnits } from "viem";
 import type { PlayerColor } from "@/lib/board/types";
-import { POOL_SHARE_USDT } from "@/lib/celo/constants";
+import { COMPETITIVE_TOKEN, isPotOpenStatus } from "@/lib/celo/constants";
 import { generateRoomCode } from "@/lib/room/code";
 import { firstAvailableColor } from "@/lib/room/colors";
 import type { RoomMode } from "@/lib/room/mode";
-import { DEFAULT_ROOM_MODE } from "@/lib/room/mode";
+import {
+  DEFAULT_ROOM_MODE,
+  isPartyMode,
+  parseRoomMode,
+} from "@/lib/room/mode";
 import type { RoomPlayerView, RoomView } from "@/lib/room/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
-
-/** Off-chain pot tracker: matches on-chain POOL_SHARE_PER_PLAYER. */
-const POOL_SHARE_PER_PLAYER = Number(POOL_SHARE_USDT);
 
 type RoomRow = Database["public"]["Tables"]["game_rooms"]["Row"];
 type PlayerRow = Database["public"]["Tables"]["game_room_players"]["Row"];
@@ -17,11 +19,16 @@ type PlayerInsert = Database["public"]["Tables"]["game_room_players"]["Insert"];
 
 type PlayerWithUsername = PlayerRow & {
   username: string;
+  walletAddress: string | null;
 };
 
 export type RoomIdentity =
   | { kind: "profile"; profileId: string; username: string }
   | { kind: "guest"; guestSessionId: string; guestName: string };
+
+function toViewMode(mode: RoomRow["mode"] | string): RoomMode {
+  return parseRoomMode(mode);
+}
 
 async function allocateUniqueRoomCode(mode: RoomMode): Promise<string> {
   const supabase = getSupabaseAdminClient();
@@ -42,7 +49,7 @@ async function allocateUniqueRoomCode(mode: RoomMode): Promise<string> {
   throw new Error("Could not allocate a unique room code");
 }
 
-/** Active room with this code+mode, if any (only one allowed at a time). */
+/** Active room with this code+mode, if any; otherwise any active room with the code. */
 async function findActiveRoomByCode(
   code: string,
   mode: RoomMode,
@@ -59,12 +66,24 @@ async function findActiveRoomByCode(
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data;
+  if (data) return data;
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("game_rooms")
+    .select("*")
+    .eq("code", normalized)
+    .in("status", ["waiting", "playing"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (fallbackError) throw new Error(fallbackError.message);
+  return fallback;
 }
 
 /**
- * Prefer the active room for a code+mode; otherwise the most recently finished one
- * (so lobby realtime can detect close when status becomes finished).
+ * Prefer the active room for a code+mode (with any-mode fallback);
+ * otherwise the most recently finished one for that mode, then any finished.
  */
 async function findRoomRowByCode(
   code: string,
@@ -87,7 +106,19 @@ async function findRoomRowByCode(
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data;
+  if (data) return data;
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("game_rooms")
+    .select("*")
+    .eq("code", normalized)
+    .eq("status", "finished")
+    .order("finished_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (fallbackError) throw new Error(fallbackError.message);
+  return fallback;
 }
 
 function isSelfPlayer(
@@ -111,24 +142,29 @@ export function toRoomView(
       new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime(),
   );
 
-  const playerViews: RoomPlayerView[] = ordered.map((player) => ({
-    id: player.id,
-    color: player.color,
-    username: player.username,
-    isHost:
-      room.host_id != null
-        ? player.user_id === room.host_id
-        : ordered[0]?.id === player.id,
-    isSelf: isSelfPlayer(player, identity),
-    isGuest: player.user_id == null,
-    autoEnabled: player.auto_enabled === true,
-    entryPaid: player.entry_paid === true,
-  }));
+  const playerViews: RoomPlayerView[] = ordered.map((player) => {
+    const contributedPoolUsdt = Number(player.contributed_pool_usdt ?? 0);
+    return {
+      id: player.id,
+      color: player.color,
+      username: player.username,
+      isHost:
+        room.host_id != null
+          ? player.user_id === room.host_id
+          : ordered[0]?.id === player.id,
+      isSelf: isSelfPlayer(player, identity),
+      isGuest: player.user_id == null,
+      autoEnabled: player.auto_enabled === true,
+      entryPaid: contributedPoolUsdt > 0 || player.entry_paid === true,
+      contributedPoolUsdt,
+      walletAddress: player.walletAddress,
+    };
+  });
 
   return {
     id: room.id,
     code: room.code,
-    mode: room.mode,
+    mode: toViewMode(room.mode),
     status: room.status,
     hostId: room.host_id,
     players: playerViews,
@@ -162,10 +198,11 @@ async function fetchRoomPlayers(
   ];
 
   const usernameByUserId = new Map<string, string>();
+  const walletByUserId = new Map<string, string>();
   if (userIds.length > 0) {
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username, display_name")
+      .select("id, username, display_name, wallet_address")
       .in("id", userIds);
 
     if (profileError) throw new Error(profileError.message);
@@ -175,6 +212,9 @@ async function fetchRoomPlayers(
         profile.id,
         profile.username ?? profile.display_name ?? "PLAYER",
       );
+      if (profile.wallet_address) {
+        walletByUserId.set(profile.id, profile.wallet_address.toLowerCase());
+      }
     }
   }
 
@@ -184,6 +224,9 @@ async function fetchRoomPlayers(
       player.guest_name ??
       (player.user_id ? usernameByUserId.get(player.user_id) : null) ??
       "PLAYER",
+    walletAddress: player.user_id
+      ? (walletByUserId.get(player.user_id) ?? null)
+      : null,
   }));
 }
 
@@ -199,103 +242,24 @@ export async function getRoomByCode(
   return toRoomView(room, players, identity);
 }
 
+/**
+ * Always creates a free-mode lobby. Party escrow is enabled later via enablePartyMode.
+ * Optional third arg kept for call-site compatibility (ignored).
+ */
 export async function createRoomWithHost(
   identity: RoomIdentity,
-  mode: RoomMode = DEFAULT_ROOM_MODE,
-  competitiveDeposit?: {
+  _mode: RoomMode = DEFAULT_ROOM_MODE,
+  _competitiveDeposit?: {
     escrowRoomKey: string;
     depositTxHash: string;
   },
 ): Promise<RoomView> {
-  if (mode === "competitive" && identity.kind !== "profile") {
-    throw new Response(
-      JSON.stringify({ error: "Competitive mode requires authentication" }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
   const supabase = getSupabaseAdminClient();
+  const mode: RoomMode = "free";
   const code = await allocateUniqueRoomCode(mode);
   const color = firstAvailableColor([]) ?? "red";
 
   const hostId = identity.kind === "profile" ? identity.profileId : null;
-
-  let competitiveInsert: {
-    escrow_room_key: string;
-    pot_amount_usdt: number;
-    pot_status: "funded";
-    deposit_tx_hash: string;
-  } | null = null;
-
-  if (mode === "competitive") {
-    if (identity.kind !== "profile") {
-      throw new Response(
-        JSON.stringify({ error: "Competitive mode requires authentication" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-    if (
-      !competitiveDeposit?.escrowRoomKey ||
-      !competitiveDeposit.depositTxHash
-    ) {
-      throw new Response(
-        JSON.stringify({
-          error: "Competitive rooms require an on-chain deposit",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("wallet_address")
-      .eq("id", identity.profileId)
-      .maybeSingle();
-
-    if (profileError) throw new Error(profileError.message);
-    if (!profile?.wallet_address) {
-      throw new Response(
-        JSON.stringify({ error: "Profile wallet is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const { verifyDepositTransaction } = await import("@/lib/celo/competitive");
-    try {
-      await verifyDepositTransaction({
-        txHash: competitiveDeposit.depositTxHash,
-        roomKey: competitiveDeposit.escrowRoomKey,
-        expectedPlayer: profile.wallet_address,
-        requireHost: true,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Invalid deposit transaction";
-      throw new Response(JSON.stringify({ error: message }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    competitiveInsert = {
-      escrow_room_key: competitiveDeposit.escrowRoomKey.toLowerCase(),
-      pot_amount_usdt: POOL_SHARE_PER_PLAYER,
-      pot_status: "funded",
-      deposit_tx_hash: competitiveDeposit.depositTxHash.toLowerCase(),
-    };
-  }
 
   const { data: room, error: roomError } = await supabase
     .from("game_rooms")
@@ -304,7 +268,6 @@ export async function createRoomWithHost(
       mode,
       host_id: hostId,
       status: "waiting",
-      ...(competitiveInsert ?? {}),
     })
     .select("*")
     .single();
@@ -321,12 +284,6 @@ export async function createRoomWithHost(
           color,
           is_ready: false,
           is_bot: false,
-          ...(mode === "competitive" && competitiveInsert
-            ? {
-                entry_paid: true,
-                entry_tx_hash: competitiveInsert.deposit_tx_hash,
-              }
-            : {}),
         }
       : {
           room_id: room.id,
@@ -357,39 +314,21 @@ export async function joinRoom(params: {
   mode?: RoomMode;
 }): Promise<RoomView> {
   const mode = params.mode ?? DEFAULT_ROOM_MODE;
-
-  if (mode === "competitive" && params.identity.kind !== "profile") {
-    throw new Response(
-      JSON.stringify({ error: "Competitive mode requires authentication" }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
   const supabase = getSupabaseAdminClient();
   const normalized = params.code.trim().toUpperCase();
 
-  const { data: roomRow, error: roomError } = await supabase
-    .from("game_rooms")
-    .select("*")
-    .eq("code", normalized)
-    .eq("mode", mode)
-    .eq("status", "waiting")
-    .maybeSingle();
+  const roomRow = await findActiveRoomByCode(normalized, mode);
 
-  if (roomError) throw new Error(roomError.message);
   if (!roomRow) {
-    const active = await findActiveRoomByCode(normalized, mode);
-    if (active) {
-      throw new Response(JSON.stringify({ error: "Room is not waiting" }), {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
     throw new Response(JSON.stringify({ error: "Room not found" }), {
       status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (roomRow.status !== "waiting") {
+    throw new Response(JSON.stringify({ error: "Room is not waiting" }), {
+      status: 409,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -531,6 +470,7 @@ export async function kickPlayer(params: {
   targetPlayerId: string;
   identity: RoomIdentity;
   mode?: RoomMode;
+  kickRefundTxHash?: string | null;
 }): Promise<RoomView> {
   const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
@@ -574,23 +514,66 @@ export async function kickPlayer(params: {
     });
   }
 
-  if (roomRow.mode === "competitive" && target.entry_paid) {
-    throw new Response(
-      JSON.stringify({
-        error: "Cannot remove a player who already confirmed payment",
-      }),
-      {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
   if (target.user_id == null && !target.guest_session_id) {
     throw new Response(JSON.stringify({ error: "Player not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  const contributedPoolUsdt = Number(target.contributed_pool_usdt ?? 0);
+  let potAmountUsdt = Number(roomRow.pot_amount_usdt ?? 0);
+
+  if (
+    isPartyMode(roomRow.mode) &&
+    isPotOpenStatus(roomRow.pot_status) &&
+    roomRow.escrow_room_key &&
+    contributedPoolUsdt > 0
+  ) {
+    if (!params.kickRefundTxHash) {
+      throw new Response(
+        JSON.stringify({
+          error: "Kick refund transaction is required for contributors",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    if (!target.walletAddress) {
+      throw new Response(
+        JSON.stringify({ error: "Contributor wallet is required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const { verifyKickRefundTransaction } = await import(
+      "@/lib/celo/competitive"
+    );
+    try {
+      const kicked = await verifyKickRefundTransaction({
+        txHash: params.kickRefundTxHash,
+        roomKey: roomRow.escrow_room_key,
+        expectedPlayer: target.walletAddress,
+      });
+      const refundedPool = Number(
+        formatUnits(kicked.poolAmount, COMPETITIVE_TOKEN.decimals),
+      );
+      potAmountUsdt = Math.max(0, potAmountUsdt - refundedPool);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid kick refund transaction";
+      throw new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 
   const banInsert =
@@ -629,30 +612,32 @@ export async function kickPlayer(params: {
 
   if (deleteError) throw new Error(deleteError.message);
 
+  if (potAmountUsdt !== Number(roomRow.pot_amount_usdt ?? 0)) {
+    const { error: potError } = await supabase
+      .from("game_rooms")
+      .update({ pot_amount_usdt: potAmountUsdt })
+      .eq("id", roomRow.id);
+    if (potError) throw new Error(potError.message);
+    roomRow.pot_amount_usdt = potAmountUsdt;
+  }
+
   const updatedPlayers = await fetchRoomPlayers(roomRow.id);
   return toRoomView(roomRow, updatedPlayers, params.identity);
 }
 
-async function applyCompetitiveRefundIfNeeded(params: {
+async function applyPartyRefundIfNeeded(params: {
   room: RoomRow;
   identity: RoomIdentity;
   refundTxHash?: string | null;
 }): Promise<{ pot_status?: "refunded"; refund_tx_hash?: string }> {
-  if (params.room.mode !== "competitive") return {};
-  if (params.room.pot_status !== "funded") return {};
-  if (!params.room.escrow_room_key) {
-    throw new Response(
-      JSON.stringify({ error: "Competitive room is missing escrow key" }),
-      {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+  if (!isPartyMode(params.room.mode)) return {};
+  if (!isPotOpenStatus(params.room.pot_status)) return {};
+  if (!params.room.escrow_room_key) return {};
+
   if (!params.refundTxHash) {
     throw new Response(
       JSON.stringify({
-        error: "Refund transaction is required to close a funded competitive room",
+        error: "Refund transaction is required to close an open party room",
       }),
       {
         status: 400,
@@ -663,7 +648,7 @@ async function applyCompetitiveRefundIfNeeded(params: {
 
   if (params.identity.kind !== "profile") {
     throw new Response(
-      JSON.stringify({ error: "Competitive mode requires authentication" }),
+      JSON.stringify({ error: "Party mode requires authentication" }),
       {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -738,7 +723,7 @@ export async function closeRoom(params: {
     });
   }
 
-  const refundFields = await applyCompetitiveRefundIfNeeded({
+  const refundFields = await applyPartyRefundIfNeeded({
     room: roomRow,
     identity: params.identity,
     refundTxHash: params.refundTxHash,
@@ -762,6 +747,7 @@ export async function leaveRoom(params: {
   identity: RoomIdentity;
   mode?: RoomMode;
   refundTxHash?: string | null;
+  withdrawTxHash?: string | null;
 }): Promise<{ closed: boolean }> {
   const mode = params.mode ?? DEFAULT_ROOM_MODE;
   const supabase = getSupabaseAdminClient();
@@ -770,10 +756,10 @@ export async function leaveRoom(params: {
   if (!roomRow) {
     const finished = await findRoomRowByCode(params.code, mode);
     if (finished?.status === "finished") {
-      // Competitive cancel (lock failed): host can still refund a funded pot.
+      // Party cancel (lock failed): host can still refund an open pot.
       if (
-        finished.mode === "competitive" &&
-        finished.pot_status === "funded" &&
+        isPartyMode(finished.mode) &&
+        isPotOpenStatus(finished.pot_status) &&
         params.refundTxHash &&
         isRoomHost(
           finished,
@@ -781,7 +767,7 @@ export async function leaveRoom(params: {
           params.identity,
         )
       ) {
-        const refundFields = await applyCompetitiveRefundIfNeeded({
+        const refundFields = await applyPartyRefundIfNeeded({
           room: finished,
           identity: params.identity,
           refundTxHash: params.refundTxHash,
@@ -814,6 +800,69 @@ export async function leaveRoom(params: {
   if (isRoomHost(roomRow, players, params.identity)) {
     await closeRoom({ ...params, mode });
     return { closed: true };
+  }
+
+  const contributedPoolUsdt = Number(self.contributed_pool_usdt ?? 0);
+  if (
+    isPartyMode(roomRow.mode) &&
+    isPotOpenStatus(roomRow.pot_status) &&
+    roomRow.escrow_room_key &&
+    contributedPoolUsdt > 0
+  ) {
+    if (!params.withdrawTxHash) {
+      throw new Response(
+        JSON.stringify({
+          error: "Withdraw transaction is required to leave after contributing",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    if (params.identity.kind !== "profile" || !self.walletAddress) {
+      throw new Response(
+        JSON.stringify({ error: "Profile wallet is required to withdraw" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const { verifyWithdrawTransaction } = await import(
+      "@/lib/celo/competitive"
+    );
+    let withdrawnPool: number;
+    try {
+      const withdrawn = await verifyWithdrawTransaction({
+        txHash: params.withdrawTxHash,
+        roomKey: roomRow.escrow_room_key,
+        expectedPlayer: self.walletAddress,
+      });
+      withdrawnPool = Number(
+        formatUnits(withdrawn.poolAmount, COMPETITIVE_TOKEN.decimals),
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid withdraw transaction";
+      throw new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const nextPot = Math.max(
+      0,
+      Number(roomRow.pot_amount_usdt ?? 0) - withdrawnPool,
+    );
+    const { error: potError } = await supabase
+      .from("game_rooms")
+      .update({ pot_amount_usdt: nextPot })
+      .eq("id", roomRow.id);
+    if (potError) throw new Error(potError.message);
   }
 
   const { error: deleteError } = await supabase
@@ -972,27 +1021,19 @@ export async function setPlayerAutoEnabled(params: {
   return toRoomView(roomRow, players, params.identity);
 }
 
-/** Joiner confirms on-chain entry fee for a competitive lobby. */
-export async function confirmCompetitiveEntry(params: {
+/** Host opens on-chain escrow and upgrades a free lobby to party mode. */
+export async function enablePartyMode(params: {
   code: string;
   identity: RoomIdentity;
   mode?: RoomMode;
-  /** Optional when the wallet already paid on-chain (retry / sync). */
-  entryTxHash?: string;
+  escrowRoomKey: string;
+  openTxHash: string;
 }): Promise<RoomView> {
-  const mode = params.mode ?? DEFAULT_ROOM_MODE;
-  if (mode !== "competitive") {
-    throw new Response(
-      JSON.stringify({ error: "Only competitive rooms require entry payment" }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+  const lookupMode = params.mode ?? DEFAULT_ROOM_MODE;
+
   if (params.identity.kind !== "profile") {
     throw new Response(
-      JSON.stringify({ error: "Competitive mode requires authentication" }),
+      JSON.stringify({ error: "Party mode requires authentication" }),
       {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -1001,7 +1042,8 @@ export async function confirmCompetitiveEntry(params: {
   }
 
   const supabase = getSupabaseAdminClient();
-  const roomRow = await findActiveRoomByCode(params.code, mode);
+  const roomRow = await findActiveRoomByCode(params.code, lookupMode);
+
   if (!roomRow || roomRow.status !== "waiting") {
     throw new Response(
       JSON.stringify({
@@ -1013,9 +1055,10 @@ export async function confirmCompetitiveEntry(params: {
       },
     );
   }
-  if (roomRow.pot_status !== "funded" || !roomRow.escrow_room_key) {
+
+  if (isPartyMode(roomRow.mode)) {
     throw new Response(
-      JSON.stringify({ error: "Competitive room pot is not open" }),
+      JSON.stringify({ error: "Room is already in party mode" }),
       {
         status: 409,
         headers: { "Content-Type": "application/json" },
@@ -1024,23 +1067,11 @@ export async function confirmCompetitiveEntry(params: {
   }
 
   const players = await fetchRoomPlayers(roomRow.id);
-  const self = players.find((player) =>
-    isSelfPlayer(player, params.identity),
-  );
-  if (!self) {
-    throw new Response(JSON.stringify({ error: "You are not in this room" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (self.entry_paid) {
-    return toRoomView(roomRow, players, params.identity);
-  }
-  if (isRoomHost(roomRow, players, params.identity)) {
+  if (!isRoomHost(roomRow, players, params.identity)) {
     throw new Response(
-      JSON.stringify({ error: "Host already paid when creating the room" }),
+      JSON.stringify({ error: "Only the host can enable party mode" }),
       {
-        status: 400,
+        status: 403,
         headers: { "Content-Type": "application/json" },
       },
     );
@@ -1063,47 +1094,135 @@ export async function confirmCompetitiveEntry(params: {
     );
   }
 
-  const {
-    hasPlayerPaidEntry,
-    verifyDepositTransaction,
-  } = await import("@/lib/celo/competitive");
-
-  let verifiedTxHash: string | null =
-    params.entryTxHash?.trim().toLowerCase() || null;
-
-  if (verifiedTxHash) {
-    try {
-      await verifyDepositTransaction({
-        txHash: verifiedTxHash,
-        roomKey: roomRow.escrow_room_key,
-        expectedPlayer: profile.wallet_address,
-      });
-    } catch (error) {
-      // Payment may already be on-chain from a prior attempt whose
-      // confirmation failed — accept that as proof instead of failing hard.
-      const paidOnChain = await hasPlayerPaidEntry({
-        roomKey: roomRow.escrow_room_key,
-        player: profile.wallet_address,
-      });
-      if (!paidOnChain) {
-        const message =
-          error instanceof Error ? error.message : "Invalid deposit transaction";
-        throw new Response(JSON.stringify({ error: message }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-  } else {
-    const paidOnChain = await hasPlayerPaidEntry({
-      roomKey: roomRow.escrow_room_key,
-      player: profile.wallet_address,
+  const { verifyOpenTransaction } = await import("@/lib/celo/competitive");
+  try {
+    await verifyOpenTransaction({
+      txHash: params.openTxHash,
+      roomKey: params.escrowRoomKey,
+      expectedHost: profile.wallet_address,
     });
-    if (!paidOnChain) {
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Invalid open transaction";
+    throw new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: updatedRoom, error: updateError } = await supabase
+    .from("game_rooms")
+    .update({
+      mode: "party",
+      escrow_room_key: params.escrowRoomKey.toLowerCase(),
+      open_tx_hash: params.openTxHash.toLowerCase(),
+      pot_status: "open",
+      pot_amount_usdt: 0,
+    })
+    .eq("id", roomRow.id)
+    .select("*")
+    .single();
+
+  if (updateError || !updatedRoom) {
+    throw new Error(updateError?.message ?? "Failed to enable party mode");
+  }
+
+  return toRoomView(updatedRoom, players, params.identity);
+}
+
+/** Player records an on-chain party contribution against an open pot. */
+export async function recordPartyContribution(params: {
+  code: string;
+  identity: RoomIdentity;
+  mode?: RoomMode;
+  contributeTxHash: string;
+  poolAmountUsdt?: string;
+}): Promise<RoomView> {
+  const mode = params.mode ?? "party";
+
+  if (params.identity.kind !== "profile") {
+    throw new Response(
+      JSON.stringify({ error: "Party mode requires authentication" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const roomRow = await findActiveRoomByCode(params.code, mode);
+
+  if (!roomRow || roomRow.status !== "waiting") {
+    throw new Response(
+      JSON.stringify({
+        error: roomRow ? "Room is not waiting" : "Room not found",
+      }),
+      {
+        status: roomRow ? 409 : 404,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (!isPartyMode(roomRow.mode)) {
+    throw new Response(
+      JSON.stringify({ error: "Room is not in party mode" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (!isPotOpenStatus(roomRow.pot_status) || !roomRow.escrow_room_key) {
+    throw new Response(
+      JSON.stringify({ error: "Party pot is not open" }),
+      {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const players = await fetchRoomPlayers(roomRow.id);
+  const self = players.find((player) =>
+    isSelfPlayer(player, params.identity),
+  );
+  if (!self) {
+    throw new Response(JSON.stringify({ error: "You are not in this room" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("wallet_address")
+    .eq("id", params.identity.profileId)
+    .maybeSingle();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profile?.wallet_address) {
+    throw new Response(
+      JSON.stringify({ error: "Profile wallet is required" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  let expectedPoolAmount: bigint | undefined;
+  if (params.poolAmountUsdt != null && params.poolAmountUsdt.trim() !== "") {
+    try {
+      expectedPoolAmount = parseUnits(
+        params.poolAmountUsdt.trim(),
+        COMPETITIVE_TOKEN.decimals,
+      );
+    } catch {
       throw new Response(
-        JSON.stringify({
-          error: "Entry transaction hash is required",
-        }),
+        JSON.stringify({ error: "Invalid pool amount" }),
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -1112,22 +1231,73 @@ export async function confirmCompetitiveEntry(params: {
     }
   }
 
+  const { verifyContributeTransaction } = await import("@/lib/celo/competitive");
+  let contributed: Awaited<ReturnType<typeof verifyContributeTransaction>>;
+  try {
+    contributed = await verifyContributeTransaction({
+      txHash: params.contributeTxHash,
+      roomKey: roomRow.escrow_room_key,
+      expectedPlayer: profile.wallet_address,
+      expectedPoolAmount,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Invalid contribute transaction";
+    throw new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const poolAmountUsdt = Number(
+    formatUnits(contributed.poolAmount, COMPETITIVE_TOKEN.decimals),
+  );
+  const feeAmountUsdt = Number(
+    formatUnits(contributed.feeAmount, COMPETITIVE_TOKEN.decimals),
+  );
+  const txHash = params.contributeTxHash.toLowerCase();
+
+  const { error: contributionError } = await supabase
+    .from("game_room_contributions")
+    .insert({
+      room_id: roomRow.id,
+      player_id: self.id,
+      wallet_address: profile.wallet_address.toLowerCase(),
+      pool_amount_usdt: poolAmountUsdt,
+      fee_amount_usdt: feeAmountUsdt,
+      tx_hash: txHash,
+    });
+
+  if (contributionError) {
+    if (contributionError.code === "23505") {
+      // Idempotent retry: contribution already recorded
+      const existingRoom = await findActiveRoomByCode(params.code, mode);
+      if (existingRoom) {
+        const existingPlayers = await fetchRoomPlayers(existingRoom.id);
+        return toRoomView(existingRoom, existingPlayers, params.identity);
+      }
+    }
+    throw new Error(contributionError.message);
+  }
+
   const { error: playerError } = await supabase
     .from("game_room_players")
     .update({
+      contributed_pool_usdt:
+        Number(self.contributed_pool_usdt ?? 0) + poolAmountUsdt,
       entry_paid: true,
-      ...(verifiedTxHash ? { entry_tx_hash: verifiedTxHash } : {}),
+      entry_tx_hash: txHash,
     })
-    .eq("id", self.id)
-    .eq("entry_paid", false);
+    .eq("id", self.id);
 
   if (playerError) throw new Error(playerError.message);
 
   const { error: potError } = await supabase
     .from("game_rooms")
     .update({
-      pot_amount_usdt:
-        Number(roomRow.pot_amount_usdt ?? 0) + POOL_SHARE_PER_PLAYER,
+      pot_amount_usdt: Number(roomRow.pot_amount_usdt ?? 0) + poolAmountUsdt,
     })
     .eq("id", roomRow.id);
 

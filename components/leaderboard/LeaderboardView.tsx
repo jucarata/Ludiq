@@ -189,17 +189,9 @@ function YourRankCard({
           ) : null}
         </>
       ) : (
-        <>
-          <p className="text-sm text-[#173532]">
-            {t("leaderboard.notRankedYet")}
-          </p>
-          <Link
-            href="/multiplayer?mode=competitive"
-            className={`${retroPlayButtonClassName} mt-1 w-full min-w-0`}
-          >
-            {t("leaderboard.playCompetitiveCta")}
-          </Link>
-        </>
+        <p className="text-sm text-[#173532]">
+          {t("leaderboard.notRankedYet")}
+        </p>
       )}
     </section>
   );

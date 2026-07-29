@@ -77,7 +77,7 @@ async function loadWeeklyCommissionUsdc(
   const { data: rooms, error: roomsError } = await supabase
     .from("game_rooms")
     .select("id")
-    .eq("mode", "competitive")
+    .in("mode", ["party", "competitive"])
     .eq("status", "finished")
     .gte("finished_at", weekStart.toISOString())
     .lt("finished_at", weekEnd.toISOString());
@@ -86,23 +86,41 @@ async function loadWeeklyCommissionUsdc(
   if (!rooms?.length) return 0;
 
   const roomIds = rooms.map((room) => room.id);
-  const { data: players, error: playersError } = await supabase
-    .from("game_room_players")
-    .select("room_id, entry_paid")
-    .in("room_id", roomIds)
-    .eq("entry_paid", true);
 
-  if (playersError) throw new Error(playersError.message);
+  const { data: contributions, error: contribError } = await supabase
+    .from("game_room_contributions")
+    .select("room_id, fee_amount_usdt")
+    .in("room_id", roomIds);
 
-  const paidByRoom = new Map<string, number>();
-  for (const player of players ?? []) {
-    paidByRoom.set(player.room_id, (paidByRoom.get(player.room_id) ?? 0) + 1);
-  }
+  if (contribError) throw new Error(contribError.message);
 
   let total = 0;
-  for (const count of paidByRoom.values()) {
-    total += commissionFromPaidPlayers(count);
+  const roomsWithContrib = new Set<string>();
+  for (const row of contributions ?? []) {
+    roomsWithContrib.add(row.room_id);
+    total += Number(row.fee_amount_usdt ?? 0);
   }
+
+  // Legacy competitive rooms without contribution rows: 0.02 × paid players.
+  const legacyRoomIds = roomIds.filter((id) => !roomsWithContrib.has(id));
+  if (legacyRoomIds.length > 0) {
+    const { data: players, error: playersError } = await supabase
+      .from("game_room_players")
+      .select("room_id, entry_paid")
+      .in("room_id", legacyRoomIds)
+      .eq("entry_paid", true);
+
+    if (playersError) throw new Error(playersError.message);
+
+    const paidByRoom = new Map<string, number>();
+    for (const player of players ?? []) {
+      paidByRoom.set(player.room_id, (paidByRoom.get(player.room_id) ?? 0) + 1);
+    }
+    for (const count of paidByRoom.values()) {
+      total += commissionFromPaidPlayers(count);
+    }
+  }
+
   return total;
 }
 
@@ -129,7 +147,7 @@ async function loadWeeklyStandings(
   const { data: rooms, error: roomsError } = await supabase
     .from("game_rooms")
     .select("id, winner, trophies_awarded")
-    .eq("mode", "competitive")
+    .in("mode", ["party", "competitive"])
     .not("trophies_awarded", "is", null)
     .not("winner", "is", null)
     .gte("finished_at", weekStart.toISOString())

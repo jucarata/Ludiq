@@ -10,6 +10,7 @@ type LeaveBody = {
   guestSessionId?: string;
   guestName?: string;
   refundTxHash?: string;
+  withdrawTxHash?: string;
 };
 
 export async function POST(request: Request) {
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
       identity,
       mode,
       refundTxHash: body.refundTxHash,
+      withdrawTxHash: body.withdrawTxHash,
     });
     return NextResponse.json({ ok: true, closed: result.closed });
   } catch (error) {

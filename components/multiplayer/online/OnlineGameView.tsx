@@ -21,11 +21,12 @@ import { DiceWaitScreen } from "@/components/multiplayer/DiceWaitScreen";
 import { WinnerAnnouncement } from "@/components/turn/WinnerAnnouncement";
 import type { OnlineGameStateView } from "@/lib/game/online-types";
 import { useGameRealtime } from "@/lib/game/use-game-realtime";
-import { refundCompetitiveEntry } from "@/lib/celo/wallet-client";
+import { fullRefundParty } from "@/lib/celo/wallet-client";
 import { resolveCompetitiveWallet } from "@/lib/celo/resolve-competitive-wallet";
+import { isPotOpenStatus } from "@/lib/celo/constants";
 import { retroBackButtonClassName } from "@/lib/fonts";
 import { getGuestIdentity } from "@/lib/room/guest";
-import { parseRoomMode } from "@/lib/room/mode";
+import { isPartyMode, parseRoomMode } from "@/lib/room/mode";
 import type { RoomView } from "@/lib/room/types";
 import type { Profile } from "@/lib/profile/types";
 
@@ -185,8 +186,8 @@ export function OnlineGameView({ code }: { code: string }) {
 
         if (
           self.isHost &&
-          room.mode === "competitive" &&
-          room.potStatus === "funded" &&
+          isPartyMode(room.mode) &&
+          isPotOpenStatus(room.potStatus) &&
           room.escrowRoomKey
         ) {
           try {
@@ -203,7 +204,8 @@ export function OnlineGameView({ code }: { code: string }) {
                 profileWallet,
                 privyWallets: wallets,
               });
-              body.refundTxHash = await refundCompetitiveEntry({
+              // Lock-failure cancel: full refund (pool + fee). Host pays gas.
+              body.refundTxHash = await fullRefundParty({
                 wallet,
                 roomKey: room.escrowRoomKey as Hex,
               });
@@ -283,15 +285,15 @@ export function OnlineGameView({ code }: { code: string }) {
                           <WinnerAnnouncement
                             onBackToMenu={backToMenu}
                             prizeUsdt={
-                              room.mode === "competitive" &&
+                              isPartyMode(room.mode) &&
                               room.potAmountUsdt > 0
                                 ? room.potAmountUsdt
                                 : null
                             }
                             trophiesAwarded={
-                              room.mode === "competitive" && game.winner
+                              isPartyMode(room.mode) && game.winner
                                 ? (room.trophiesAwarded ??
-                                  room.players.filter((p) => p.entryPaid).length)
+                                  room.players.length)
                                 : null
                             }
                           />
