@@ -16,6 +16,7 @@ export default function PlayPage() {
     <GameView
       activePlayers={gameSetup.activePlayers}
       botPlayers={gameSetup.botPlayers}
+      onExit={() => setGameSetup(null)}
     />
   );
 }

@@ -324,6 +324,17 @@ export const es: Messages = {
     trophiesWon: "+{count} trofeos",
     backToMenu: "Volver al menú",
   },
+  gameSession: {
+    navLabel: "Controles de partida",
+    exit: "Salir",
+    exitAria: "Salir de la partida",
+    exitLockedAria: "Termina el tutorial para poder salir",
+    exitConfirmTitle: "¿Salir de la partida?",
+    exitConfirmBody:
+      "Perderás el progreso de esta partida. No se puede deshacer.",
+    exitConfirmCancel: "Quedarme",
+    exitConfirmAccept: "Salir",
+  },
   profile: {
     title: "Perfil",
     signInBlurb:

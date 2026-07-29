@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { GameView } from "@/components/game/GameView";
 import {
   parseGameSetupFromSearchParams,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/game/player-config";
 
 function TutorialPlayInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const fromParams = useMemo(
     () => parseGameSetupFromSearchParams(searchParams),
@@ -28,6 +29,7 @@ function TutorialPlayInner() {
       activePlayers={gameSetup.activePlayers}
       botPlayers={gameSetup.botPlayers}
       tutorial
+      onExit={() => router.push("/")}
     />
   );
 }

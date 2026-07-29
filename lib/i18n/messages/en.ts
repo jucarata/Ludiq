@@ -319,6 +319,17 @@ export const en = {
     trophiesWon: "+{count} trophies",
     backToMenu: "Back to menu",
   },
+  gameSession: {
+    navLabel: "Match controls",
+    exit: "Exit",
+    exitAria: "Leave match",
+    exitLockedAria: "Finish the tutorial before you can leave",
+    exitConfirmTitle: "Leave match?",
+    exitConfirmBody:
+      "You'll lose your progress in this game. This can't be undone.",
+    exitConfirmCancel: "Stay",
+    exitConfirmAccept: "Leave",
+  },
   profile: {
     title: "Profile",
     signInBlurb:
