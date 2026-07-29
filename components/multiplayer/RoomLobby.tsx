@@ -275,9 +275,22 @@ export function RoomLobby({
     room.potAmountUsdt > 0
       ? Math.min(6, Math.max(1, Math.round(room.potAmountUsdt * 10)))
       : 0;
+  const emptySeats = Math.max(0, 4 - room.players.length);
 
   return (
-    <main className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-4 sm:gap-5 sm:py-5">
+    <main className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-5 py-4 sm:gap-5 sm:px-6 sm:py-5">
+      <div
+        aria-hidden
+        className="lobby-confetti pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
       {starting ? (
         <DiceWaitScreen title={t("room.waitStarting")} overlay />
       ) : null}
@@ -316,21 +329,29 @@ export function RoomLobby({
 
       <section
         aria-labelledby="room-code-heading"
-        className="flex w-full max-w-sm flex-col items-center gap-1.5"
+        className="lobby-pop relative z-[1] flex w-full max-w-sm flex-col items-center gap-2"
+        style={{ animationDelay: "0.04s" }}
       >
+        {isParty ? (
+          <span
+            className={`${brandTitleFont.className} lobby-badge-pulse rounded-full border-2 border-[var(--brand-navy)] bg-[var(--brand-coral)] px-2.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-wide text-white shadow-[2px_2px_0_var(--brand-navy)]`}
+          >
+            {t("room.partyActive")}
+          </span>
+        ) : null}
         <h1
           id="room-code-heading"
-          className={`${brandTitleFont.className} text-3xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-4xl`}
+          className={`${brandTitleFont.className} text-center text-3xl font-extrabold tracking-wide text-[var(--brand-cream)] sm:text-4xl`}
         >
           {t("room.roomHeading")}
         </h1>
         <p
-          className={`${brandTitleFont.className} select-all rounded-2xl border-4 border-[var(--brand-turquoise)]/40 bg-[#1e2158] px-6 py-3 text-2xl font-extrabold tracking-[0.35em] text-[var(--brand-cream)] sm:text-3xl`}
+          className={`${brandTitleFont.className} lobby-code-glow select-all rounded-2xl border-[3px] bg-[linear-gradient(160deg,#2a3178_0%,#1a1e52_60%,#12153f_100%)] px-7 py-3.5 text-3xl font-extrabold tracking-[0.4em] text-[var(--brand-cream)] sm:px-8 sm:text-4xl`}
           aria-label={t("room.codeAria", { code: room.code })}
         >
           {room.code}
         </p>
-        <p className="text-center text-xs text-[var(--board-path-border)] sm:text-sm">
+        <p className="text-center text-xs text-[var(--brand-cream)]/60 sm:text-sm">
           {t("room.codeHint")}
         </p>
       </section>
@@ -338,23 +359,21 @@ export function RoomLobby({
       {isParty ? (
         <section
           aria-label={t("room.potLabel")}
-          className="w-full max-w-sm"
+          className="lobby-pop relative z-[1] w-full max-w-sm"
+          style={{ animationDelay: "0.12s" }}
         >
-          <div className="flex w-full items-center gap-3 rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[linear-gradient(120deg,#2a307a_0%,#1a1e52_48%,#14174d_100%)] px-3 py-2.5 shadow-[4px_4px_0_var(--brand-navy)]">
+          <div className="lobby-shimmer relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[linear-gradient(125deg,#ff4b6e22_0%,#1a1e52_38%,#00c2ff22_100%)] px-3 py-3 shadow-[4px_4px_0_var(--brand-navy)]">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,var(--brand-coral),var(--brand-yellow),var(--brand-mint),var(--brand-turquoise))]"
+            />
             <PiggyBank
-              className="piggy-bob h-11 w-auto shrink-0 sm:h-12"
+              className="piggy-bob h-12 w-auto shrink-0 sm:h-14"
               coinCount={potCoinCount}
             />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`${brandTitleFont.className} rounded bg-[var(--brand-mint)] px-1.5 py-px text-[0.55rem] font-extrabold uppercase tracking-wide text-white shadow-[1px_1px_0_var(--brand-navy)]`}
-                >
-                  {t("room.partyActive")}
-                </span>
-              </div>
               <p
-                className={`${brandTitleFont.className} mt-0.5 truncate text-lg font-extrabold tracking-wide text-[var(--brand-yellow)] sm:text-xl`}
+                className={`${brandTitleFont.className} truncate text-xl font-extrabold tracking-wide text-[var(--brand-yellow)] drop-shadow-[0_1px_0_var(--brand-navy)] sm:text-2xl`}
               >
                 {room.potAmountUsdt > 0
                   ? t("room.potAmount", {
@@ -362,7 +381,7 @@ export function RoomLobby({
                     })
                   : t("room.potAmountPending")}
               </p>
-              <p className="text-[0.65rem] uppercase tracking-wide text-[var(--brand-cream)]/55">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--brand-cream)]/70">
                 {t("room.potLabel")}
               </p>
             </div>
@@ -371,7 +390,7 @@ export function RoomLobby({
                 type="button"
                 disabled={busy}
                 onClick={openContributeModal}
-                className={`${brandTitleFont.className} flex h-11 shrink-0 items-center justify-center rounded-xl border-[3px] border-[var(--brand-navy)] bg-[var(--brand-turquoise)] px-3 text-xs font-extrabold uppercase tracking-wide text-white shadow-[3px_3px_0_var(--brand-navy)] transition hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--brand-navy)] disabled:cursor-not-allowed disabled:opacity-45 sm:h-12 sm:px-4 sm:text-sm`}
+                className={`${brandTitleFont.className} flex h-12 shrink-0 items-center justify-center rounded-xl border-[3px] border-[var(--brand-navy)] bg-[var(--brand-yellow)] px-3.5 text-xs font-extrabold uppercase tracking-wide text-[var(--brand-navy)] shadow-[3px_3px_0_var(--brand-navy)] transition hover:brightness-110 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--brand-navy)] disabled:cursor-not-allowed disabled:opacity-45 sm:h-[3.25rem] sm:px-4 sm:text-sm`}
               >
                 {t("room.contributeAction")}
               </button>
@@ -382,20 +401,21 @@ export function RoomLobby({
 
       <section
         aria-labelledby="players-heading"
-        className="flex w-full max-w-sm flex-col items-center gap-2"
+        className="lobby-pop relative z-[1] flex w-full max-w-sm flex-col items-center gap-3"
+        style={{ animationDelay: "0.18s" }}
       >
         <h2
           id="players-heading"
-          className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--board-path-border)]"
+          className={`${brandTitleFont.className} text-center text-sm font-extrabold uppercase tracking-wide text-[var(--brand-turquoise)]`}
         >
-          {t("room.players")}
+          {t("room.players")} · {room.players.length}/4
         </h2>
 
         <ul
-          className="flex flex-wrap items-start justify-center gap-4 sm:gap-5"
+          className="flex flex-wrap items-start justify-center gap-3 sm:gap-4"
           aria-label={t("room.players")}
         >
-          {room.players.map((player) => {
+          {room.players.map((player, index) => {
             const { fill } = PLAYER_COLORS[player.color];
             const label = getPlayerColorLabel(locale, player.color);
             const isSelf = player.isSelf;
@@ -404,18 +424,16 @@ export function RoomLobby({
             const showKick =
               canKickPlayers && !isSelf && !player.isHost;
             const paymentBorderClass = hasContributed
-              ? "border-[var(--board-green)]"
-              : "border-[var(--board-path-border)]";
-            const paymentBorderMutedClass = hasContributed
-              ? "border-[var(--board-green)]"
-              : "border-[var(--board-path-border)]/40";
+              ? "border-[var(--brand-mint)]"
+              : "border-[var(--brand-cream)]/35";
             const pieceFrameClassName =
-              "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-[3px] sm:h-16 sm:w-16";
+              "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-[3px] bg-[#1e2158] sm:h-16 sm:w-16";
 
             return (
               <li
                 key={player.id}
-                className="flex w-[4.5rem] flex-col items-center gap-1.5 sm:w-20"
+                className="lobby-pop flex w-[4.75rem] flex-col items-center gap-1.5 sm:w-20"
+                style={{ animationDelay: `${0.22 + index * 0.06}s` }}
               >
                 <div className="relative">
                   {showKick ? (
@@ -423,11 +441,19 @@ export function RoomLobby({
                       type="button"
                       disabled={busy}
                       onClick={() => setConfirmKickId(player.id)}
-                      className="absolute right-0 top-0 z-10 flex h-4 w-4 translate-x-[5px] -translate-y-[5px] items-center justify-center rounded-sm border border-[#173532] bg-[var(--board-red)] text-sm font-black leading-none text-[var(--board-path)] shadow-[1px_1px_0_#173532] transition hover:brightness-110 active:brightness-95 disabled:opacity-50"
+                      className="absolute right-0 top-0 z-10 flex h-5 w-5 translate-x-[6px] -translate-y-[6px] items-center justify-center rounded-full border-2 border-[var(--brand-navy)] bg-[var(--brand-coral)] text-sm font-black leading-none text-white shadow-[2px_2px_0_var(--brand-navy)] transition hover:brightness-110 active:brightness-95 disabled:opacity-50"
                       aria-label={t("room.kickAria", { user: player.username })}
                     >
                       ×
                     </button>
+                  ) : null}
+                  {player.isHost ? (
+                    <span
+                      aria-hidden
+                      className={`${brandTitleFont.className} absolute -left-1 -top-1 z-10 rounded border-2 border-[var(--brand-navy)] bg-[var(--brand-yellow)] px-1 text-[0.55rem] font-extrabold uppercase leading-tight text-[var(--brand-navy)] shadow-[1px_1px_0_var(--brand-navy)]`}
+                    >
+                      ★
+                    </span>
                   ) : null}
                   {isSelf ? (
                     <button
@@ -444,13 +470,13 @@ export function RoomLobby({
                       onClick={handlePieceClick}
                       className={`${pieceFrameClassName} ${paymentBorderClass} transition-all ${
                         canChangeColor
-                          ? "cursor-pointer bg-[#2a2a3e] hover:brightness-110 active:scale-95"
-                          : "cursor-default bg-[#2a2a3e]"
+                          ? "cursor-pointer hover:brightness-110 active:scale-95"
+                          : "cursor-default"
                       }`}
                       style={{
                         boxShadow: hasContributed
-                          ? "0 0 12px color-mix(in srgb, var(--board-green) 55%, transparent)"
-                          : `0 0 14px ${fill}55`,
+                          ? "0 0 16px color-mix(in srgb, var(--brand-mint) 55%, transparent)"
+                          : `0 0 16px ${fill}66`,
                       }}
                     >
                       <GamePiece
@@ -460,15 +486,12 @@ export function RoomLobby({
                     </button>
                   ) : (
                     <div
-                      className={`${pieceFrameClassName} ${paymentBorderMutedClass} bg-[#2a2a3e]`}
-                      style={
-                        hasContributed
-                          ? {
-                              boxShadow:
-                                "0 0 12px color-mix(in srgb, var(--board-green) 45%, transparent)",
-                            }
-                          : undefined
-                      }
+                      className={`${pieceFrameClassName} ${paymentBorderClass}`}
+                      style={{
+                        boxShadow: hasContributed
+                          ? "0 0 14px color-mix(in srgb, var(--brand-mint) 45%, transparent)"
+                          : `0 0 12px ${fill}40`,
+                      }}
                       aria-label={t("room.playerPieceAria", {
                         user: player.username,
                         color: label,
@@ -483,16 +506,18 @@ export function RoomLobby({
                 </div>
 
                 <span
-                  className={`max-w-full truncate text-center text-base font-semibold sm:text-xs ${
+                  className={`${brandTitleFont.className} max-w-full truncate text-center text-xs font-extrabold sm:text-sm ${
                     isSelf
-                      ? "text-[var(--board-green)]"
-                      : "text-[var(--board-path-border)]"
+                      ? "text-[var(--brand-mint)]"
+                      : "text-[var(--brand-cream)]/85"
                   }`}
                 >
                   @{player.username}
                 </span>
                 {hasContributed ? (
-                  <span className="rounded-md bg-[var(--board-green)]/20 px-1.5 py-0.5 text-[0.6rem] font-bold text-[var(--board-green)] sm:text-[0.65rem]">
+                  <span
+                    className={`${brandTitleFont.className} rounded-md border border-[var(--brand-navy)] bg-[var(--brand-mint)] px-1.5 py-0.5 text-[0.6rem] font-extrabold text-white shadow-[1px_1px_0_var(--brand-navy)]`}
+                  >
                     {t("room.contributedBadge", {
                       amount: player.contributedPoolUsdt.toFixed(2),
                     })}
@@ -501,12 +526,31 @@ export function RoomLobby({
               </li>
             );
           })}
+
+          {Array.from({ length: emptySeats }, (_, index) => (
+            <li
+              key={`empty-${index}`}
+              aria-hidden
+              className="flex w-[4.75rem] flex-col items-center gap-1.5 sm:w-20"
+            >
+              <div className="lobby-empty-seat flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-dashed bg-[#1e2158]/40 sm:h-16 sm:w-16">
+                <span
+                  className={`${brandTitleFont.className} text-lg font-extrabold text-[var(--brand-cream)]/40`}
+                >
+                  ?
+                </span>
+              </div>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--brand-cream)]/30">
+                …
+              </span>
+            </li>
+          ))}
         </ul>
       </section>
 
       {error ? (
-        <div className="flex max-w-sm flex-col items-center gap-1.5">
-          <p className="text-center text-xs text-[var(--board-red)] sm:text-sm">
+        <div className="relative z-[1] flex max-w-sm flex-col items-center gap-1.5">
+          <p className="text-center text-xs text-[var(--brand-coral)] sm:text-sm">
             {error}
           </p>
           {showProfileLink ? (
@@ -520,7 +564,10 @@ export function RoomLobby({
         </div>
       ) : null}
 
-      <div className="flex w-full max-w-sm flex-col items-center gap-2">
+      <div
+        className="lobby-pop relative z-[1] flex w-full max-w-sm flex-col items-center gap-2.5"
+        style={{ animationDelay: "0.28s" }}
+      >
         {isHost && !isParty && onEnableParty ? (
           <div className="relative w-full">
             <button
@@ -536,13 +583,9 @@ export function RoomLobby({
               type="button"
               disabled={busy}
               onClick={onEnableParty}
-              className={`${brandTitleFont.className} group relative flex w-full flex-col items-center gap-0.5 overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[var(--brand-coral)] px-4 py-3 text-[var(--brand-navy)] shadow-[5px_5px_0_var(--brand-navy)] transition hover:brightness-105 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[3px_3px_0_var(--brand-navy)] disabled:cursor-not-allowed disabled:opacity-50`}
+              className={`${brandTitleFont.className} lobby-shimmer group relative flex w-full flex-col items-center gap-0.5 overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[linear-gradient(135deg,var(--brand-coral)_0%,#ff7a93_55%,var(--brand-yellow)_140%)] px-4 py-3.5 text-[var(--brand-navy)] shadow-[5px_5px_0_var(--brand-navy)] transition hover:brightness-105 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[3px_3px_0_var(--brand-navy)] disabled:cursor-not-allowed disabled:opacity-50`}
               aria-label={t("room.enableParty")}
             >
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 animate-pulse bg-[linear-gradient(110deg,transparent_30%,rgba(255,255,255,0.35)_50%,transparent_70%)]"
-              />
               <span className="relative flex items-center gap-2 text-lg font-extrabold uppercase tracking-wide sm:text-xl">
                 <FaChampagneGlasses className="h-5 w-5 animate-bounce sm:h-6 sm:w-6" />
                 {t("room.enableParty")}
@@ -560,13 +603,13 @@ export function RoomLobby({
               type="button"
               disabled={busy || !canStartGame}
               onClick={onStartGame}
-              className={`${retroPlayButtonClassName} !h-12 min-h-0 w-full min-w-0 px-4 !text-base sm:!h-[3.25rem] sm:!text-lg`}
+              className={`${retroPlayButtonClassName} ${canStartGame ? "lobby-play-ready" : ""} !h-[3.25rem] min-h-0 w-full min-w-0 px-4 !text-lg sm:!h-14 sm:!text-xl`}
               aria-label={t("room.play")}
             >
               {starting ? t("room.starting") : t("room.play")}
             </button>
             {!canStartGame && !starting ? (
-              <p className="-mt-0.5 text-center text-xs text-[var(--board-path-border)]">
+              <p className="-mt-0.5 text-center text-xs text-[var(--brand-cream)]/55">
                 {t("room.playHint")}
               </p>
             ) : null}
@@ -640,10 +683,14 @@ export function RoomLobby({
               onClick={closeContributeModal}
             >
               <div
-                className="w-full max-w-sm overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[linear-gradient(165deg,#2a307a_0%,#1a1e52_55%,#14174d_100%)] p-5 text-[var(--brand-cream)] shadow-[6px_6px_0_var(--brand-navy)]"
+                className="lobby-pop relative w-full max-w-sm overflow-hidden rounded-2xl border-[3px] border-[var(--brand-navy)] bg-[linear-gradient(165deg,#2a307a_0%,#1a1e52_55%,#14174d_100%)] p-5 text-[var(--brand-cream)] shadow-[6px_6px_0_var(--brand-navy)]"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="mb-4 flex flex-col items-center text-center">
+                <div
+                  aria-hidden
+                  className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,var(--brand-coral),var(--brand-yellow),var(--brand-mint),var(--brand-turquoise))]"
+                />
+                <div className="mb-4 mt-1 flex flex-col items-center text-center">
                   <PiggyBank
                     className="piggy-bob h-16 w-auto"
                     coinCount={potCoinCount}
