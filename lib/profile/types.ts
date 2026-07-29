@@ -12,6 +12,8 @@ export type Profile = {
   games_played: number;
   games_won: number;
   trophies: number;
+  /** Soft currency balance (Koin). */
+  koins: number;
   tutorial_completed: boolean;
   created_at: string;
   updated_at: string;

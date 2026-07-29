@@ -227,4 +227,26 @@ contract PartyEscrowTest is Test {
         vm.expectRevert(PartyEscrow.RoomNotOpen.selector);
         escrow.withdrawContribution(roomKey);
     }
+
+    function test_purchase_adds_to_treasury() public {
+        bytes32 offerId = keccak256("koin_50");
+        uint256 amount = 500_000; // 0.5 USDT
+
+        vm.prank(player);
+        escrow.purchase(offerId, amount);
+
+        assertEq(escrow.treasuryBalance(), amount);
+        assertEq(usdt.balanceOf(address(escrow)), amount);
+
+        vm.prank(owner);
+        escrow.withdrawCommission(amount);
+        assertEq(usdt.balanceOf(commission), amount);
+        assertEq(usdt.balanceOf(address(escrow)), 0);
+    }
+
+    function test_purchase_zero_reverts() public {
+        vm.prank(player);
+        vm.expectRevert(PartyEscrow.AmountTooSmall.selector);
+        escrow.purchase(keccak256("koin_50"), 0);
+    }
 }

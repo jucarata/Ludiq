@@ -32,6 +32,7 @@ export interface Database {
           games_played: number;
           games_won: number;
           trophies: number;
+          koins: number;
           tutorial_completed: boolean;
           created_at: string;
           updated_at: string;
@@ -47,6 +48,7 @@ export interface Database {
           games_played?: number;
           games_won?: number;
           trophies?: number;
+          koins?: number;
           tutorial_completed?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -62,6 +64,7 @@ export interface Database {
           games_played?: number;
           games_won?: number;
           trophies?: number;
+          koins?: number;
           tutorial_completed?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -236,6 +239,69 @@ export interface Database {
         };
         Relationships: [];
       };
+      shop_offers: {
+        Row: {
+          id: string;
+          slug: string;
+          koins: number;
+          price_usdt: number;
+          sort_order: number;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          koins: number;
+          price_usdt: number;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          koins?: number;
+          price_usdt?: number;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      koin_purchases: {
+        Row: {
+          id: string;
+          profile_id: string;
+          offer_id: string;
+          koins: number;
+          price_usdt: number;
+          tx_hash: string;
+          buyer_wallet: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          offer_id: string;
+          koins: number;
+          price_usdt: number;
+          tx_hash: string;
+          buyer_wallet: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          offer_id?: string;
+          koins?: number;
+          price_usdt?: number;
+          tx_hash?: string;
+          buyer_wallet?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       game_states: {
         Row: {
           room_id: string;
@@ -301,6 +367,13 @@ export interface Database {
         Args: {
           p_profile_id: string;
           p_amount: number;
+        };
+        Returns: number;
+      };
+      adjust_profile_koins: {
+        Args: {
+          p_profile_id: string;
+          p_delta: number;
         };
         Returns: number;
       };

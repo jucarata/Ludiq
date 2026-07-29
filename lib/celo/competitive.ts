@@ -459,3 +459,63 @@ export async function settleEscrowRoom(params: {
   }
   return hash;
 }
+
+export async function verifyPurchaseTransaction(params: {
+  txHash: string;
+  expectedOfferId: Hex;
+  expectedBuyer: string;
+  expectedAmount: bigint;
+}): Promise<{
+  offerId: Hex;
+  buyer: Address;
+  amount: bigint;
+}> {
+  const client = getCompetitivePublicClient();
+  const escrow = getEscrowAddress();
+  const txHash = normalizeTxHash(params.txHash);
+
+  const receipt = await client.getTransactionReceipt({ hash: txHash });
+  if (receipt.status !== "success") {
+    throw new Error("Purchase transaction failed");
+  }
+
+  let purchased: {
+    offerId: Hex;
+    buyer: Address;
+    amount: bigint;
+  } | null = null;
+
+  for (const log of receipt.logs) {
+    if (!addressesEqual(log.address, escrow)) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: partyEscrowAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      if (decoded.eventName !== "Purchased") continue;
+      const buyer = decoded.args.buyer as Address;
+      if (!addressesEqual(buyer, params.expectedBuyer)) continue;
+      purchased = {
+        offerId: decoded.args.offerId as Hex,
+        buyer,
+        amount: decoded.args.amount as bigint,
+      };
+      break;
+    } catch {
+      // not our event
+    }
+  }
+
+  if (!purchased) {
+    throw new Error("Purchase event not found in transaction");
+  }
+  if (purchased.offerId.toLowerCase() !== params.expectedOfferId.toLowerCase()) {
+    throw new Error("Purchase offer mismatch");
+  }
+  if (purchased.amount !== params.expectedAmount) {
+    throw new Error("Purchase amount mismatch");
+  }
+
+  return purchased;
+}

@@ -36,12 +36,20 @@ contract PartyEscrow {
     address public immutable commissionWallet;
     address public owner;
 
+    /// @notice Accrued shop / future-reward USDT held in this escrow (accounting).
+    uint256 public treasuryBalance;
+
     mapping(bytes32 => Room) public rooms;
     mapping(bytes32 => mapping(address => uint256)) public poolContributed;
     mapping(bytes32 => mapping(address => uint256)) public feeContributed;
     mapping(bytes32 => address[]) private _contributors;
 
     event Opened(bytes32 indexed roomKey, address indexed host);
+    event Purchased(
+        bytes32 indexed offerId,
+        address indexed buyer,
+        uint256 amount
+    );
     event Contributed(
         bytes32 indexed roomKey,
         address indexed player,
@@ -107,6 +115,21 @@ contract PartyEscrow {
     function quoteFee(uint256 poolAmount) public pure returns (uint256 fee, uint256 total) {
         fee = _calcFee(poolAmount);
         total = poolAmount + fee;
+    }
+
+    /// @notice Pay USDT into the shared treasury (shop packs, etc.). Prices are off-chain.
+    function purchase(bytes32 offerId, uint256 amount) external {
+        if (amount == 0) revert AmountTooSmall();
+
+        if (!usdt.transferFrom(msg.sender, address(this), amount)) {
+            revert TransferFailed();
+        }
+
+        unchecked {
+            treasuryBalance += amount;
+        }
+
+        emit Purchased(offerId, msg.sender, amount);
     }
 
     /// @notice Host opens a party room with no required deposit.

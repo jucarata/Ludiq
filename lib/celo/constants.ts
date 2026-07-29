@@ -150,6 +150,16 @@ export const partyEscrowAbi = [
   },
   {
     type: "function",
+    name: "purchase",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "offerId", type: "bytes32" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "contribute",
     stateMutability: "nonpayable",
     inputs: [
@@ -225,6 +235,13 @@ export const partyEscrowAbi = [
   },
   {
     type: "function",
+    name: "treasuryBalance",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
     name: "poolContributed",
     stateMutability: "view",
     inputs: [
@@ -261,6 +278,15 @@ export const partyEscrowAbi = [
     inputs: [
       { name: "roomKey", type: "bytes32", indexed: true },
       { name: "host", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "Purchased",
+    inputs: [
+      { name: "offerId", type: "bytes32", indexed: true },
+      { name: "buyer", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
     ],
   },
   {

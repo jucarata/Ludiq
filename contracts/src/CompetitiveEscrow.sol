@@ -7,8 +7,8 @@ interface IERC20 {
 }
 
 /// @title CompetitiveEscrow
-/// @deprecated Superseded by PartyEscrow. Kept for historical reference; do not deploy for new rooms.
-/// @notice Multi-player competitive room escrow on Celo.
+/// @notice DEPRECATED — superseded by PartyEscrow. Kept for historical reference; do not deploy for new rooms.
+///         Multi-player competitive room escrow on Celo.
 ///         Each player deposits 0.20 USDT (0.18 pool + 0.02 commission held until settle).
 ///         Host opens the room; joiners call joinDeposit. Full refunds while Funded.
 contract CompetitiveEscrow {

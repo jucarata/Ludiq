@@ -132,6 +132,7 @@ export function AppFooter() {
   const isHome = pathname === "/" || pathname === "";
   const isProfile = pathname.startsWith("/profile");
   const isHelp = pathname.startsWith("/help");
+  const isShop = pathname.startsWith("/shop");
 
   return (
     <footer
@@ -156,13 +157,19 @@ export function AppFooter() {
           <FaRankingStar className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
         </DisabledNavItem>
 
-        <DisabledNavItem
-          accent="coral"
-          label={t("nav.shop")}
-          ariaLabel={t("nav.shop")}
+        <Link
+          href="/shop"
+          aria-label={t("nav.shop")}
+          aria-current={isShop ? "page" : undefined}
+          className="flex flex-col items-center gap-1"
         >
-          <FaStore className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
-        </DisabledNavItem>
+          <span className={navButtonClassName(isShop, "coral")}>
+            <FaStore className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+          </span>
+          <span className={labelClassName(isShop, "coral")}>
+            {t("nav.shop")}
+          </span>
+        </Link>
 
         <Link
           href="/"

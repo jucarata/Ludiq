@@ -353,3 +353,58 @@ export async function withdrawPartyContribution(params: {
     throw new Error(formatCompetitiveTxError(error));
   }
 }
+
+/** Approve + pay USDT into the escrow treasury for a shop offer. */
+export async function purchaseKoins(params: {
+  wallet: CompetitiveWallet;
+  offerId: Hex;
+  amountUsdt: string | number;
+  expectedWalletAddress?: string | null;
+}): Promise<Hex> {
+  const escrow = getEscrowAddress();
+  const chain = getCompetitiveChain();
+  const { client, account } = await getWalletClient(params.wallet);
+  assertWalletMatchesProfile(account, params.expectedWalletAddress);
+
+  const amountRaw = parseUnits(
+    typeof params.amountUsdt === "number"
+      ? params.amountUsdt.toFixed(COMPETITIVE_TOKEN.decimals)
+      : String(params.amountUsdt),
+    COMPETITIVE_TOKEN.decimals,
+  );
+
+  if (amountRaw <= BigInt(0)) {
+    throw new Error("Invalid purchase amount");
+  }
+
+  await assertCanPay(account, amountRaw);
+  const feeFields = partyTxFeeFields();
+
+  try {
+    const approveTxHash = await client.writeContract({
+      address: COMPETITIVE_TOKEN.address,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [escrow, amountRaw],
+      chain,
+      account,
+      ...feeFields,
+    });
+    await waitForTx(approveTxHash);
+
+    const purchaseTxHash = await client.writeContract({
+      address: escrow,
+      abi: partyEscrowAbi,
+      functionName: "purchase",
+      args: [params.offerId, amountRaw],
+      chain,
+      account,
+      ...feeFields,
+    });
+    await waitForTx(purchaseTxHash);
+    return purchaseTxHash;
+  } catch (error) {
+    console.error("[purchaseKoins]", error);
+    throw new Error(formatCompetitiveTxError(error));
+  }
+}

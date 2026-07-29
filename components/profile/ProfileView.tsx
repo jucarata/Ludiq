@@ -27,6 +27,7 @@ import {
   fetchCeloTokenBalances,
   type TokenBalance,
 } from "@/lib/celo/tokens";
+import { formatKoins } from "@/lib/koin/currency";
 
 function ProfileAvatar({ size = "lg" }: { size?: "md" | "lg" }) {
   const dim =
@@ -60,6 +61,58 @@ function ProfileAvatar({ size = "lg" }: { size?: "md" | "lg" }) {
           </svg>
         </div>
       </div>
+    </div>
+  );
+}
+
+function KoinIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <circle cx="16" cy="16" r="14" fill="#FFC800" stroke="#14174D" strokeWidth="2.5" />
+      <circle
+        cx="16"
+        cy="16"
+        r="10"
+        fill="none"
+        stroke="#14174D"
+        strokeWidth="1.5"
+        opacity="0.35"
+      />
+      <text
+        x="16"
+        y="17.5"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize="14"
+        fontWeight="800"
+        fill="#14174D"
+      >
+        K
+      </text>
+    </svg>
+  );
+}
+
+function KoinBalanceBadge({ amount }: { amount: number }) {
+  const { t, locale } = useTranslations();
+  const formatted = formatKoins(amount, locale);
+
+  return (
+    <div
+      className="inline-flex items-center gap-2 rounded-full border-[3px] border-[var(--brand-navy)] bg-[var(--brand-yellow)] px-3.5 py-1.5 shadow-[3px_3px_0_rgba(20,23,77,0.85)]"
+      aria-label={t("profile.koinsBalance", { amount: formatted })}
+    >
+      <KoinIcon className="h-5 w-5 shrink-0" />
+      <span
+        className={`${brandTitleFont.className} text-sm font-extrabold uppercase tracking-wide text-[var(--brand-navy)] sm:text-base`}
+      >
+        {formatted}
+      </span>
+      <span
+        className={`${brandBodyFont.className} text-xs font-bold uppercase tracking-wide text-[var(--brand-navy)]/70`}
+      >
+        {t("profile.koinsLabel")}
+      </span>
     </div>
   );
 }
@@ -722,6 +775,8 @@ function ProfileAuthenticatedView() {
               </p>
             ) : null}
           </div>
+
+          <KoinBalanceBadge amount={profile?.koins ?? 0} />
 
           <div className="mt-1 flex w-[min(100%,16rem)] flex-col gap-3 sm:w-[17rem]">
             <button

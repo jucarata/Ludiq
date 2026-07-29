@@ -4,8 +4,8 @@ pragma solidity ^0.8.24;
 import {Script, console2} from "forge-std/Script.sol";
 import {CompetitiveEscrow} from "../src/CompetitiveEscrow.sol";
 
-/// @deprecated Superseded by DeployPartyEscrow. Kept for historical reference; do not use for new deploys.
-/// @dev Deploy CompetitiveEscrow (entry 0.20 USDT = 0.18 pool + 0.02 commission).
+/// @dev DEPRECATED — superseded by DeployPartyEscrow. Kept for historical reference; do not use for new deploys.
+/// Deploy CompetitiveEscrow (entry 0.20 USDT = 0.18 pool + 0.02 commission).
 ///
 /// Celo Mainnet (Proof of Ship):
 ///   STAKE_TOKEN=0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e  # Tether USDT

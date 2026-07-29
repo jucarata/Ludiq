@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {CompetitiveEscrow} from "../src/CompetitiveEscrow.sol";
 import {MockUSDT} from "../src/MockUSDT.sol";
 
-/// @deprecated Tests for CompetitiveEscrow (superseded by PartyEscrow). Kept for historical coverage.
+/// @dev DEPRECATED — tests for CompetitiveEscrow (superseded by PartyEscrow). Kept for historical coverage.
 contract CompetitiveEscrowTest is Test {
     MockUSDT internal usdt;
     CompetitiveEscrow internal escrow;
