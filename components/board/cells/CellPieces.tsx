@@ -17,6 +17,7 @@ export interface CellPiecesProps {
   activePlayer?: PlayerColor | null;
   onPieceClick?: (index: number, player: PlayerColor, anchor: MenuAnchor) => void;
   selectedPiece?: { index: number; player: PlayerColor } | null;
+  canInteractWithPiece?: (player: PlayerColor, index: number) => boolean;
 }
 
 function resolveSlotGrid(
@@ -98,6 +99,7 @@ export function CellPieces({
   activePlayer = null,
   onPieceClick,
   selectedPiece = null,
+  canInteractWithPiece,
 }: CellPiecesProps) {
   const { tp } = useTranslations();
 
@@ -106,6 +108,12 @@ export function CellPieces({
   const visible = pieces.slice(0, MAX_PIECES_PER_CELL);
   const { cols, rows } = resolveSlotGrid(colSpan, rowSpan, orientation);
   const isSingle = visible.length === 1;
+
+  const pieceInteractive = (player: PlayerColor, index: number) =>
+    interactive &&
+    activePlayer !== null &&
+    player === activePlayer &&
+    (canInteractWithPiece?.(player, index) ?? true);
 
   if (isSingle) {
     const slotClass =
@@ -121,11 +129,7 @@ export function CellPieces({
           <PieceSlot
             player={visible[0].player}
             index={visible[0].index}
-            interactive={
-              interactive &&
-              activePlayer !== null &&
-              visible[0].player === activePlayer
-            }
+            interactive={pieceInteractive(visible[0].player, visible[0].index)}
             selected={
               selectedPiece?.index === visible[0].index &&
               selectedPiece?.player === visible[0].player
@@ -153,11 +157,7 @@ export function CellPieces({
           key={`${piece.player}-${piece.index}`}
           player={piece.player}
           index={piece.index}
-          interactive={
-            interactive &&
-            activePlayer !== null &&
-            piece.player === activePlayer
-          }
+          interactive={pieceInteractive(piece.player, piece.index)}
           selected={
             selectedPiece?.index === piece.index &&
             selectedPiece?.player === piece.player

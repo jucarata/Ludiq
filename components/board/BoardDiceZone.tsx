@@ -13,6 +13,7 @@ import { useGameState } from "@/components/game/GameStateContext";
 import { PieceMoveMenuOverlay } from "@/components/board/PieceMoveMenu";
 import { DicePairVisual } from "@/components/dice/DicePairVisual";
 import { DiceRollOverlay } from "@/components/dice/DiceRollOverlay";
+import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialContext";
 import {
   computeThrowVelocity,
   normalizeThrowVelocity,
@@ -38,6 +39,9 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
     registerDiceZone,
   } = useDice();
   const { selectedPiece, clearSelection, canHumanInteractWithPieces } = useGameState();
+  const tutorial = useOptionalInGameTutorial();
+  const tutorialBlocksThrow =
+    !!tutorial?.active && tutorial.allowedAction !== "throw";
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -53,6 +57,7 @@ export function BoardDiceZone({ children }: BoardDiceZoneProps) {
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (tutorialBlocksThrow) return;
     if (!isAiming || isRolling || !canRoll || !zoneRef.current) return;
 
     isDraggingRef.current = true;

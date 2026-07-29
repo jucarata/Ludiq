@@ -46,6 +46,56 @@ export const es: Messages = {
     practiceHint: "Jugarás con la ficha roja contra la azul. Pulsa Jugar cuando estés listo.",
     play: "Jugar",
   },
+  gameTutorial: {
+    badge: "Cómo jugar",
+    continue: "Entendido",
+    introTitle: "Tu primera partida",
+    introBody:
+      "Te guiaremos para lanzar y sacar tus fichas. Sigue cada tip — el juego espera por ti.",
+    clickDiceTitle: "Toma los dados",
+    clickDiceBody: "Toca los dados junto a tu jugador rojo para tomarlos.",
+    throwTitle: "¡Lanza!",
+    throwBody: "Toca o desliza en el tablero para lanzar los dados.",
+    needDoublesTitle: "Necesitas un par",
+    needDoublesBody:
+      "Mientras tus fichas estén en casa, debes sacar un par (el mismo número en ambos dados) para salir. Te quedan 2 intentos en este turno.",
+    clickDiceAgainTitle: "Inténtalo de nuevo",
+    clickDiceAgainBody: "Toca tus dados otra vez para apuntar.",
+    throwDoublesTitle: "Lanza otra vez",
+    throwDoublesBody: "Lanza en el tablero — ahora busca un par.",
+    explainMoveTitle: "¡Ya saliste!",
+    explainMoveBody:
+      "El par sacó tus fichas al camino. Usa ambos dados en la misma ficha: tócala, muévela y vuelve a tocarla.",
+    doMoveTitle: "Haz un movimiento",
+    doMoveBody: "Toca una ficha roja en el camino y elige un dado para moverla.",
+    doMoveAgainTitle: "¡La misma ficha otra vez!",
+    doMoveAgainBody:
+      "Toca esa misma ficha de nuevo y gasta el segundo dado. Ambos movimientos van en ella.",
+    awaitRivalTitle: "Turno del rival",
+    awaitRivalBody: "Mira qué hace tu rival…",
+    rivalExitedTitle: "¡Tu rival también salió!",
+    rivalExitedBody:
+      "También sacó un par y dejó la casa. Ahora moverá sus fichas — presta atención.",
+    botMovingTitle: "El rival se mueve",
+    botMovingBody: "Observa cómo avanzan sus fichas por el tablero.",
+    rivalMovedTitle: "¡Que no te coman!",
+    rivalMovedBody:
+      "Tu rival ya está en el tablero. Cuida tus fichas: si cae sobre ti, vuelves a casa.",
+    safeClickDiceTitle: "Lanza otra vez",
+    safeClickDiceBody: "Toma tus dados — este tiro te enseñará las casillas SAFE.",
+    safeThrowTitle: "¡Lanza!",
+    safeThrowBody: "Lanza en el tablero y mira dónde puedes caer.",
+    safeMoveTitle: "Apunta al SAFE",
+    safeMoveBody:
+      "Mueve esa misma ficha líder con ambos dados. Vas hacia una casilla SAFE.",
+    safeLandedTitle: "¡Zona SAFE!",
+    safeLandedBody:
+      "Mira: caíste en SAFE. En estas casillas tu rival no puede comerte. Úsalas con cabeza.",
+    finaleTitle: "¡Ya estás listo para la fiesta!",
+    finaleBody:
+      "Lleva todas tus fichas a la meta, esquiva que te coman y domina el tablero. La diversión no para — ahora a ganar.",
+    finaleCta: "¡A jugar!",
+  },
   leaderboard: {
     title: "Clasificación",
     subtitle:

@@ -9,6 +9,7 @@ import { useTurn } from "@/components/game/TurnContext";
 import { AutoModeToggles } from "@/components/turn/AutoModeToggles";
 import { PlayerIcon } from "@/components/turn/PlayerIcon";
 import { useOptionalOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
+import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
@@ -102,12 +103,16 @@ function PlayerDock({
 
   const currentIsBot = isBot;
   const currentIsAutoHuman = !currentIsBot && isAutoEnabled(color);
+  const tutorial = useOptionalInGameTutorial();
+  const tutorialBlocksArm =
+    !!tutorial?.active && tutorial.allowedAction !== "arm";
   const interactive =
     isActive &&
     canRoll &&
     !isRolling &&
     !currentIsBot &&
-    !currentIsAutoHuman;
+    !currentIsAutoHuman &&
+    !tutorialBlocksArm;
 
   const showRollResult = isActive && turnRoll !== null;
 

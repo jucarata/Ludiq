@@ -43,6 +43,56 @@ export const en = {
     practiceHint: "You'll play as red against blue. Tap Play when you're ready.",
     play: "Play",
   },
+  gameTutorial: {
+    badge: "How to play",
+    continue: "Got it",
+    introTitle: "Your first match",
+    introBody:
+      "We'll walk you through rolling and getting your pieces out. Follow each tip — the game waits for you.",
+    clickDiceTitle: "Grab the dice",
+    clickDiceBody: "Tap the dice next to your red player to pick them up.",
+    throwTitle: "Throw!",
+    throwBody: "Tap or swipe on the board to throw the dice.",
+    needDoublesTitle: "You need doubles",
+    needDoublesBody:
+      "While your pieces are still at home, you must roll doubles (same number on both dice) to leave. You have 2 tries left this turn.",
+    clickDiceAgainTitle: "Try again",
+    clickDiceAgainBody: "Tap your dice once more to aim.",
+    throwDoublesTitle: "Throw again",
+    throwDoublesBody: "Throw on the board — look for doubles this time.",
+    explainMoveTitle: "You're out!",
+    explainMoveBody:
+      "Doubles got your pieces onto the board. Use both dice on the same piece — tap it, move, then tap it again.",
+    doMoveTitle: "Make a move",
+    doMoveBody: "Tap one of your red pieces on the path and pick a die to move it.",
+    doMoveAgainTitle: "Same piece again!",
+    doMoveAgainBody:
+      "Tap that same piece once more and spend your second die. Stack both moves on it.",
+    awaitRivalTitle: "Rival's turn",
+    awaitRivalBody: "Watch what your rival does…",
+    rivalExitedTitle: "Your rival is out too!",
+    rivalExitedBody:
+      "They also rolled doubles and left home. Now they'll move their pieces — stay sharp.",
+    botMovingTitle: "Rival is moving",
+    botMovingBody: "Watch their pieces advance across the board.",
+    rivalMovedTitle: "Don't get eaten!",
+    rivalMovedBody:
+      "Your rival is on the board now. Keep your pieces safe — if they land on you, you're sent home.",
+    safeClickDiceTitle: "Roll again",
+    safeClickDiceBody: "Grab your dice — this next throw will teach you about SAFE spaces.",
+    safeThrowTitle: "Throw!",
+    safeThrowBody: "Throw on the board and watch where you can land.",
+    safeMoveTitle: "Aim for SAFE",
+    safeMoveBody:
+      "Move that same lead piece with both dice. You're heading for a SAFE square.",
+    safeLandedTitle: "SAFE zone!",
+    safeLandedBody:
+      "Look — you landed on SAFE. On these squares your rival cannot capture you. Use them wisely.",
+    finaleTitle: "You're ready to party!",
+    finaleBody:
+      "Race every piece home, dodge captures, and own the board. The fun never ends — now go win it.",
+    finaleCta: "Let's play!",
+  },
   leaderboard: {
     title: "Leaderboard",
     subtitle: "Top trophy hunters this week. Win competitive matches to climb.",

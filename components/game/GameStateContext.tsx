@@ -12,6 +12,7 @@ import {
 import { useTurn } from "@/components/game/TurnContext";
 import { useAutoMode } from "@/components/game/AutoModeContext";
 import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
+import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialContext";
 import type { PlayerColor } from "@/lib/board/types";
 import {
   canMovePiece,
@@ -122,11 +123,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     remainingDice !== null &&
     remainingDice.length > 0;
 
+  const tutorial = useOptionalInGameTutorial();
+  const tutorialBlocksMove =
+    !!tutorial?.active && tutorial.allowedAction !== "move";
+
   const canHumanInteractWithPieces =
     canInteractWithPieces &&
     !isBot(currentPlayer) &&
     !isAfkTakeover &&
-    !(isAutoEnabled(currentPlayer) && timeLeft <= 0);
+    !(isAutoEnabled(currentPlayer) && timeLeft <= 0) &&
+    !tutorialBlocksMove;
 
   interactionRef.current = {
     canInteract: canHumanInteractWithPieces,
@@ -346,6 +352,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         interactionRef.current;
       if (!canInteract) return;
       if (piece.player !== activePlayer) return;
+      if (tutorial && !tutorial.canSelectPiece(piece.player, piece.index)) {
+        return;
+      }
 
       /* Queda un solo valor por mover: se aplica directo, sin menú */
       if (remainingDice?.length === 1) {
@@ -355,7 +364,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setSelectedPiece(piece);
       setMenuAnchor(anchor);
     },
-    [remainingDice, movePiece],
+    [remainingDice, movePiece, tutorial],
   );
 
   const clearSelection = useCallback(() => {

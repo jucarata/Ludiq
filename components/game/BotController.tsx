@@ -7,6 +7,7 @@ import { useGameState } from "@/components/game/GameStateContext";
 import { useIsBot } from "@/components/game/PlayersContext";
 import { useTurn } from "@/components/game/TurnContext";
 import { useOptionalOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
+import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialContext";
 import { ParquesBot } from "@/lib/game/bot";
 import type { PlayerColor } from "@/lib/board/types";
 import type { PieceState } from "@/lib/game/pieces";
@@ -60,6 +61,7 @@ export function BotController() {
   const currentIsAutoHuman =
     !currentIsBot && isAutoEnabled(currentPlayer);
   const shouldAutoRoll = currentIsBot || currentIsAutoHuman;
+  const tutorial = useOptionalInGameTutorial();
 
   /* Online AFK is handled by OnlineGameStateProvider + server advance-turn. */
   const localAfk = !online && isAfkTakeover;
@@ -70,6 +72,7 @@ export function BotController() {
   }, [currentPlayer, online, setAfkTakeover]);
 
   useEffect(() => {
+    if (tutorial?.freezeBots) return;
     if (!shouldAutoRoll || turnPhase !== "playing" || !canRoll) return;
 
     const timeout = setTimeout(() => {
@@ -77,7 +80,14 @@ export function BotController() {
     }, BOT_ROLL_DELAY_MS);
 
     return () => clearTimeout(timeout);
-  }, [shouldAutoRoll, turnPhase, canRoll, currentPlayer, autoRollDice]);
+  }, [
+    tutorial?.freezeBots,
+    shouldAutoRoll,
+    turnPhase,
+    canRoll,
+    currentPlayer,
+    autoRollDice,
+  ]);
 
   useEffect(() => {
     if (online) return;
@@ -101,6 +111,7 @@ export function BotController() {
 
   /* CPU bots + local AFK humans. */
   useEffect(() => {
+    if (tutorial?.freezeBots) return;
     if (online && !currentIsBot) return;
     if (!currentIsBot && !localAfk) return;
     if (!canInteractWithPieces || !remainingDice?.length) return;
@@ -129,6 +140,7 @@ export function BotController() {
       clearTimeout(timeout);
     };
   }, [
+    tutorial?.freezeBots,
     online,
     currentIsBot,
     localAfk,

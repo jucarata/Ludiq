@@ -27,11 +27,12 @@ function TutorialPlayInner() {
     <GameView
       activePlayers={gameSetup.activePlayers}
       botPlayers={gameSetup.botPlayers}
+      tutorial
     />
   );
 }
 
-/** Tutorial-only practice match. Extra tutorial behaviors will land here later. */
+/** Guided practice match for first-time players. */
 export default function TutorialPlayPage() {
   return (
     <Suspense fallback={null}>

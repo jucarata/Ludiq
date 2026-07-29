@@ -64,7 +64,14 @@ const DiceContext = createContext<DiceContextValue | null>(null);
 
 export { DiceContext };
 
-export function DiceProvider({ children }: { children: ReactNode }) {
+export function DiceProvider({
+  children,
+  rollDicePairFn,
+}: {
+  children: ReactNode;
+  /** Optional override used by `/tuto` for scripted rolls. */
+  rollDicePairFn?: () => [number, number];
+}) {
   const {
     currentPlayer,
     pauseForDiceRoll,
@@ -83,6 +90,8 @@ export function DiceProvider({ children }: { children: ReactNode }) {
   const settledDiceRef = useRef<Map<number, number>>(new Map());
   const diceZoneRef = useRef<HTMLDivElement | null>(null);
   const exitRollAttemptsRef = useRef(0);
+  const rollDicePairFnRef = useRef(rollDicePairFn);
+  rollDicePairFnRef.current = rollDicePairFn;
 
   const canRoll = !hasRolledThisTurn && !isRolling;
 
@@ -169,7 +178,9 @@ export function DiceProvider({ children }: { children: ReactNode }) {
     }) => {
       if (!canRoll) return;
 
-      const values = rollDicePair();
+      const values = rollDicePairFnRef.current
+        ? rollDicePairFnRef.current()
+        : rollDicePair();
       const velocities = createPairedThrowVelocities(params.vx, params.vy);
       const spawnPoints = createPairedSpawnPoints(params.x, params.y);
       const sessionId = Date.now();

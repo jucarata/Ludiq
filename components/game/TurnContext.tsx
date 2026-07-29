@@ -49,6 +49,8 @@ interface TurnContextValue {
   extendDecisionTime: () => void;
   advanceTurn: () => void;
   endGame: () => void;
+  /** Freeze the turn timer (in-game tutorial). */
+  setTimerFrozen: (frozen: boolean) => void;
 }
 
 const TurnContext = createContext<TurnContextValue | null>(null);
@@ -136,6 +138,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
   const [announcement, setAnnouncement] = useState<PlayerColor | null>(
     getPlayerAt(0, activePlayers),
   );
+  const timerFrozenRef = useRef(false);
 
   const currentPlayer = getPlayerAt(playerIndex, activePlayers);
   const holdOnExpiryRef = useRef(
@@ -168,6 +171,10 @@ export function TurnProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "end_game" });
   }, []);
 
+  const setTimerFrozen = useCallback((frozen: boolean) => {
+    timerFrozenRef.current = frozen;
+  }, []);
+
   useEffect(() => {
     setAnnouncement(currentPlayer);
     const timeout = setTimeout(() => setAnnouncement(null), TURN_ANNOUNCEMENT_MS);
@@ -176,6 +183,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      if (timerFrozenRef.current) return;
       dispatch({ type: "tick", holdOnExpiry: holdOnExpiryRef.current });
     }, 1000);
 
@@ -195,6 +203,7 @@ export function TurnProvider({ children }: { children: ReactNode }) {
         extendDecisionTime,
         advanceTurn,
         endGame,
+        setTimerFrozen,
       }}
     >
       {children}

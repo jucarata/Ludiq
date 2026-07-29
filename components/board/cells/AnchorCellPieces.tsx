@@ -4,6 +4,7 @@ import type { BasicOrientation } from "@/lib/board/cell-shapes";
 import type { CornerHalfRegion } from "@/lib/board/player-path";
 import { useTurn } from "@/components/game/TurnContext";
 import { useGameState } from "@/components/game/GameStateContext";
+import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialContext";
 import type { PieceIndex } from "@/lib/game/pieces";
 import { CellPieces, PieceSlot } from "./CellPieces";
 
@@ -46,6 +47,7 @@ export function CornerHalfPieces({ anchor, half, region }: CornerHalfPiecesProps
     selectedPiece,
     selectPiece,
   } = useGameState();
+  const tutorial = useOptionalInGameTutorial();
 
   const pieces = getPiecesAtAnchor(anchor, half).slice(0, 2);
   if (pieces.length === 0) return null;
@@ -69,7 +71,9 @@ export function CornerHalfPieces({ anchor, half, region }: CornerHalfPiecesProps
               player={piece.player}
               index={piece.index}
               interactive={
-                canHumanInteractWithPieces && piece.player === currentPlayer
+                canHumanInteractWithPieces &&
+                piece.player === currentPlayer &&
+                (tutorial?.canSelectPiece(piece.player, piece.index) ?? true)
               }
               selected={
                 selectedPiece?.index === piece.index &&
@@ -104,6 +108,7 @@ export function AnchorCellPieces({
     selectedPiece,
     selectPiece,
   } = useGameState();
+  const tutorial = useOptionalInGameTutorial();
 
   const pieces = getPiecesAtAnchor(anchor, half);
   if (pieces.length === 0) return null;
@@ -120,6 +125,9 @@ export function AnchorCellPieces({
       interactive={canHumanInteractWithPieces}
       activePlayer={currentPlayer}
       selectedPiece={selectedPiece}
+      canInteractWithPiece={(player, index) =>
+        tutorial?.canSelectPiece(player, index) ?? true
+      }
       onPieceClick={(index, player, menuAnchor) =>
         selectPiece({ index: index as PieceIndex, player }, menuAnchor)
       }
