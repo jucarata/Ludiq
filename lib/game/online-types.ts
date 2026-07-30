@@ -12,7 +12,8 @@ export type OnlineGameAction =
   | "move"
   | "advance"
   | "timeout"
-  | "afk";
+  | "afk"
+  | "reroll";
 
 export type OnlineGameStateView = {
   roomId: string;
@@ -21,6 +22,8 @@ export type OnlineGameStateView = {
   turnPhase: TurnPhase;
   pieces: PieceState[];
   remainingDice: number[] | null;
+  /** True when a paid reroll is allowed for this decision window. */
+  rerollEligible: boolean;
   exitRollAttempts: number;
   lastRoll: [number, number] | null;
   lastAction: OnlineGameAction | null;

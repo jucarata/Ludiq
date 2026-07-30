@@ -27,6 +27,7 @@ import {
 } from "@/lib/game/movement";
 import type { BotMoveDecision } from "@/lib/game/bot";
 import { resolveRoll, type PostRollAction } from "@/lib/game/roll-resolution";
+import { computeRerollEligible } from "@/lib/game/reroll";
 import {
   FINISH_CELEBRATION_MS,
   type CelebrationState,
@@ -59,6 +60,8 @@ export interface MenuAnchor {
 interface GameStateContextValue {
   pieces: PieceState[];
   remainingDice: number[] | null;
+  /** True when a paid reroll is allowed for this decision window. */
+  rerollEligible: boolean;
   selectedPiece: SelectedPiece | null;
   menuAnchor: MenuAnchor | null;
   canInteractWithPieces: boolean;
@@ -73,6 +76,8 @@ interface GameStateContextValue {
     exitAttemptsUsed?: number,
   ) => PostRollAction;
   beginMovementPhase: (roll: [number, number]) => void;
+  /** Undo roll board effects and clear remaining dice (caller resets turn/dice). */
+  preparePaidReroll: () => boolean;
   selectPiece: (piece: SelectedPiece, anchor: MenuAnchor) => void;
   clearSelection: () => void;
   getMoveOptionsForSelection: () => MoveOption[];
@@ -107,6 +112,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [remainingDice, setRemainingDice] = useState<number[] | null>(null);
+  const [rerollEligible, setRerollEligible] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<SelectedPiece | null>(
     null,
   );
@@ -147,6 +153,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setRemainingDice(null);
+    setRerollEligible(false);
     setSelectedPiece(null);
     setMenuAnchor(null);
   }, [currentPlayer]);
@@ -259,11 +266,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       exitAttemptsUsed = 0,
     ): PostRollAction => {
       let resolution!: ReturnType<typeof resolveRoll>;
+      let eligible = false;
 
       setPieces((prev) => {
+        eligible = computeRerollEligible(prev, player, roll);
         resolution = resolveRoll(prev, player, roll, exitAttemptsUsed);
         return resolution.nextPieces;
       });
+      setRerollEligible(
+        resolution.action === "decision_phase" ? eligible : false,
+      );
       setSelectedPiece(null);
       setMenuAnchor(null);
 
@@ -277,6 +289,20 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setSelectedPiece(null);
     setMenuAnchor(null);
   }, []);
+
+  const preparePaidReroll = useCallback((): boolean => {
+    if (turnPhase !== "deciding") return false;
+    if (!remainingDice || remainingDice.length !== 2) return false;
+    if (!rerollEligible) return false;
+
+    /* Board is unchanged on eligible rerolls (no exit this throw). */
+    setRerollEligible(false);
+    setRemainingDice(null);
+    setSelectedPiece(null);
+    setMenuAnchor(null);
+    setAnimation(null);
+    return true;
+  }, [turnPhase, remainingDice, rerollEligible]);
 
   const movePiece = useCallback(
     (target: SelectedPiece, choice: DieMoveChoice): boolean => {
@@ -315,6 +341,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     if (hasAnyValidMove(pieces, currentPlayer, remainingDice)) return;
 
     setRemainingDice(null);
+    setRerollEligible(false);
     setSelectedPiece(null);
     setMenuAnchor(null);
     advanceTurn();
@@ -418,6 +445,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const value: GameStateContextValue = {
     pieces,
     remainingDice,
+    rerollEligible,
     selectedPiece,
     menuAnchor,
     canInteractWithPieces,
@@ -427,6 +455,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     getFinishedPieces: (player) => getFinishedPieces(pieces, player),
     handleRollResult,
     beginMovementPhase,
+    preparePaidReroll,
     selectPiece,
     clearSelection,
     getMoveOptionsForSelection,

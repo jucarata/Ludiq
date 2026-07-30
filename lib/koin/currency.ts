@@ -14,6 +14,9 @@ export const KOIN = {
 
 export type KoinCurrency = typeof KOIN;
 
+/** Cost to discard a roll during the decision window and throw again. */
+export const REROLL_COST_KOINS = 10;
+
 /** Format a Koin balance for display (no decimals — whole units only). */
 export function formatKoins(amount: number, locale?: string): string {
   const safe = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;

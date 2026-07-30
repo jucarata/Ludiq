@@ -317,6 +317,7 @@ export interface Database {
           winner: PlayerColor | null;
           turn_started_at: string;
           afk_takeover: boolean;
+          reroll_eligible: boolean;
           version: number;
           updated_at: string;
         };
@@ -334,6 +335,7 @@ export interface Database {
           winner?: PlayerColor | null;
           turn_started_at?: string;
           afk_takeover?: boolean;
+          reroll_eligible?: boolean;
           version?: number;
           updated_at?: string;
         };
@@ -351,6 +353,7 @@ export interface Database {
           winner?: PlayerColor | null;
           turn_started_at?: string;
           afk_takeover?: boolean;
+          reroll_eligible?: boolean;
           version?: number;
           updated_at?: string;
         };

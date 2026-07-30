@@ -44,6 +44,7 @@ type OnlineSessionContextValue = {
     game: OnlineGameStateView;
     roll: [number, number];
   }>;
+  postReroll: () => Promise<{ game: OnlineGameStateView; koins: number }>;
   postMove: (
     pieceIndex: PieceIndex,
     dieValue: number,
@@ -172,6 +173,31 @@ export function OnlineSessionProvider({
     [applyGame, code, getAuthHeaders, guestBody, mode],
   );
 
+  const postReroll = useCallback(async () => {
+    const headers = await getAuthHeaders();
+    const res = await fetch("/api/game/reroll", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ code, mode, ...guestBody() }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      const error = new Error(data?.error ?? "Reroll failed") as Error & {
+        status?: number;
+      };
+      error.status = res.status;
+      throw error;
+    }
+    const data = (await res.json()) as {
+      game: OnlineGameStateView;
+      koins: number;
+    };
+    applyGame(data.game);
+    return data;
+  }, [applyGame, code, getAuthHeaders, guestBody, mode]);
+
   const postMove = useCallback(
     async (pieceIndex: PieceIndex, dieValue: number, actionId: string) => {
       const headers = await getAuthHeaders();
@@ -239,6 +265,7 @@ export function OnlineSessionProvider({
       getAuthHeaders,
       guestBody,
       postRoll,
+      postReroll,
       postMove,
       postAdvanceTurn,
       sendLiveRoll,
@@ -256,6 +283,7 @@ export function OnlineSessionProvider({
       postAdvanceTurn,
       postMove,
       postRoll,
+      postReroll,
       room,
       selfColor,
       sendLiveMove,

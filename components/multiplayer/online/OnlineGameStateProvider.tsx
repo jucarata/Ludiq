@@ -458,6 +458,11 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
     /* Server / realtime sets remaining dice. */
   }, []);
 
+  const preparePaidReroll = useCallback((): boolean => {
+    /* Online restore is applied via server game snapshot. */
+    return true;
+  }, []);
+
   const movePiece = useCallback(
     (
       target: SelectedPiece,
@@ -666,6 +671,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
       value={{
         pieces: displayPieces,
         remainingDice,
+        rerollEligible: game.rerollEligible,
         selectedPiece,
         menuAnchor,
         canInteractWithPieces,
@@ -675,6 +681,7 @@ export function OnlineGameStateProvider({ children }: { children: ReactNode }) {
         getFinishedPieces: (player) => getFinishedPieces(displayPieces, player),
         handleRollResult,
         beginMovementPhase,
+        preparePaidReroll,
         selectPiece,
         clearSelection,
         getMoveOptionsForSelection,

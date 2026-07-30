@@ -21,6 +21,8 @@ import {
   type PieceIndex,
   type PieceState,
 } from "@/lib/game/pieces";
+import { canPaidDiceReroll, computeRerollEligible } from "@/lib/game/reroll";
+import { REROLL_COST_KOINS } from "@/lib/koin/currency";
 import { resolveRoll } from "@/lib/game/roll-resolution";
 import {
   nextPlayerIndex,
@@ -171,6 +173,7 @@ function advanceToNextTurn(
   | "remaining_dice"
   | "exit_roll_attempts"
   | "last_roll"
+  | "reroll_eligible"
   | "turn_started_at"
   | "afk_takeover"
 > {
@@ -185,6 +188,7 @@ function advanceToNextTurn(
     remaining_dice: null,
     exit_roll_attempts: 0,
     last_roll: null,
+    reroll_eligible: false,
     turn_started_at: new Date().toISOString(),
     afk_takeover: false,
   };
@@ -692,6 +696,7 @@ export async function rollOnlineDice(params: {
     });
   }
   const roll = params.roll;
+  const piecesBeforeRoll = state.pieces;
   const resolution = resolveRoll(
     state.pieces,
     selfColor,
@@ -699,6 +704,11 @@ export async function rollOnlineDice(params: {
     state.exitRollAttempts,
   );
   const meta = actionMeta("roll", actionId);
+  const rerollEligible = computeRerollEligible(
+    piecesBeforeRoll,
+    selfColor,
+    roll,
+  );
 
   let nextRow: GameStateRow;
 
@@ -707,6 +717,7 @@ export async function rollOnlineDice(params: {
       pieces: piecesToJson(resolution.nextPieces),
       turn_phase: "playing",
       remaining_dice: null,
+      reroll_eligible: false,
       exit_roll_attempts: state.exitRollAttempts + 1,
       last_roll: roll as unknown as Json,
       turn_started_at: new Date().toISOString(),
@@ -728,6 +739,7 @@ export async function rollOnlineDice(params: {
       pieces: piecesToJson(resolution.nextPieces),
       turn_phase: "deciding",
       remaining_dice: [...roll] as unknown as Json,
+      reroll_eligible: rerollEligible,
       exit_roll_attempts: state.exitRollAttempts,
       last_roll: roll as unknown as Json,
       turn_started_at: new Date().toISOString(),
@@ -866,12 +878,14 @@ async function commitOnlineMove(params: {
   if (nextRemaining.length === 0) {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(nextPieces),
+      reroll_eligible: false,
       ...advanceToNextTurn(state),
       ...meta,
     });
   } else if (!hasAnyValidMove(nextPieces, selfColor, nextRemaining)) {
     nextRow = await writeGameState(room.id, state.version, {
       pieces: piecesToJson(nextPieces),
+      reroll_eligible: false,
       ...advanceToNextTurn(state),
       ...meta,
     });
@@ -1008,6 +1022,105 @@ export async function advanceOnlineTurn(params: {
   });
 
   return { room, game: toOnlineGameStateView(nextRow) };
+}
+
+export async function rerollOnlineDice(params: {
+  code: string;
+  identity: RoomIdentity;
+  mode?: RoomMode;
+}): Promise<{ room: RoomView; game: OnlineGameStateView; koins: number }> {
+  const { room, row, selfColor } = await requirePlayingMember(params);
+  const state = toOnlineGameStateView(row);
+
+  if (params.identity.kind !== "profile") {
+    throw new Response(
+      JSON.stringify({ error: "Profile required to reroll" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  if (
+    !canPaidDiceReroll({
+      turnPhase: state.turnPhase,
+      remainingDice: state.remainingDice,
+      rerollEligible: state.rerollEligible,
+    })
+  ) {
+    throw new Response(JSON.stringify({ error: "Cannot reroll now" }), {
+      status: 409,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (state.currentTurn !== selfColor) {
+    throw new Response(JSON.stringify({ error: "Not your turn" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const profileId = params.identity.profileId;
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, koins")
+    .eq("id", profileId)
+    .maybeSingle();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profile) {
+    throw new Response(JSON.stringify({ error: "Profile required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if ((profile.koins ?? 0) < REROLL_COST_KOINS) {
+    throw new Response(JSON.stringify({ error: "Insufficient Koins" }), {
+      status: 402,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: newTotal, error: spendError } = await supabase.rpc(
+    "adjust_profile_koins",
+    {
+      p_profile_id: profileId,
+      p_delta: -REROLL_COST_KOINS,
+    },
+  );
+
+  if (spendError) {
+    const msg = spendError.message.toLowerCase();
+    if (msg.includes("insufficient")) {
+      throw new Response(JSON.stringify({ error: "Insufficient Koins" }), {
+        status: 402,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    throw new Error(spendError.message);
+  }
+
+  const actionId = createActionId();
+  const nextRow = await writeGameState(room.id, state.version, {
+    turn_phase: "playing",
+    remaining_dice: null,
+    last_roll: null,
+    reroll_eligible: false,
+    turn_started_at: new Date().toISOString(),
+    afk_takeover: false,
+    ...actionMeta("reroll", actionId),
+  });
+
+  return {
+    room,
+    game: toOnlineGameStateView(nextRow),
+    koins:
+      typeof newTotal === "number"
+        ? newTotal
+        : profile.koins - REROLL_COST_KOINS,
+  };
 }
 
 async function loadPlayerAutoEnabled(

@@ -11,6 +11,7 @@ import {
   DiceContext,
   type ActiveDieRoll,
 } from "@/components/dice/DiceContext";
+import { useGameState } from "@/components/game/GameStateContext";
 import { useTurn } from "@/components/game/TurnContext";
 import { useOnlineSession } from "@/components/multiplayer/online/OnlineSessionContext";
 import { getVictoryCellCenter } from "@/lib/board/geometry";
@@ -22,6 +23,7 @@ import {
   DICE_COUNT,
   rollDicePair,
 } from "@/lib/game/dice";
+import { canPaidDiceReroll } from "@/lib/game/reroll";
 import { MAX_EXIT_ROLL_ATTEMPTS } from "@/lib/game/roll-resolution";
 import { playDiceRollSound } from "@/lib/game/sounds";
 
@@ -31,11 +33,13 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     selfColor,
     isMyTurn,
     postRoll,
+    postReroll,
     sendLiveRoll,
     subscribeLiveRoll,
   } = useOnlineSession();
   const { currentPlayer, turnPhase, pauseForDiceRoll, resumePlaying } =
     useTurn();
+  const { remainingDice } = useGameState();
   const [isAiming, setIsAiming] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [isBoardDragging, setBoardDragging] = useState(false);
@@ -373,6 +377,60 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isAiming, cancelAim]);
 
+  const requestPaidReroll = useCallback(async () => {
+    if (isRolling || rollingRef.current) return "ineligible";
+    if (
+      !canPaidDiceReroll({
+        turnPhase,
+        remainingDice,
+        rerollEligible: game.rerollEligible,
+      })
+    ) {
+      return "ineligible";
+    }
+    if (!isMyTurn || currentPlayer !== selfColor) return "ineligible";
+
+    try {
+      await postReroll();
+      setHasRolledThisTurn(false);
+      setTurnRoll(null);
+      setActiveDice(null);
+      settledDiceRef.current.clear();
+      rollingRef.current = false;
+      setIsRolling(false);
+      resumePlaying();
+      /* Auto-arm so the player only needs to tap the board to throw. */
+      setIsAiming(true);
+      return "ok";
+    } catch (error) {
+      const status =
+        typeof error === "object" &&
+        error &&
+        "status" in error &&
+        typeof (error as { status?: unknown }).status === "number"
+          ? (error as { status: number }).status
+          : null;
+      if (status === 402) return "insufficient";
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes("insufficient")
+      ) {
+        return "insufficient";
+      }
+      return "error";
+    }
+  }, [
+    isRolling,
+    turnPhase,
+    remainingDice,
+    game.rerollEligible,
+    selfColor,
+    isMyTurn,
+    currentPlayer,
+    postReroll,
+    resumePlaying,
+  ]);
+
   return (
     <DiceContext.Provider
       value={{
@@ -392,6 +450,7 @@ export function OnlineDiceProvider({ children }: { children: ReactNode }) {
         autoRollDice,
         registerDiceZone,
         reportDieSettled,
+        requestPaidReroll,
       }}
     >
       {children}

@@ -19,6 +19,7 @@ const GAME_ACTIONS = new Set<OnlineGameAction>([
   "advance",
   "timeout",
   "afk",
+  "reroll",
 ]);
 
 export type GameStateRowLike = {
@@ -35,6 +36,7 @@ export type GameStateRowLike = {
   winner: string | null;
   turn_started_at: string;
   afk_takeover?: boolean | null;
+  reroll_eligible?: boolean | null;
   version: number;
   updated_at: string;
 };
@@ -147,6 +149,7 @@ export function toOnlineGameStateView(
     turnPhase,
     pieces: parsePieces(row.pieces),
     remainingDice: parseDice(row.remaining_dice),
+    rerollEligible: row.reroll_eligible === true,
     exitRollAttempts: row.exit_roll_attempts ?? 0,
     lastRoll: parseLastRoll(row.last_roll),
     lastAction: parseLastAction(row.last_action),

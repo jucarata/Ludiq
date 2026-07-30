@@ -1,9 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { FaArrowRotateRight } from "react-icons/fa6";
 import { DieFace } from "@/components/dice/DieFace";
 import { useDice } from "@/components/dice/DiceContext";
 import { useAutoMode } from "@/components/game/AutoModeContext";
+import { useGameState } from "@/components/game/GameStateContext";
 import { useIsBot, useActivePlayers } from "@/components/game/PlayersContext";
 import { useTurn } from "@/components/game/TurnContext";
 import { AutoModeToggles } from "@/components/turn/AutoModeToggles";
@@ -13,6 +15,8 @@ import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialC
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { getPlayerColorLabel } from "@/lib/i18n";
 import { PLAYER_COLORS, type PlayerColor } from "@/lib/board/types";
+import { canPaidDiceReroll } from "@/lib/game/reroll";
+import { REROLL_COST_KOINS } from "@/lib/koin/currency";
 
 type Corner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
@@ -94,6 +98,8 @@ function PlayerDock({
   const { t, locale } = useTranslations();
   const label = getPlayerColorLabel(locale, color);
   const { isAutoEnabled } = useAutoMode();
+  const { turnPhase } = useTurn();
+  const { remainingDice, rerollEligible } = useGameState();
   const {
     isAiming,
     isRolling,
@@ -101,7 +107,9 @@ function PlayerDock({
     turnRoll,
     armDice,
     cancelAim,
+    requestPaidReroll,
   } = useDice();
+  const [rerollBusy, setRerollBusy] = useState(false);
 
   const currentIsBot = isBot;
   const currentIsAutoHuman = !currentIsBot && isAutoEnabled(color);
@@ -115,6 +123,22 @@ function PlayerDock({
     !currentIsBot &&
     !currentIsAutoHuman &&
     !tutorialBlocksArm;
+
+  const canRerollNow =
+    isActive &&
+    isSelf &&
+    !currentIsBot &&
+    !isRolling &&
+    !rerollBusy &&
+    canPaidDiceReroll({
+      turnPhase,
+      remainingDice,
+      rerollEligible,
+      tutorialActive: !!tutorial?.active,
+    });
+
+  /* Only the local human sees their own reroll control — never rivals or bots. */
+  const showReroll = isSelf && !currentIsBot;
 
   /* While the 3-D dice are tumbling show "?" placeholders on the mini dice. */
   const rolling = isActive && isRolling;
@@ -130,6 +154,23 @@ function PlayerDock({
     if (!interactive) return;
     if (isAiming) cancelAim();
     else armDice();
+  };
+
+  const handleRerollClick = async () => {
+    if (!canRerollNow) return;
+    setRerollBusy(true);
+    try {
+      const result = await requestPaidReroll();
+      if (result === "insufficient") {
+        window.alert(t("turn.rerollInsufficient", { cost: REROLL_COST_KOINS }));
+      } else if (result === "unauthorized") {
+        window.alert(t("turn.rerollAuth"));
+      } else if (result === "error") {
+        window.alert(t("turn.rerollError"));
+      }
+    } finally {
+      setRerollBusy(false);
+    }
   };
 
   const isLeft = corner === "top-left" || corner === "bottom-left";
@@ -148,46 +189,71 @@ function PlayerDock({
       }, ${fill}33 0%, #1a1a2ef2 55%)`;
 
   const diceButton = (
-    <button
-      type="button"
-      onClick={handleDiceClick}
-      disabled={!interactive}
-      aria-pressed={aiming}
-      aria-label={
-        interactive
-          ? aiming
-            ? t("dice.cancelRoll")
-            : t("dice.rollTurn", { label })
-          : t("dice.rolled", {
-              label,
-              d1: faces[0],
-              d2: faces[1],
-            })
-      }
-      className={`flex items-center gap-0.5 rounded-lg border-2 px-1 py-0.5 transition-all sm:gap-1 sm:px-1.5 sm:py-1 ${
-        aiming ? "animate-pulse" : ""
-      } ${interactive ? "hover:brightness-110" : "cursor-default"} disabled:opacity-100 ${
-        isActive ? "opacity-100" : "opacity-75"
-      }`}
-      style={{
-        borderColor: frameBorder,
-        background: frameBackground,
-        boxShadow: frameGlow,
-      }}
-    >
-      <DieFace
-        value={faces[0]}
-        className={`${DIE} ${isActive ? "" : "opacity-55"} ${
-          isActive && isRolling ? "animate-pulse" : ""
+    <div className="flex items-center gap-0.5 sm:gap-1">
+      <button
+        type="button"
+        onClick={handleDiceClick}
+        disabled={!interactive}
+        aria-pressed={aiming}
+        aria-label={
+          interactive
+            ? aiming
+              ? t("dice.cancelRoll")
+              : t("dice.rollTurn", { label })
+            : t("dice.rolled", {
+                label,
+                d1: faces[0],
+                d2: faces[1],
+              })
+        }
+        className={`flex items-center gap-0.5 rounded-lg border-2 px-1 py-0.5 transition-all sm:gap-1 sm:px-1.5 sm:py-1 ${
+          aiming ? "animate-pulse" : ""
+        } ${interactive ? "hover:brightness-110" : "cursor-default"} disabled:opacity-100 ${
+          isActive ? "opacity-100" : "opacity-75"
         }`}
-      />
-      <DieFace
-        value={faces[1]}
-        className={`${DIE} ${isActive ? "" : "opacity-55"} ${
-          isActive && isRolling ? "animate-pulse" : ""
-        }`}
-      />
-    </button>
+        style={{
+          borderColor: frameBorder,
+          background: frameBackground,
+          boxShadow: frameGlow,
+        }}
+      >
+        <DieFace
+          value={faces[0]}
+          className={`${DIE} ${isActive ? "" : "opacity-55"} ${
+            isActive && isRolling ? "animate-pulse" : ""
+          }`}
+        />
+        <DieFace
+          value={faces[1]}
+          className={`${DIE} ${isActive ? "" : "opacity-55"} ${
+            isActive && isRolling ? "animate-pulse" : ""
+          }`}
+        />
+      </button>
+
+      {showReroll ? (
+        <button
+          type="button"
+          onClick={() => void handleRerollClick()}
+          disabled={!canRerollNow}
+          title={t("turn.rerollHint", { cost: REROLL_COST_KOINS })}
+          aria-label={t("turn.rerollAria", { cost: REROLL_COST_KOINS })}
+          className={`flex h-7 w-7 shrink-0 flex-col items-center justify-center rounded-lg border-2 transition-all sm:h-8 sm:w-8 ${
+            canRerollNow
+              ? "border-[#fcd34d] bg-[#3d3520] text-[#fcd34d] hover:brightness-110"
+              : "cursor-default border-[#2a2a3e] bg-[#1a1a2e]/80 text-[#fefae0]/35"
+          }`}
+        >
+          <FaArrowRotateRight
+            className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${rerollBusy ? "animate-spin" : ""}`}
+            aria-hidden
+          />
+          <span className="font-mono text-[7px] font-bold leading-none tabular-nums sm:text-[8px]">
+            {REROLL_COST_KOINS}
+          </span>
+        </button>
+      ) : null}
+    </div>
   );
 
   return (

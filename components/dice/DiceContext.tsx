@@ -11,6 +11,8 @@ import {
 } from "react";
 import { useTurn } from "@/components/game/TurnContext";
 import { useGameState } from "@/components/game/GameStateContext";
+import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialContext";
+import { useAppAuth } from "@/lib/auth/useAppAuth";
 import { getVictoryCellCenter } from "@/lib/board/geometry";
 import {
   createPairedSpawnPoints,
@@ -18,6 +20,8 @@ import {
   DICE_COUNT,
   rollDicePair,
 } from "@/lib/game/dice";
+import { canPaidDiceReroll } from "@/lib/game/reroll";
+import { REROLL_COST_KOINS } from "@/lib/koin/currency";
 import { MAX_EXIT_ROLL_ATTEMPTS } from "@/lib/game/roll-resolution";
 import { playDiceRollSound } from "@/lib/game/sounds";
 
@@ -58,6 +62,10 @@ interface DiceContextValue {
   autoRollDice: () => void;
   registerDiceZone: (element: HTMLDivElement | null) => void;
   reportDieSettled: (key: number, value: number) => void;
+  /** Spend Koins to discard the current roll and throw again. */
+  requestPaidReroll: () => Promise<
+    "ok" | "insufficient" | "ineligible" | "unauthorized" | "error"
+  >;
 }
 
 const DiceContext = createContext<DiceContextValue | null>(null);
@@ -74,12 +82,21 @@ export function DiceProvider({
 }) {
   const {
     currentPlayer,
+    turnPhase,
     pauseForDiceRoll,
     resumePlaying,
     startDecisionPhase,
     advanceTurn,
   } = useTurn();
-  const { handleRollResult, beginMovementPhase } = useGameState();
+  const {
+    handleRollResult,
+    beginMovementPhase,
+    preparePaidReroll,
+    remainingDice,
+    rerollEligible,
+  } = useGameState();
+  const tutorial = useOptionalInGameTutorial();
+  const { getAccessToken } = useAppAuth();
   const [isAiming, setIsAiming] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [isBoardDragging, setBoardDragging] = useState(false);
@@ -247,6 +264,62 @@ export function DiceProvider({
     });
   }, [canRoll, startRollSession]);
 
+  const requestPaidReroll = useCallback(async () => {
+    if (isRolling) return "ineligible";
+    if (
+      !canPaidDiceReroll({
+        turnPhase,
+        remainingDice,
+        rerollEligible,
+        tutorialActive: !!tutorial?.active,
+      })
+    ) {
+      return "ineligible";
+    }
+
+    try {
+      const token = await getAccessToken();
+      if (!token) return "unauthorized";
+
+      const res = await fetch("/api/koins/spend", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: REROLL_COST_KOINS,
+          reason: "dice_reroll",
+        }),
+      });
+
+      if (res.status === 402) return "insufficient";
+      if (!res.ok) return "error";
+
+      if (!preparePaidReroll()) return "error";
+
+      setHasRolledThisTurn(false);
+      setTurnRoll(null);
+      setActiveDice(null);
+      settledDiceRef.current.clear();
+      resumePlaying();
+      /* Auto-arm so the player only needs to tap the board to throw. */
+      setIsAiming(true);
+      return "ok";
+    } catch {
+      return "error";
+    }
+  }, [
+    isRolling,
+    turnPhase,
+    remainingDice,
+    rerollEligible,
+    tutorial?.active,
+    getAccessToken,
+    preparePaidReroll,
+    resumePlaying,
+  ]);
+
   useEffect(() => {
     if (!isAiming) return;
 
@@ -277,6 +350,7 @@ export function DiceProvider({
         autoRollDice,
         registerDiceZone,
         reportDieSettled,
+        requestPaidReroll,
       }}
     >
       {children}
