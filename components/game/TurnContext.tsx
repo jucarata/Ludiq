@@ -32,7 +32,7 @@ type TurnAction =
   | { type: "pause_for_roll" }
   | { type: "resume_playing" }
   | { type: "start_decision" }
-  | { type: "extend_decision" }
+  | { type: "extend_decision"; seconds?: number }
   | { type: "advance_turn" }
   | { type: "end_game" };
 
@@ -45,7 +45,7 @@ interface TurnContextValue {
   /** Vuelve a fase de tirada tras un intento de salida fallido */
   resumePlaying: () => void;
   startDecisionPhase: () => void;
-  extendDecisionTime: () => void;
+  extendDecisionTime: (seconds?: number) => void;
   advanceTurn: () => void;
   endGame: () => void;
   /** Freeze the turn timer (in-game tutorial). */
@@ -84,7 +84,10 @@ function turnReducer(
 
     case "extend_decision":
       if (state.phase !== "deciding") return state;
-      return { ...state, timeLeft: TURN_DECISION_SECONDS };
+      return {
+        ...state,
+        timeLeft: action.seconds ?? TURN_DECISION_SECONDS,
+      };
 
     case "advance_turn":
       return {
@@ -161,8 +164,8 @@ export function TurnProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "start_decision" });
   }, []);
 
-  const extendDecisionTime = useCallback(() => {
-    dispatch({ type: "extend_decision" });
+  const extendDecisionTime = useCallback((seconds?: number) => {
+    dispatch({ type: "extend_decision", seconds });
   }, []);
 
   const advanceTurn = useCallback(() => {

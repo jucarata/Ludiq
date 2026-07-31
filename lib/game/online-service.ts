@@ -25,6 +25,7 @@ import { canPaidDiceReroll, computeRerollEligible } from "@/lib/game/reroll";
 import { REROLL_COST_KOINS } from "@/lib/koin/currency";
 import { resolveRoll } from "@/lib/game/roll-resolution";
 import {
+  AFK_TAKEOVER_SECONDS,
   nextPlayerIndex,
   TURN_DECISION_SECONDS,
   TURN_DURATION_SECONDS,
@@ -968,17 +969,21 @@ export async function advanceOnlineTurn(params: {
       return { room, game: toOnlineGameStateView(cleared) };
     }
 
-    /* First AFK entry: refresh the 15s decision window while the bot plays. */
+    /* First AFK entry: short window while the bot spends the rolled dice. */
     const enteringAfk = !state.afkTakeover;
+    const afkStartedAt = enteringAfk
+      ? new Date(
+          Date.now() -
+            (TURN_DECISION_SECONDS - AFK_TAKEOVER_SECONDS) * 1000,
+        ).toISOString()
+      : state.turnStartedAt;
 
     return commitOnlineMove({
       room,
       state: {
         ...state,
         afkTakeover: true,
-        ...(enteringAfk
-          ? { turnStartedAt: new Date().toISOString() }
-          : {}),
+        ...(enteringAfk ? { turnStartedAt: afkStartedAt } : {}),
       },
       selfColor,
       pieceIndex: decision.index,

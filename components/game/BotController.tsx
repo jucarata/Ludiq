@@ -11,6 +11,7 @@ import { useOptionalInGameTutorial } from "@/components/tutorial/InGameTutorialC
 import { ParquesBot } from "@/lib/game/bot";
 import type { PlayerColor } from "@/lib/board/types";
 import type { PieceState } from "@/lib/game/pieces";
+import { AFK_TAKEOVER_SECONDS } from "@/lib/game/turns";
 
 const BOT_ROLL_DELAY_MS = 1600;
 const BOT_MOVE_DELAY_SINGLE_MS = 1000;
@@ -103,7 +104,7 @@ export function BotController() {
     if (!currentIsAutoHuman) {
       setAutoEnabled(currentPlayer, true);
     }
-    extendDecisionTime();
+    extendDecisionTime(AFK_TAKEOVER_SECONDS);
     setAfkTakeover(true);
   }, [
     online,
