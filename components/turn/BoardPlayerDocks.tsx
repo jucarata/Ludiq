@@ -188,8 +188,14 @@ function PlayerDock({
         isLeft ? "90deg" : "270deg"
       }, ${fill}33 0%, #1a1a2ef2 55%)`;
 
+  /* Left docks: avatar | dice | reroll. Right docks: reroll | dice | avatar
+     so the reroll always sits on the board-facing (inner) side. */
   const diceButton = (
-    <div className="flex items-center gap-0.5 sm:gap-1">
+    <div
+      className={`flex items-center gap-0.5 sm:gap-1 ${
+        isLeft ? "flex-row" : "flex-row-reverse"
+      }`}
+    >
       <button
         type="button"
         onClick={handleDiceClick}
