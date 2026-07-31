@@ -21,9 +21,9 @@ import {
 const AFK_BOT_GAP_MS = 2200;
 
 export function OnlineTurnProvider({ children }: { children: ReactNode }) {
-  const { game, isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef } =
+  const { game, selfColor, isMyTurn, postAdvanceTurn, turnAdvanceBlockedRef } =
     useOnlineSession();
-  const { isAutoEnabled, setAfkTakeover } = useAutoMode();
+  const { isAutoEnabled, setAutoEnabled, setAfkTakeover } = useAutoMode();
   const [timeLeft, setTimeLeft] = useState(() => secondsLeftForTurn(game));
   const [announcement, setAnnouncement] = useState<PlayerColor | null>(null);
   const [localPhase, setLocalPhase] = useState<TurnPhase | null>(null);
@@ -77,7 +77,11 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     const expired = timeLeft <= 0 || game.afkTakeover;
     if (!expired) return;
 
-    const auto = isAutoEnabled(game.currentTurn);
+    const alreadyAuto = isAutoEnabled(game.currentTurn);
+    /* Timeout always forces auto — bot takes over instead of skipping. */
+    if (!alreadyAuto) {
+      setAutoEnabled(selfColor, true);
+    }
     let cancelled = false;
 
     const pump = () => {
@@ -85,14 +89,14 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
       /* Wait while a piece is mid-animation so moves don't stack/teleport. */
       if (turnAdvanceBlockedRef.current) return;
       advancingRef.current = true;
-      void postAdvanceTurn({ autoEnabled: auto })
+      void postAdvanceTurn({ autoEnabled: true })
         .catch(() => undefined)
         .finally(() => {
           advancingRef.current = false;
         });
     };
 
-    const firstDelay = game.afkTakeover || auto ? AFK_BOT_GAP_MS : 120;
+    const firstDelay = game.afkTakeover || alreadyAuto ? AFK_BOT_GAP_MS : 120;
     const first = setTimeout(pump, firstDelay);
     const interval = setInterval(pump, AFK_BOT_GAP_MS);
 
@@ -111,6 +115,8 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     isMyTurn,
     localPhase,
     postAdvanceTurn,
+    selfColor,
+    setAutoEnabled,
     timeLeft,
     turnAdvanceBlockedRef,
   ]);
@@ -149,6 +155,7 @@ export function OnlineTurnProvider({ children }: { children: ReactNode }) {
     postAdvanceTurn,
     turnAdvanceBlockedRef,
   ]);
+
 
   const endGame = useCallback(() => {
     /* Winner is set by the server. */

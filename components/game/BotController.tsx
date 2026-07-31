@@ -43,9 +43,11 @@ function piecesKey(pieces: PieceState[]): string {
 
 /** Orquesta lanzamientos y movimientos automáticos para bots y humanos en modo auto */
 export function BotController() {
-  const { currentPlayer, turnPhase, timeLeft, advanceTurn } = useTurn();
+  const { currentPlayer, turnPhase, timeLeft, advanceTurn, extendDecisionTime } =
+    useTurn();
   const isBot = useIsBot();
-  const { isAutoEnabled, isAfkTakeover, setAfkTakeover } = useAutoMode();
+  const { isAutoEnabled, isAfkTakeover, setAfkTakeover, setAutoEnabled } =
+    useAutoMode();
   const online = useOptionalOnlineSession();
   const { canRoll, autoRollDice } = useDice();
   const { pieces, remainingDice, canInteractWithPieces, executeMove } =
@@ -91,12 +93,17 @@ export function BotController() {
 
   useEffect(() => {
     if (online) return;
-    if (currentIsBot || !currentIsAutoHuman) return;
+    if (currentIsBot) return;
     if (turnPhase !== "deciding") return;
     if (!remainingDice?.length) return;
     if (timeLeft > 0) return;
     if (isAfkTakeover) return;
 
+    /* Timeout without a move: force auto so the bot finishes the turn. */
+    if (!currentIsAutoHuman) {
+      setAutoEnabled(currentPlayer, true);
+    }
+    extendDecisionTime();
     setAfkTakeover(true);
   }, [
     online,
@@ -106,6 +113,9 @@ export function BotController() {
     remainingDice,
     timeLeft,
     isAfkTakeover,
+    currentPlayer,
+    setAutoEnabled,
+    extendDecisionTime,
     setAfkTakeover,
   ]);
 

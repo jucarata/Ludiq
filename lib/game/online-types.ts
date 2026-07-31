@@ -31,7 +31,7 @@ export type OnlineGameStateView = {
   winner: PlayerColor | null;
   version: number;
   turnStartedAt: string;
-  /** Timer expired with auto on — bot is finishing this turn; clock stays at 0. */
+  /** Timer expired — bot is finishing this turn; human input stays locked. */
   afkTakeover: boolean;
   updatedAt: string;
 };
@@ -42,7 +42,6 @@ export type OnlineGamePayload = {
 };
 
 export function secondsLeftForTurn(game: OnlineGameStateView): number {
-  if (game.afkTakeover) return 0;
   if (game.turnPhase === "ended" || game.turnPhase === "rolling") {
     return game.turnPhase === "ended" ? 0 : TURN_DURATION_SECONDS;
   }

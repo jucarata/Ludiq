@@ -19,8 +19,7 @@ import {
   TURN_DURATION_SECONDS,
   type TurnPhase,
 } from "@/lib/game/turns";
-import { useAutoMode } from "@/components/game/AutoModeContext";
-import { useActivePlayers } from "@/components/game/PlayersContext";
+import { useActivePlayers, useIsBot } from "@/components/game/PlayersContext";
 
 interface TurnState {
   playerIndex: number;
@@ -125,7 +124,7 @@ function turnReducer(
 
 export function TurnProvider({ children }: { children: ReactNode }) {
   const activePlayers = useActivePlayers();
-  const { isAutoEnabled } = useAutoMode();
+  const isBot = useIsBot();
   const [{ playerIndex, timeLeft, phase }, dispatch] = useReducer(
     (state: TurnState, action: TurnAction) =>
       turnReducer(state, action, activePlayers),
@@ -141,11 +140,14 @@ export function TurnProvider({ children }: { children: ReactNode }) {
   const timerFrozenRef = useRef(false);
 
   const currentPlayer = getPlayerAt(playerIndex, activePlayers);
+  /*
+   * Hold at 0 during deciding for any human — auto (or timeout-forced auto)
+   * AFK finishes the moves instead of skipping the turn.
+   */
   const holdOnExpiryRef = useRef(
-    phase === "deciding" && isAutoEnabled(currentPlayer),
+    phase === "deciding" && !isBot(currentPlayer),
   );
-  holdOnExpiryRef.current =
-    phase === "deciding" && isAutoEnabled(currentPlayer);
+  holdOnExpiryRef.current = phase === "deciding" && !isBot(currentPlayer);
 
   const pauseForDiceRoll = useCallback(() => {
     dispatch({ type: "pause_for_roll" });

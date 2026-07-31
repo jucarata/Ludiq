@@ -894,6 +894,7 @@ async function commitOnlineMove(params: {
       pieces: piecesToJson(nextPieces),
       remaining_dice: nextRemaining as unknown as Json,
       turn_phase: "deciding",
+      turn_started_at: state.turnStartedAt,
       afk_takeover: true,
       ...meta,
     });
@@ -967,9 +968,18 @@ export async function advanceOnlineTurn(params: {
       return { room, game: toOnlineGameStateView(cleared) };
     }
 
+    /* First AFK entry: refresh the 15s decision window while the bot plays. */
+    const enteringAfk = !state.afkTakeover;
+
     return commitOnlineMove({
       room,
-      state: { ...state, afkTakeover: true },
+      state: {
+        ...state,
+        afkTakeover: true,
+        ...(enteringAfk
+          ? { turnStartedAt: new Date().toISOString() }
+          : {}),
+      },
       selfColor,
       pieceIndex: decision.index,
       dieValue: decision.choice.value,
@@ -997,22 +1007,32 @@ export async function advanceOnlineTurn(params: {
     });
   }
 
-  const autoEnabled =
-    params.autoEnabled === true ||
-    (await loadPlayerAutoEnabled(room.id, selfColor));
-
   /*
-   * Auto expired: execute the bot move immediately (do not only set a flag
-   * and wait — that left clients frozen when the follow-up never ran).
+   * Time expired without a move: force auto mode so the bot takes over
+   * (same path as a player who already had auto on).
    */
+  await ensurePlayerAutoEnabled(room.id, selfColor);
+
   if (
-    autoEnabled &&
     state.turnPhase === "deciding" &&
     state.remainingDice &&
     state.remainingDice.length > 0 &&
     hasAnyValidMove(state.pieces, selfColor, state.remainingDice)
   ) {
     return playAfkBotMove();
+  }
+
+  /*
+   * Still need to roll: give a fresh turn window so the newly-enabled
+   * auto bot can throw instead of skipping the turn.
+   */
+  if (state.turnPhase === "playing") {
+    const nextRow = await writeGameState(room.id, state.version, {
+      turn_started_at: new Date().toISOString(),
+      afk_takeover: false,
+      ...actionMeta("timeout", createActionId()),
+    });
+    return { room, game: toOnlineGameStateView(nextRow) };
   }
 
   const nextRow = await writeGameState(room.id, state.version, {
@@ -1136,18 +1156,17 @@ export async function rerollOnlineDice(params: {
   };
 }
 
-async function loadPlayerAutoEnabled(
+async function ensurePlayerAutoEnabled(
   roomId: string,
   color: PlayerColor,
-): Promise<boolean> {
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("game_room_players")
-    .select("auto_enabled")
+    .update({ auto_enabled: true })
     .eq("room_id", roomId)
     .eq("color", color)
-    .maybeSingle();
+    .eq("auto_enabled", false);
 
   if (error) throw new Error(error.message);
-  return data?.auto_enabled === true;
 }
