@@ -65,10 +65,28 @@ async function unlockMatchingAccount(
   return profileWallet;
 }
 
+async function readChainId(
+  provider: InjectedEthereumProvider,
+): Promise<number | null> {
+  try {
+    const value = await provider.request({ method: "eth_chainId" });
+    if (typeof value === "string") {
+      return Number.parseInt(value, value.startsWith("0x") ? 16 : 10);
+    }
+    if (typeof value === "number") return value;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 async function switchInjectedChain(
   provider: InjectedEthereumProvider,
   chainId: number,
 ): Promise<void> {
+  const current = await readChainId(provider);
+  if (current === chainId) return;
+
   const hexId = `0x${chainId.toString(16)}`;
   try {
     await provider.request({
@@ -76,6 +94,9 @@ async function switchInjectedChain(
       params: [{ chainId: hexId }],
     });
   } catch (error) {
+    /* MiniPay / some injectors reject redundant switches — succeed if already on chain. */
+    if ((await readChainId(provider)) === chainId) return;
+
     const code =
       typeof error === "object" && error && "code" in error
         ? Number((error as { code: number }).code)

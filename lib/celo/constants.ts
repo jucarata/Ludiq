@@ -34,7 +34,7 @@ export const CELO_MAINNET_USDT = {
  * token address — USDT/USDC will fail if the token address is used for gas.
  */
 export const CELO_MAINNET_USDT_FEE_CURRENCY =
-  "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72" as Address;
+  "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72" as Address;
 export const CELO_MAINNET_USDC_FEE_CURRENCY =
   "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B" as Address;
 export const CELO_MAINNET_USDM_FEE_CURRENCY =

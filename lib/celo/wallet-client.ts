@@ -4,9 +4,11 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
+  encodeFunctionData,
   erc20Abi,
   http,
   parseUnits,
+  type Abi,
   type Address,
   type Hex,
   type WalletClient,
@@ -37,12 +39,69 @@ export type CompetitiveWallet = {
   }>;
 };
 
+type EthereumProvider = {
+  request: (args: {
+    method: string;
+    params?: unknown[];
+  }) => Promise<unknown>;
+};
+
+/** Extra USDT reserved for MiniPay network fees (approve + action). */
+const MINIPAY_FEE_BUFFER_RAW = parseUnits("0.02", COMPETITIVE_TOKEN.decimals);
+
+function parseChainId(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = value.startsWith("0x")
+      ? Number.parseInt(value, 16)
+      : Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+async function readProviderChainId(
+  provider: EthereumProvider,
+): Promise<number | null> {
+  try {
+    return parseChainId(await provider.request({ method: "eth_chainId" }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ensure the injected wallet is on the party chain. MiniPay often rejects
+ * redundant switchChain calls — treat "already on chain" as success.
+ */
+async function ensurePartyChain(
+  wallet: CompetitiveWallet,
+): Promise<EthereumProvider> {
+  const chain = getCompetitiveChain();
+  const provider = await wallet.getEthereumProvider();
+  const currentId = await readProviderChainId(provider);
+  if (currentId === chain.id) return provider;
+
+  try {
+    await wallet.switchChain(chain.id);
+  } catch (error) {
+    const afterId = await readProviderChainId(provider);
+    if (afterId === chain.id) return provider;
+    throw error;
+  }
+
+  return provider;
+}
+
 async function getWalletClient(
   wallet: CompetitiveWallet,
-): Promise<{ client: WalletClient; account: Address }> {
+): Promise<{
+  client: WalletClient;
+  account: Address;
+  provider: EthereumProvider;
+}> {
   const chain = getCompetitiveChain();
-  await wallet.switchChain(chain.id);
-  const provider = await wallet.getEthereumProvider();
+  const provider = await ensurePartyChain(wallet);
   const account = wallet.address as Address;
 
   const client = createWalletClient({
@@ -51,7 +110,7 @@ async function getWalletClient(
     transport: custom(provider),
   });
 
-  return { client, account };
+  return { client, account, provider };
 }
 
 function publicClient() {
@@ -81,6 +140,84 @@ function usesStablecoinNetworkFee(): boolean {
   return isMiniPay() && Boolean(getCompetitiveFeeCurrency());
 }
 
+/**
+ * MiniPay rejects EIP-1559 fee fields that viem's writeContract fills in.
+ * Send a legacy-style eth_sendTransaction with feeCurrency only.
+ */
+async function writeContractMiniPay(params: {
+  provider: EthereumProvider;
+  account: Address;
+  address: Address;
+  abi: Abi;
+  functionName: string;
+  args: readonly unknown[];
+}): Promise<Hex> {
+  const data = encodeFunctionData({
+    abi: params.abi,
+    functionName: params.functionName,
+    args: params.args,
+  });
+  const feeCurrency = getCompetitiveFeeCurrency();
+  const pub = publicClient();
+
+  const gas = await pub.estimateGas({
+    account: params.account,
+    to: params.address,
+    data,
+    ...(feeCurrency ? { feeCurrency } : {}),
+  });
+
+  const tx: Record<string, string> = {
+    from: params.account,
+    to: params.address,
+    data,
+    gas: `0x${gas.toString(16)}`,
+  };
+  if (feeCurrency) tx.feeCurrency = feeCurrency;
+
+  const hash = await params.provider.request({
+    method: "eth_sendTransaction",
+    params: [tx],
+  });
+
+  if (typeof hash !== "string" || !hash.startsWith("0x")) {
+    throw new Error("MiniPay did not return a transaction hash");
+  }
+  return hash as Hex;
+}
+
+async function writePartyContract(params: {
+  client: WalletClient;
+  provider: EthereumProvider;
+  account: Address;
+  address: Address;
+  abi: Abi;
+  functionName: string;
+  args: readonly unknown[];
+  chain: ReturnType<typeof getCompetitiveChain>;
+}): Promise<Hex> {
+  if (isMiniPay()) {
+    return writeContractMiniPay({
+      provider: params.provider,
+      account: params.account,
+      address: params.address,
+      abi: params.abi,
+      functionName: params.functionName,
+      args: params.args,
+    });
+  }
+
+  return params.client.writeContract({
+    address: params.address,
+    abi: params.abi,
+    functionName: params.functionName,
+    args: params.args,
+    chain: params.chain,
+    account: params.account,
+    ...partyTxFeeFields(),
+  });
+}
+
 async function assertCanPay(account: Address, totalRaw: bigint): Promise<void> {
   const client = publicClient();
   const usdtBalance = await client.readContract({
@@ -91,9 +228,17 @@ async function assertCanPay(account: Address, totalRaw: bigint): Promise<void> {
   });
 
   const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
+  const required =
+    usesStablecoinNetworkFee() || isMiniPay()
+      ? totalRaw + MINIPAY_FEE_BUFFER_RAW
+      : totalRaw;
 
-  if (usdtBalance < totalRaw) {
-    throw new Error(`Insufficient USDT on ${network}`);
+  if (usdtBalance < required) {
+    throw new Error(
+      isMiniPay()
+        ? "Not enough USDT for this payment and the network fee"
+        : `Insufficient USDT on ${network}`,
+    );
   }
 
   // MiniPay (mainnet) pays the network fee in USDT — skip native CELO check.
@@ -133,7 +278,7 @@ export async function openPartyRoom(params: {
   try {
     const escrow = getEscrowAddress();
     const chain = getCompetitiveChain();
-    const { client, account } = await getWalletClient(params.wallet);
+    const { client, account, provider } = await getWalletClient(params.wallet);
     assertWalletMatchesProfile(account, params.walletAddress);
 
     if (!usesStablecoinNetworkFee() && !isMiniPay()) {
@@ -178,14 +323,15 @@ export async function openPartyRoom(params: {
       throw simError;
     }
 
-    const openTxHash = await client.writeContract({
+    const openTxHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: escrow,
       abi: partyEscrowAbi,
       functionName: "open",
       args: [roomKey],
       chain,
-      account,
-      ...feeFields,
     });
 
     await waitForTx(openTxHash);
@@ -206,7 +352,7 @@ export async function contributeParty(params: {
   try {
     const escrow = getEscrowAddress();
     const chain = getCompetitiveChain();
-    const { client, account } = await getWalletClient(params.wallet);
+    const { client, account, provider } = await getWalletClient(params.wallet);
     assertWalletMatchesProfile(account, params.walletAddress);
 
     const poolAmountRaw = parseUnits(
@@ -219,27 +365,28 @@ export async function contributeParty(params: {
 
     const totalRaw = calcPartyTotalRaw(poolAmountRaw);
     await assertCanPay(account, totalRaw);
-    const feeFields = partyTxFeeFields();
 
-    const approveHash = await client.writeContract({
+    const approveHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: COMPETITIVE_TOKEN.address,
       abi: erc20Abi,
       functionName: "approve",
       args: [escrow, totalRaw],
       chain,
-      account,
-      ...feeFields,
     });
     await waitForTx(approveHash);
 
-    const contributeTxHash = await client.writeContract({
+    const contributeTxHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: escrow,
       abi: partyEscrowAbi,
       functionName: "contribute",
       args: [params.roomKey, poolAmountRaw],
       chain,
-      account,
-      ...feeFields,
     });
     await waitForTx(contributeTxHash);
     return contributeTxHash;
@@ -256,17 +403,17 @@ export async function refundPartyPool(params: {
 }): Promise<Hex> {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
-  const { client, account } = await getWalletClient(params.wallet);
-  const feeFields = partyTxFeeFields();
+  const { client, account, provider } = await getWalletClient(params.wallet);
 
-  const refundTxHash = await client.writeContract({
+  const refundTxHash = await writePartyContract({
+    client,
+    provider,
+    account,
     address: escrow,
     abi: partyEscrowAbi,
     functionName: "refund",
     args: [params.roomKey],
     chain,
-    account,
-    ...feeFields,
   });
 
   await waitForTx(refundTxHash);
@@ -280,17 +427,17 @@ export async function fullRefundParty(params: {
 }): Promise<Hex> {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
-  const { client, account } = await getWalletClient(params.wallet);
-  const feeFields = partyTxFeeFields();
+  const { client, account, provider } = await getWalletClient(params.wallet);
 
-  const refundTxHash = await client.writeContract({
+  const refundTxHash = await writePartyContract({
+    client,
+    provider,
+    account,
     address: escrow,
     abi: partyEscrowAbi,
     functionName: "fullRefund",
     args: [params.roomKey],
     chain,
-    account,
-    ...feeFields,
   });
 
   await waitForTx(refundTxHash);
@@ -305,18 +452,18 @@ export async function kickRefundParty(params: {
 }): Promise<Hex> {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
-  const { client, account } = await getWalletClient(params.wallet);
-  const feeFields = partyTxFeeFields();
+  const { client, account, provider } = await getWalletClient(params.wallet);
 
   try {
-    const txHash = await client.writeContract({
+    const txHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: escrow,
       abi: partyEscrowAbi,
       functionName: "kickRefund",
       args: [params.roomKey, params.player],
       chain,
-      account,
-      ...feeFields,
     });
     await waitForTx(txHash);
     return txHash;
@@ -333,18 +480,18 @@ export async function withdrawPartyContribution(params: {
 }): Promise<Hex> {
   const escrow = getEscrowAddress();
   const chain = getCompetitiveChain();
-  const { client, account } = await getWalletClient(params.wallet);
-  const feeFields = partyTxFeeFields();
+  const { client, account, provider } = await getWalletClient(params.wallet);
 
   try {
-    const txHash = await client.writeContract({
+    const txHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: escrow,
       abi: partyEscrowAbi,
       functionName: "withdrawContribution",
       args: [params.roomKey],
       chain,
-      account,
-      ...feeFields,
     });
     await waitForTx(txHash);
     return txHash;
@@ -361,45 +508,46 @@ export async function purchaseKoins(params: {
   amountUsdt: string | number;
   expectedWalletAddress?: string | null;
 }): Promise<Hex> {
-  const escrow = getEscrowAddress();
-  const chain = getCompetitiveChain();
-  const { client, account } = await getWalletClient(params.wallet);
-  assertWalletMatchesProfile(account, params.expectedWalletAddress);
-
-  const amountRaw = parseUnits(
-    typeof params.amountUsdt === "number"
-      ? params.amountUsdt.toFixed(COMPETITIVE_TOKEN.decimals)
-      : String(params.amountUsdt),
-    COMPETITIVE_TOKEN.decimals,
-  );
-
-  if (amountRaw <= BigInt(0)) {
-    throw new Error("Invalid purchase amount");
-  }
-
-  await assertCanPay(account, amountRaw);
-  const feeFields = partyTxFeeFields();
-
   try {
-    const approveTxHash = await client.writeContract({
+    const escrow = getEscrowAddress();
+    const chain = getCompetitiveChain();
+    const { client, account, provider } = await getWalletClient(params.wallet);
+    assertWalletMatchesProfile(account, params.expectedWalletAddress);
+
+    const amountRaw = parseUnits(
+      typeof params.amountUsdt === "number"
+        ? params.amountUsdt.toFixed(COMPETITIVE_TOKEN.decimals)
+        : String(params.amountUsdt),
+      COMPETITIVE_TOKEN.decimals,
+    );
+
+    if (amountRaw <= BigInt(0)) {
+      throw new Error("Invalid purchase amount");
+    }
+
+    await assertCanPay(account, amountRaw);
+
+    const approveTxHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: COMPETITIVE_TOKEN.address,
       abi: erc20Abi,
       functionName: "approve",
       args: [escrow, amountRaw],
       chain,
-      account,
-      ...feeFields,
     });
     await waitForTx(approveTxHash);
 
-    const purchaseTxHash = await client.writeContract({
+    const purchaseTxHash = await writePartyContract({
+      client,
+      provider,
+      account,
       address: escrow,
       abi: partyEscrowAbi,
       functionName: "purchase",
       args: [params.offerId, amountRaw],
       chain,
-      account,
-      ...feeFields,
     });
     await waitForTx(purchaseTxHash);
     return purchaseTxHash;

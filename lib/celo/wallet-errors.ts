@@ -1,4 +1,5 @@
 import { isCeloSepoliaMode } from "@/lib/celo/constants";
+import { isMiniPay } from "@/lib/minipay/detect";
 
 /** Maps wallet / on-chain failures to a short user-facing message. */
 export function formatCompetitiveTxError(error: unknown): string {
@@ -11,6 +12,7 @@ export function formatCompetitiveTxError(error: unknown): string {
 
   const lower = raw.toLowerCase();
   const network = isCeloSepoliaMode() ? "Celo Sepolia" : "Celo";
+  const inMiniPay = typeof window !== "undefined" && isMiniPay();
 
   if (
     lower.includes("user rejected") ||
@@ -26,6 +28,17 @@ export function formatCompetitiveTxError(error: unknown): string {
   }
 
   if (
+    lower.includes("not enough usdt") ||
+    lower.includes("insufficient usdt") ||
+    lower.includes("transfer amount exceeds balance") ||
+    lower.includes("erc20: transfer amount exceeds balance")
+  ) {
+    return inMiniPay
+      ? "Not enough USDT for this payment and the network fee"
+      : `Not enough USDT on ${network}`;
+  }
+
+  if (
     lower.includes("not enough celo") ||
     lower.includes("need celo for gas") ||
     lower.includes("need celo for network") ||
@@ -33,20 +46,14 @@ export function formatCompetitiveTxError(error: unknown): string {
     lower.includes("insufficient balance") ||
     lower.includes("exceeds balance")
   ) {
-    if (lower.includes("usdt")) {
-      return `Not enough USDT on ${network} (need 0.20)`;
+    if (lower.includes("usdt") || inMiniPay) {
+      return inMiniPay
+        ? "Not enough USDT for this payment and the network fee"
+        : `Not enough USDT on ${network}`;
     }
     return isCeloSepoliaMode()
       ? "Need CELO for gas on Celo Sepolia (USDT alone is not enough). Get free CELO at faucet.celo.org/celo-sepolia"
       : "Need CELO for network fees on Celo (USDT alone is not enough).";
-  }
-
-  if (
-    lower.includes("transfer amount exceeds balance") ||
-    lower.includes("erc20: transfer amount exceeds balance") ||
-    lower.includes("insufficient usdt")
-  ) {
-    return `Not enough USDT on ${network} (need 0.20)`;
   }
 
   if (
@@ -84,5 +91,7 @@ export function formatCompetitiveTxError(error: unknown): string {
     return raw;
   }
 
-  return `Could not complete the transaction. Check network fees on ${network}.`;
+  return inMiniPay
+    ? "Could not complete the transaction. Check your USDT balance and try again."
+    : `Could not complete the transaction. Check network fees on ${network}.`;
 }

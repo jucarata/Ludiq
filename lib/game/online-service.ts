@@ -1103,15 +1103,28 @@ export async function rerollOnlineDice(params: {
   }
 
   const actionId = createActionId();
-  const nextRow = await writeGameState(room.id, state.version, {
-    turn_phase: "playing",
-    remaining_dice: null,
-    last_roll: null,
-    reroll_eligible: false,
-    turn_started_at: new Date().toISOString(),
-    afk_takeover: false,
-    ...actionMeta("reroll", actionId),
-  });
+  let nextRow: GameStateRow;
+  try {
+    nextRow = await writeGameState(room.id, state.version, {
+      turn_phase: "playing",
+      remaining_dice: null,
+      last_roll: null,
+      reroll_eligible: false,
+      turn_started_at: new Date().toISOString(),
+      afk_takeover: false,
+      ...actionMeta("reroll", actionId),
+    });
+  } catch (writeError) {
+    /* Refund if the board update fails after Koins were already deducted. */
+    const { error: refundError } = await supabase.rpc("adjust_profile_koins", {
+      p_profile_id: profileId,
+      p_delta: REROLL_COST_KOINS,
+    });
+    if (refundError) {
+      console.error("Reroll refund failed after write error:", refundError);
+    }
+    throw writeError;
+  }
 
   return {
     room,

@@ -42,10 +42,25 @@ type MiniPayAuthContextValue = {
 
 const MiniPayAuthContext = createContext<MiniPayAuthContextValue | null>(null);
 
+async function readChainId(provider: MiniPayEthereum): Promise<number | null> {
+  try {
+    const value = await provider.request({ method: "eth_chainId" });
+    if (typeof value === "string") {
+      return Number.parseInt(value, value.startsWith("0x") ? 16 : 10);
+    }
+    if (typeof value === "number") return value;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 async function switchInjectedChain(
   provider: MiniPayEthereum,
   chainId: number,
 ): Promise<void> {
+  if ((await readChainId(provider)) === chainId) return;
+
   const hexId = `0x${chainId.toString(16)}`;
   try {
     await provider.request({
@@ -53,6 +68,9 @@ async function switchInjectedChain(
       params: [{ chainId: hexId }],
     });
   } catch (error) {
+    /* MiniPay often rejects redundant switches when already on Celo. */
+    if ((await readChainId(provider)) === chainId) return;
+
     const code =
       typeof error === "object" && error && "code" in error
         ? Number((error as { code: number }).code)
